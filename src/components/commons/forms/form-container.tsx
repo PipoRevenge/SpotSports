@@ -23,7 +23,9 @@ export const FormContainer = ({
   dismissKeyboardOnTouch = true,
 }: FormContainerProps) => {
   const content = (
-    <VStack className="w-full rounded-md border border-background-200 p-4 self-center"
+
+    
+    <VStack className="w-full p-4  rounded-md border border-background-200 self-center"
       space="md">
       <Text className="text-xl font-bold text-center mb-4">{title}</Text>
 

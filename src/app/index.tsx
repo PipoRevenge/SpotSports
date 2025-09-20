@@ -7,15 +7,15 @@ export default function Index() {
   const router = useRouter();
 
   const routes = [
-    { name: "Home", path: "/" },
+    { name: "Test", path: "/test/test-component" },
     { name: "Mapa", path: "/map" },
     { name: "Perfil", path: "/profile" },
     { name: "Sign out", path: "/auth/sign-out" },
     { name: "Sign Up", path: "/auth/sign-up" },
     { name: "Sign In", path: "/auth/sign-in" },
-    { name: "Configuración", path: "/settings" },
-    { name: "Notificaciones", path: "/notifications" },
-    { name: "Favoritos", path: "/favorites" },
+    { name: "Perfil", path: "/profile/profile-index" },
+    { name: "Card-View", path: "/spot/spot-card-view" },
+    { name: "spot", path: "/spot/spot-page" },
   ];
 
   return (

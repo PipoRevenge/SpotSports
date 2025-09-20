@@ -12,8 +12,11 @@ import {
   FormControlLabel,
   FormControlLabelText,
 } from "@/src/components/ui/form-control";
+import { HStack } from "@/src/components/ui/hstack";
 import { AlertCircleIcon, Icon } from "@/src/components/ui/icon";
 import { Input, InputField } from "@/src/components/ui/input";
+import { Pressable } from "@/src/components/ui/pressable";
+import { Text } from "@/src/components/ui/text";
 import { Toast, ToastDescription, ToastTitle, useToast } from "@/src/components/ui/toast";
 import { VStack } from "@/src/components/ui/vstack";
 import {
@@ -25,16 +28,19 @@ import React, { useState } from "react";
 import { TouchableOpacity } from "react-native";
 
 interface SignUpFormProps {
-  onSubmit?: (email: string, password: string, nickname: string, photo?: string) => void;
+  onSubmit?: (email: string, password: string, nickname: string, photo?: string, fullName?: string, bio?: string) => void;
+  onSignInPress?: () => void;
 }
 
-export const SignUpForm: React.FC<SignUpFormProps> = ({ onSubmit }) => {
+export const SignUpForm: React.FC<SignUpFormProps> = ({ onSubmit, onSignInPress }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [nickname, setNickname] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
   const [birthDate, setBirthDate] = useState<Date | null>(null);
+  const [fullName, setFullName] = useState("");
+  const [bio, setBio] = useState("");
 
   // Error states
   const [emailError, setEmailError] = useState(false);
@@ -118,7 +124,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSubmit }) => {
     // If all validations pass
     if (isValid) {
       if (onSubmit) {
-        onSubmit(email, password, nickname, photo || undefined);
+        onSubmit(email, password, nickname, photo || undefined, fullName, bio);
       }
 
       // Show success toast
@@ -166,6 +172,21 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSubmit }) => {
         </Button>
       </VStack>
 
+      {/* Full Name (Optional) */}
+      <FormControl size={"md"} isDisabled={false}>
+        <FormControlLabel>
+          <FormControlLabelText>Full Name (Optional)</FormControlLabelText>
+        </FormControlLabel>
+        <Input>
+          <InputField
+            type="text"
+            value={fullName}
+            onChangeText={setFullName}
+            placeholder="John Doe"
+          />
+        </Input>
+      </FormControl>
+
       {/* Nickname */}
       <FormControl isInvalid={nicknameError} size={"md"} isDisabled={false} isRequired={true}>
         <FormControlLabel>
@@ -188,6 +209,23 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSubmit }) => {
             <FormControlErrorText>Nickname is required and cannot contain spaces.</FormControlErrorText>
           </FormControlError>
         )}
+      </FormControl>
+
+      {/* Bio (Optional) */}
+      <FormControl size={"md"} isDisabled={false}>
+        <FormControlLabel>
+          <FormControlLabelText>Bio (Optional)</FormControlLabelText>
+        </FormControlLabel>
+        <Input>
+          <InputField
+            type="text"
+            value={bio}
+            onChangeText={setBio}
+            placeholder="Tell us about yourself..."
+            multiline
+            numberOfLines={3}
+          />
+        </Input>
       </FormControl>
 
       {/* Birth Date */}
@@ -286,6 +324,16 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSubmit }) => {
       >
         <ButtonText>Sign Up</ButtonText>
       </Button>
+
+      {/* Already have an account section */}
+      <HStack space="sm"className="justify-center align-middle mt-4">
+        <Text>Already have an account?</Text>
+        <Pressable onPress={onSignInPress}>
+          <Text className="text-primary-600 font-bold">
+            Sign In
+          </Text>
+        </Pressable>
+      </HStack>
     </FormContainer>
   );
 };

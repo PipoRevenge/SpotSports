@@ -16,6 +16,7 @@ import {
 } from "@/src/components/ui/form-control";
 import { AlertCircleIcon } from "@/src/components/ui/icon";
 import { Input, InputField } from "@/src/components/ui/input";
+import { Text } from "@/src/components/ui/text";
 import { Toast, ToastDescription, ToastTitle, useToast } from "@/src/components/ui/toast";
 import { VStack } from "@/src/components/ui/vstack";
 import React, { useState } from "react";
@@ -35,7 +36,10 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSubmit }) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
-
+  const handleSingUp = () => {
+    // Aquí puedes añadir la navegación al SignUp
+    console.log("Navegar a Sign Up");
+  }
   const handleSubmit = () => {
     // Reset error states
     let isValid = true;
@@ -157,6 +161,16 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSubmit }) => {
       >
         <ButtonText>Sign In</ButtonText>
       </Button>
+
+      <VStack space="md" className="mt-4 items-center">
+        <Text >Do you haven&apos;t an account?</Text>
+        <Button
+          variant="link"
+          onPress={handleSingUp}
+        >
+          <ButtonText >Sign Up</ButtonText>
+        </Button>
+      </VStack>
     </FormContainer>
   );
 };
