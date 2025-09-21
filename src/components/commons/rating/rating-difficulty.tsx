@@ -26,16 +26,14 @@ const DifficultyRating: React.FC<DifficultyRatingProps> = ({ value }) => {
 
   return (
     <VStack space={2}>
-      <Progress className="w-32 h-3 rounded-full border-spacing-1 border-black" value={percentage} max={100}>
+      <Text className="text-sm">
+        {value}/10 - {getLevel(value)}
+      </Text>
+      <Progress className="w-max h-3 rounded-full border-spacing-1 border-black" value={percentage} max={100}>
         <ProgressFilledTrack 
           className={`${getColor(value)}`} 
         />
       </Progress>
-      
-      <Text className="text-sm">
-        {value}/10 - {getLevel(value)}
-      </Text>
-      
     </VStack>
   );
 };

@@ -28,7 +28,7 @@ export const RatingStarComponent: React.FC<RatingStarProps> = ({
       const baseWidth = containerWidth || screenWidth;
       // Calcula el tamaño basado en el espacio disponible
       // Considera el espacio para las estrellas y márgenes
-      const availableWidth = baseWidth * 0.15; // Usa solo el 15% del ancho disponible
+      const availableWidth = baseWidth * 0.20; // Usa solo el 20% del ancho disponible
       return Math.min(Math.max(availableWidth / maxStars, 12), 30); // Mínimo 12, máximo 30
     }
     return typeof starSize === 'number' ? starSize : 20;
@@ -46,6 +46,11 @@ export const RatingStarComponent: React.FC<RatingStarProps> = ({
 
   return (
     <View style={[styles.container, { width: containerWidth }]}>
+      {showRatingValue && (
+        <Text style={[styles.ratingText, { fontSize: dynamicStarSize * 0.8 }, textStyle]}>
+          {formattedRating}
+        </Text>
+      )}
       <View style={styles.starsContainer}>
         {Array.from({ length: maxStars }).map((_, index) => {
           // Determine star type based on the rating
@@ -64,18 +69,14 @@ export const RatingStarComponent: React.FC<RatingStarProps> = ({
         })}
       </View>
       
-      {showRatingValue && (
-        <Text style={[styles.ratingText, { fontSize: dynamicStarSize * 0.8 }, textStyle]}>
-          {formattedRating}
-        </Text>
-      )}
+      
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     padding: 'auto'
   },
