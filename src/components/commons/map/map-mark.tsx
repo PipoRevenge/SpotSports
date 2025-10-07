@@ -1,15 +1,19 @@
+import { View } from '@components/ui/view';
 import { MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet } from 'react-native';
 import { MapMarkerProps, Marker } from 'react-native-maps';
-import { View } from '../../../components/ui/view';
 
-interface MapMarkProps extends Omit<MapMarkerProps, 'coordinate'> {
+interface MapMarkProps extends Omit<MapMarkerProps, 'coordinate' | 'icon'> {
   latitude: number;
   longitude: number;
   color?: string;
   size?: number;
   onPress?: () => void;
+  customIcon?: {
+    name: keyof typeof MaterialIcons.glyphMap;
+    IconComponent?: typeof MaterialIcons;
+  };
 }
 
 const MapMark: React.FC<MapMarkProps> = ({
@@ -18,6 +22,10 @@ const MapMark: React.FC<MapMarkProps> = ({
   color = '#FF4B4B',
   size = 30,
   onPress,
+  customIcon = {
+    name: 'location-on',
+    IconComponent: MaterialIcons,
+  },
   ...props
 }) => {
   return (
@@ -40,12 +48,21 @@ const MapMark: React.FC<MapMarkProps> = ({
             },
           ]}
         >
-          <MaterialIcons
-            name="location-on"
-            size={size * 0.6}
-            color="white"
-            style={styles.icon}
-          />
+          {customIcon.IconComponent ? (
+            <customIcon.IconComponent
+              name={customIcon.name}
+              size={size * 0.6}
+              color="white"
+              style={styles.icon}
+            />
+          ) : (
+            <MaterialIcons
+              name="location-on"
+              size={size * 0.6}
+              color="white"
+              style={styles.icon}
+            />
+          )}
         </View>
         <View
           style={[

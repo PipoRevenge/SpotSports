@@ -11,7 +11,7 @@ interface RatingStarProps {
   containerWidth?: number;
 }
 
-export const RatingStarComponent: React.FC<RatingStarProps> = ({ 
+export const RatingStar: React.FC<RatingStarProps> = ({ 
   rating, 
   starSize = 'responsive',
   showRatingValue = true,
@@ -92,4 +92,4 @@ const styles = StyleSheet.create({
   }
 });
 
-export default RatingStarComponent;
+export default RatingStar;

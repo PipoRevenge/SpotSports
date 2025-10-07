@@ -39,6 +39,8 @@ const CustomMapView = React.forwardRef<MapView, CustomMapViewProps>((props, ref)
   );
 });
 
+CustomMapView.displayName = 'CustomMapView';
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,

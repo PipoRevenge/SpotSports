@@ -1,4 +1,5 @@
-import DifficultyRating from "@/src/components/commons/rating/rating-difficulty";
+import DifficultyRating from "@/src/components/commons/rating-difficulty/rating-difficulty";
+import { RatingStar } from "@/src/components/commons/rating-start/rating-star";
 import { HStack } from "@/src/components/ui/hstack";
 import { Popover, PopoverArrow, PopoverBody, PopoverContent, PopoverHeader } from "@/src/components/ui/popover";
 import {
@@ -9,20 +10,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/src/components/ui/table";
-import { SportDetail } from "@/src/types/spot";
-import { RatingStarComponent } from "@components/commons/rating/rating-star-component";
+import { SportSpotRating } from "@/src/types/spot";
+
+
 import { Icon } from "@components/ui/icon";
 import { Text } from "@components/ui/text";
 import { InfoIcon } from "lucide-react-native";
 import React, { useState } from "react";
-
 import { Pressable, View } from "react-native";
 
 interface SportRatingSpotTableProps {
-  sports: SportDetail[];
+  sports: SportSpotRating[];
 }
 
-export const SportRatingSpotTable: React.FC<SportRatingSpotTableProps> = ({
+
+export const SpotSportsTable: React.FC<SportRatingSpotTableProps> = ({
   sports,
 }) => {
   const [openPopoverIndex, setOpenPopoverIndex] = useState<number | null>(null);
@@ -50,7 +52,7 @@ export const SportRatingSpotTable: React.FC<SportRatingSpotTableProps> = ({
             <TableData className="flex items-center ">
               <HStack className="h-full w-fit flex items-center justify-between  ">
                 <Text className="font-semibold ">
-                  {sport.name}
+                  {sport.sportName}
                 </Text>
                 <Popover
                   isOpen={openPopoverIndex === index}
@@ -72,10 +74,10 @@ export const SportRatingSpotTable: React.FC<SportRatingSpotTableProps> = ({
                   <PopoverContent className="w-56">
                     <PopoverArrow />
                     <PopoverHeader>
-                      <Text className="text-base font-bold">{sport.name}</Text>
+                      <Text className="text-base font-bold">{sport.sportName}</Text>
                     </PopoverHeader>
                     <PopoverBody>
-                      <Text className="text-gray-600">{sport.description}</Text>
+                      <Text className="text-gray-600">{sport.sportId}</Text>
                     </PopoverBody>
                   </PopoverContent>
                 </Popover>
@@ -83,13 +85,13 @@ export const SportRatingSpotTable: React.FC<SportRatingSpotTableProps> = ({
             </TableData>
             <TableData>
                 <View className="flex justify-center ">
-                  <DifficultyRating value={sport.difficultyLevel} />
+                  <DifficultyRating value={sport.difficulty} />
                 </View>
             </TableData>
             <TableData>
                   <View className="flex justify-center ">
                   {sport.rating !== undefined && (
-                    <RatingStarComponent  rating={sport.rating} maxStars={5} />
+                    <RatingStar  rating={sport.rating} maxStars={5} />
                   )}
                   </View>
 
@@ -101,4 +103,4 @@ export const SportRatingSpotTable: React.FC<SportRatingSpotTableProps> = ({
   );
 };
 
-export default SportRatingSpotTable;
+export default SpotSportsTable;

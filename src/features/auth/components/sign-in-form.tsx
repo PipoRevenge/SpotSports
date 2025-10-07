@@ -16,79 +16,66 @@ import {
 } from "@/src/components/ui/form-control";
 import { AlertCircleIcon } from "@/src/components/ui/icon";
 import { Input, InputField } from "@/src/components/ui/input";
-import { Text } from "@/src/components/ui/text";
-import { Toast, ToastDescription, ToastTitle, useToast } from "@/src/components/ui/toast";
-import { VStack } from "@/src/components/ui/vstack";
+
 import React, { useState } from "react";
+import { AuthFormErrors, SignInFormData } from "../types/auth";
+import { validateSignInForm } from "../utils/validation";
 
 interface SignInFormProps {
   onSubmit?: (email: string, password: string) => void;
+  onSignUpPress?: () => void;
+  isLoading?: boolean;
 }
 
-export const SignInForm: React.FC<SignInFormProps> = ({ onSubmit }) => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [emailError, setEmailError] = useState(false);
-  const [passwordError, setPasswordError] = useState(false);
-  const toast = useToast();
+const VALIDATION_MESSAGES = {
+  email: "Must be a valid email address.",
+  password: "At least 6 characters are required.",
+} as const;
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+
+
+export const SignInForm: React.FC<SignInFormProps> = ({ 
+  onSubmit, 
+  onSignUpPress, 
+  isLoading = false 
+}) => {
+  const [formData, setFormData] = useState<SignInFormData>({
+    email: "",
+    password: "",
+  });
+  const [errors, setErrors] = useState<AuthFormErrors>({});
+
+
+  const updateFormField = (field: keyof SignInFormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: false }));
+    }
   };
-  const handleSingUp = () => {
-    // Aquí puedes añadir la navegación al SignUp
-    console.log("Navegar a Sign Up");
-  }
+
+
+
   const handleSubmit = () => {
-    // Reset error states
-    let isValid = true;
+    const validation = validateSignInForm(formData.email, formData.password);
     
-    // Validate email
-    if (!validateEmail(email)) {
-      setEmailError(true);
-      isValid = false;
-    } else {
-      setEmailError(false);
+    if (!validation.isValid) {
+      setErrors(validation.errors);
+      return;
     }
-    
-    // Validate password
-    if (password.length < 6) {
-      setPasswordError(true);
-      isValid = false;
-    } else {
-      setPasswordError(false);
-    }
-    
-    // If all validations pass
-    if (isValid) {
-      if (onSubmit) {
-        onSubmit(email, password);
-      }
-      
-      // Show success toast
-      toast.show({
-        placement: "top",
-        render: ({ id }) => {
-          return (
-            <Toast nativeID={`toast-${id}`} action="success">
-              <VStack space="xs">
-                <ToastTitle>¡Éxito!</ToastTitle>
-                <ToastDescription>Hola, has iniciado sesión correctamente</ToastDescription>
-              </VStack>
-            </Toast>
-          );
-        },
-      });
+
+    if (onSubmit) {
+      onSubmit(formData.email, formData.password);
+      // Toast de éxito se manejará desde el componente padre tras confirmación
     }
   };
 
   return (
     <FormContainer title="Sign In" dismissKeyboardOnTouch={true}>
       <FormControl
-        isInvalid={emailError}
+        isInvalid={errors.email}
         size={"md"}
-        isDisabled={false}
+        isDisabled={isLoading}
         isRequired={true}
       >
         <FormControlLabel>
@@ -97,32 +84,33 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSubmit }) => {
         <Input>
           <InputField 
             type="text" 
-            value={email} 
-            onChangeText={setEmail}
-            placeholder="email" 
+            value={formData.email} 
+            onChangeText={(value) => updateFormField('email', value)}
+            placeholder="email"
+            testID="sign-in-email-input"
           />
         </Input>
 
         <FormControlHelper>
           <FormControlHelperText>
-            Must be a valid email address.
+            {VALIDATION_MESSAGES.email}
           </FormControlHelperText>
         </FormControlHelper>
 
-        {emailError && (
+        {errors.email && (
           <FormControlError>
             <FormControlErrorIcon as={AlertCircleIcon} />
             <FormControlErrorText>
-              Must be a valid email address.
+              {VALIDATION_MESSAGES.email}
             </FormControlErrorText>
           </FormControlError>
         )}
       </FormControl>
 
       <FormControl
-        isInvalid={passwordError}
+        isInvalid={errors.password}
         size={"md"}
-        isDisabled={false}
+        isDisabled={isLoading}
         isRequired={true}
       >
         <FormControlLabel>
@@ -131,23 +119,24 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSubmit }) => {
         <Input>
           <InputField 
             type="password" 
-            value={password}
-            onChangeText={setPassword}
-            placeholder="password" 
+            value={formData.password}
+            onChangeText={(value) => updateFormField('password', value)}
+            placeholder="password"
+            testID="sign-in-password-input"
           />
         </Input>
 
         <FormControlHelper>
           <FormControlHelperText>
-            Must be at least 6 characters.
+            {VALIDATION_MESSAGES.password}
           </FormControlHelperText>
         </FormControlHelper>
 
-        {passwordError && (
+        {errors.password && (
           <FormControlError>
             <FormControlErrorIcon as={AlertCircleIcon} />
             <FormControlErrorText>
-              At least 6 characters are required.
+              {VALIDATION_MESSAGES.password}
             </FormControlErrorText>
           </FormControlError>
         )}
@@ -156,21 +145,13 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSubmit }) => {
         action={"primary"}
         variant={"solid"}
         size={"lg"}
-        isDisabled={false}
+        isDisabled={isLoading}
         onPress={handleSubmit}
+        testID="sign-in-submit-button"
       >
         <ButtonText>Sign In</ButtonText>
       </Button>
 
-      <VStack space="md" className="mt-4 items-center">
-        <Text >Do you haven&apos;t an account?</Text>
-        <Button
-          variant="link"
-          onPress={handleSingUp}
-        >
-          <ButtonText >Sign Up</ButtonText>
-        </Button>
-      </VStack>
     </FormContainer>
   );
 };

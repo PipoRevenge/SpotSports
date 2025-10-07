@@ -1,15 +1,15 @@
-import SportRatingSpotTable from "@/src/features/sport/components/sport-rating-spot-table";
-import { SpotDataDetails } from "@/src/features/spots/components/spot-data-details";
-import { exampleSpot } from "@/src/types/spot";
-import { Button, ButtonText } from "@components/ui/button";
+
+import { SafeAreaView } from "@components/ui/safe-area-view";
+import { Text } from "@components/ui/text";
 import React, { useState } from "react";
 import { ScrollView } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 
 export const SpotPage = () => {
     const [isTableVisible, setIsTableVisible] = useState(false);
 
+    
+    
     const toggleTableVisibility = () => {
         setIsTableVisible(!isTableVisible);
     };
@@ -17,17 +17,7 @@ export const SpotPage = () => {
     return (
         <SafeAreaView>
             <ScrollView className="w-full p-3">
-                <SpotDataDetails spot={exampleSpot} />
-                
-                <Button className="w-max m-4" onPress={toggleTableVisibility}>
-                   <ButtonText> {isTableVisible ? "Ocultar Tabla de Deportes" : "Mostrar Tabla de Deportes"}
-                   </ButtonText>
-                </Button>
-
-                {isTableVisible && (
-                    <SportRatingSpotTable sports={exampleSpot.sportsReviewed} />
-                )}
-
+               <Text className="text-2xl font-bold mb-4">Spot Details</Text>
             </ScrollView>
         </SafeAreaView>
     );

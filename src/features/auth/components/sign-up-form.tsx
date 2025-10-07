@@ -12,12 +12,9 @@ import {
   FormControlLabel,
   FormControlLabelText,
 } from "@/src/components/ui/form-control";
-import { HStack } from "@/src/components/ui/hstack";
 import { AlertCircleIcon, Icon } from "@/src/components/ui/icon";
 import { Input, InputField } from "@/src/components/ui/input";
-import { Pressable } from "@/src/components/ui/pressable";
-import { Text } from "@/src/components/ui/text";
-import { Toast, ToastDescription, ToastTitle, useToast } from "@/src/components/ui/toast";
+
 import { VStack } from "@/src/components/ui/vstack";
 import {
   Button,
@@ -26,121 +23,97 @@ import {
 import { Camera } from "lucide-react-native";
 import React, { useState } from "react";
 import { TouchableOpacity } from "react-native";
+import { AuthFormErrors, SignUpFormData } from "../types/auth";
+import { validateSignUpForm } from "../utils/validation";
 
 interface SignUpFormProps {
-  onSubmit?: (email: string, password: string, nickname: string, photo?: string, fullName?: string, bio?: string) => void;
+  onSubmit?: (
+    email: string, 
+    password: string, 
+    userName: string, 
+    photo?: string, 
+    birthDate?: Date, 
+    fullName?: string, 
+    bio?: string
+  ) => void;
   onSignInPress?: () => void;
+  isLoading?: boolean;
 }
 
-export const SignUpForm: React.FC<SignUpFormProps> = ({ onSubmit, onSignInPress }) => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [nickname, setNickname] = useState("");
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [birthDate, setBirthDate] = useState<Date | null>(null);
-  const [fullName, setFullName] = useState("");
-  const [bio, setBio] = useState("");
+const VALIDATION_MESSAGES = {
+  email: "Must be a valid email address.",
+  password: "At least 6 characters are required.",
+  confirmPassword: "Passwords do not match.",
+  username: "Nickname is required and cannot contain spaces.",
+  birthDate: "You must be at least 14 years old.",
+} as const;
 
-  // Error states
-  const [emailError, setEmailError] = useState(false);
-  const [passwordError, setPasswordError] = useState(false);
-  const [confirmPasswordError, setConfirmPasswordError] = useState(false);
-  const [nicknameError, setNicknameError] = useState(false);
-  const [birthDateError, setBirthDateError] = useState(false);
+const AVATAR_CONFIG = {
+  size: "xl" as const,
+  fallbackPrefix: "Usuario",
+} as const;
 
-  const toast = useToast();
+export const SignUpForm: React.FC<SignUpFormProps> = ({ 
+  onSubmit, 
+  onSignInPress, 
+  isLoading = false 
+}) => {
+  const [formData, setFormData] = useState<SignUpFormData>({
+    email: "",
+    password: "",
+    confirmPassword: "",
+    username: "",
+    photo: undefined,
+    birthDate: undefined,
+    fullName: "",
+    bio: "",
+  });
+  const [errors, setErrors] = useState<AuthFormErrors>({});
+
   const { pickImage } = useImagePicker();
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const validateNickname = (nickname: string) => {
-    return nickname.trim().length > 0 && !nickname.includes(" ");
-  };
-
-  const validateBirthDate = (date: Date | null) => {
-    if (!date) return false;
-    const today = new Date();
-    const age = today.getFullYear() - date.getFullYear();
-    const monthDiff = today.getMonth() - date.getMonth();
-    const dayDiff = today.getDate() - date.getDate();
-    return age > 14 || (age === 14 && (monthDiff > 0 || (monthDiff === 0 && dayDiff >= 0)));
+  const updateFormField = <K extends keyof SignUpFormData>(
+    field: K, 
+    value: SignUpFormData[K]
+  ) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field as keyof AuthFormErrors]) {
+      setErrors(prev => ({ ...prev, [field]: false }));
+    }
   };
 
   const handlePickImage = async () => {
     const result = await pickImage();
     if (result.uri) {
-      setPhoto(result.uri);
+      updateFormField('photo', result.uri);
     }
   };
 
   const handleSubmit = () => {
-    // Reset error states
-    let isValid = true;
+    const validation = validateSignUpForm(
+      formData.email,
+      formData.password,
+      formData.confirmPassword,
+      formData.username,
+      formData.birthDate ?? null
+    );
 
-    // Validate email
-    if (!validateEmail(email)) {
-      setEmailError(true);
-      isValid = false;
-    } else {
-      setEmailError(false);
+    if (!validation.isValid) {
+      setErrors(validation.errors);
+      return;
     }
 
-    // Validate nickname
-    if (!validateNickname(nickname)) {
-      setNicknameError(true);
-      isValid = false;
-    } else {
-      setNicknameError(false);
-    }
-
-    // Validate password
-    if (password.length < 6) {
-      setPasswordError(true);
-      isValid = false;
-    } else {
-      setPasswordError(false);
-    }
-
-    // Validate password confirmation
-    if (password !== confirmPassword) {
-      setConfirmPasswordError(true);
-      isValid = false;
-    } else {
-      setConfirmPasswordError(false);
-    }
-
-    // Validate birth date
-    if (!validateBirthDate(birthDate)) {
-      setBirthDateError(true);
-      isValid = false;
-    } else {
-      setBirthDateError(false);
-    }
-
-    // If all validations pass
-    if (isValid) {
-      if (onSubmit) {
-        onSubmit(email, password, nickname, photo || undefined, fullName, bio);
-      }
-
-      // Show success toast
-      toast.show({
-        placement: "top",
-        render: ({ id }) => {
-          return (
-            <Toast nativeID={`toast-${id}`} action="success">
-              <VStack space="xs">
-                <ToastTitle>¡Registro exitoso!</ToastTitle>
-                <ToastDescription>Bienvenido a SpotSport</ToastDescription>
-              </VStack>
-            </Toast>
-          );
-        },
-      });
+    if (onSubmit && formData.birthDate) {
+      onSubmit(
+        formData.email,
+        formData.password,
+        formData.username,
+        formData.photo || undefined,
+        formData.birthDate,
+        formData.fullName,
+        formData.bio
+      );
     }
   };
 
@@ -148,15 +121,15 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSubmit, onSignInPress 
     <FormContainer title="Sign Up" dismissKeyboardOnTouch={true}>
       {/* Profile Photo Upload Section */}
       <VStack space="md" style={{ alignItems: "center", marginBottom: 16 }}>
-        <TouchableOpacity onPress={handlePickImage} >
-          {photo ? (
-            <Avatar size="xl" className="mb-2">
-              <AvatarImage source={{ uri: photo }} />
+        <TouchableOpacity onPress={handlePickImage} testID="profile-photo-selector">
+          {formData.photo ? (
+            <Avatar size={AVATAR_CONFIG.size} className="mb-2">
+              <AvatarImage source={{ uri: formData.photo }} />
             </Avatar>
           ) : (
-            <Avatar size="xl" >
-              <AvatarFallbackText size={"xl"}>
-                {  nickname || "Usuario"}
+            <Avatar size={AVATAR_CONFIG.size}>
+              <AvatarFallbackText size={AVATAR_CONFIG.size}>
+                {formData.username || AVATAR_CONFIG.fallbackPrefix}
               </AvatarFallbackText>
             </Avatar>
           )}
@@ -166,6 +139,8 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSubmit, onSignInPress 
           variant="solid"
           size="sm"
           onPress={handlePickImage}
+          isDisabled={isLoading}
+          testID="select-photo-button"
         >
           <Icon as={Camera} className="color-white dark:color-black" />
           <ButtonText>Seleccionar Foto</ButtonText>
@@ -173,143 +148,177 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSubmit, onSignInPress 
       </VStack>
 
       {/* Full Name (Optional) */}
-      <FormControl size={"md"} isDisabled={false}>
+      <FormControl size={"md"} isDisabled={isLoading}>
         <FormControlLabel>
           <FormControlLabelText>Full Name (Optional)</FormControlLabelText>
         </FormControlLabel>
         <Input>
           <InputField
             type="text"
-            value={fullName}
-            onChangeText={setFullName}
+            value={formData.fullName}
+            onChangeText={(value) => updateFormField('fullName', value)}
             placeholder="John Doe"
+            testID="sign-up-fullname-input"
           />
         </Input>
       </FormControl>
 
       {/* Nickname */}
-      <FormControl isInvalid={nicknameError} size={"md"} isDisabled={false} isRequired={true}>
+      <FormControl 
+        isInvalid={errors.username} 
+        size={"md"} 
+        isDisabled={isLoading} 
+        isRequired={true}
+      >
         <FormControlLabel>
           <FormControlLabelText>Nickname</FormControlLabelText>
         </FormControlLabel>
         <Input>
           <InputField
             type="text"
-            value={nickname}
-            onChangeText={setNickname}
-            placeholder="username"
+            value={formData.username}
+            onChangeText={(value) => updateFormField('username', value)}
+            placeholder="userName"
+            testID="sign-up-username-input"
           />
         </Input>
         <FormControlHelper>
           <FormControlHelperText>Must not contain spaces.</FormControlHelperText>
         </FormControlHelper>
-        {nicknameError && (
+        {errors.username && (
           <FormControlError>
             <FormControlErrorIcon as={AlertCircleIcon} />
-            <FormControlErrorText>Nickname is required and cannot contain spaces.</FormControlErrorText>
+            <FormControlErrorText>{VALIDATION_MESSAGES.username}</FormControlErrorText>
           </FormControlError>
         )}
       </FormControl>
 
       {/* Bio (Optional) */}
-      <FormControl size={"md"} isDisabled={false}>
+      <FormControl size={"md"} isDisabled={isLoading}>
         <FormControlLabel>
           <FormControlLabelText>Bio (Optional)</FormControlLabelText>
         </FormControlLabel>
         <Input>
           <InputField
             type="text"
-            value={bio}
-            onChangeText={setBio}
+            value={formData.bio}
+            onChangeText={(value) => updateFormField('bio', value)}
             placeholder="Tell us about yourself..."
             multiline
             numberOfLines={3}
+            testID="sign-up-bio-input"
           />
         </Input>
       </FormControl>
 
       {/* Birth Date */}
-      <FormControl isInvalid={birthDateError} size={"md"} isDisabled={false} isRequired={true}>
+      <FormControl 
+        isInvalid={errors.birthDate} 
+        size={"md"} 
+        isDisabled={isLoading} 
+        isRequired={true}
+      >
         <FormControlLabel>
           <FormControlLabelText>Birth Date</FormControlLabelText>
         </FormControlLabel>
-        <DatePickerComponent value={birthDate} onChange={setBirthDate} />
-        {birthDateError && (
+        <DatePickerComponent 
+          value={formData.birthDate ?? null} 
+          onChange={(date) => updateFormField('birthDate', date ?? undefined)}
+        />
+        {errors.birthDate && (
           <FormControlError>
             <FormControlErrorIcon as={AlertCircleIcon} />
-            <FormControlErrorText>You must be at least 14 years old.</FormControlErrorText>
+            <FormControlErrorText>{VALIDATION_MESSAGES.birthDate}</FormControlErrorText>
           </FormControlError>
         )}
       </FormControl>
 
       {/* Email */}
-      <FormControl isInvalid={emailError} size={"md"} isDisabled={false} isRequired={true}>
+      <FormControl 
+        isInvalid={errors.email} 
+        size={"md"} 
+        isDisabled={isLoading} 
+        isRequired={true}
+      >
         <FormControlLabel>
           <FormControlLabelText>Email</FormControlLabelText>
         </FormControlLabel>
         <Input>
           <InputField
             type="text"
-            value={email}
-            onChangeText={setEmail}
+            value={formData.email}
+            onChangeText={(value) => updateFormField('email', value)}
             placeholder="email"
+            testID="sign-up-email-input"
           />
         </Input>
         <FormControlHelper>
-          <FormControlHelperText>Must be a valid email address.</FormControlHelperText>
+          <FormControlHelperText>{VALIDATION_MESSAGES.email}</FormControlHelperText>
         </FormControlHelper>
-        {emailError && (
+        {errors.email && (
           <FormControlError>
             <FormControlErrorIcon as={AlertCircleIcon} />
-            <FormControlErrorText>Must be a valid email address.</FormControlErrorText>
+            <FormControlErrorText>{VALIDATION_MESSAGES.email}</FormControlErrorText>
           </FormControlError>
         )}
       </FormControl>
 
       {/* Password */}
-      <FormControl isInvalid={passwordError} size={"md"} isDisabled={false} isRequired={true}>
+      <FormControl 
+        isInvalid={errors.password} 
+        size={"md"} 
+        isDisabled={isLoading} 
+        isRequired={true}
+      >
         <FormControlLabel>
           <FormControlLabelText>Password</FormControlLabelText>
         </FormControlLabel>
         <Input>
           <InputField
             type="password"
-            value={password}
-            onChangeText={setPassword}
+            value={formData.password}
+            onChangeText={(value) => updateFormField('password', value)}
             placeholder="password"
+            testID="sign-up-password-input"
           />
         </Input>
         <FormControlHelper>
-          <FormControlHelperText>Must be at least 6 characters.</FormControlHelperText>
+          <FormControlHelperText>{VALIDATION_MESSAGES.password}</FormControlHelperText>
         </FormControlHelper>
-        {passwordError && (
+        {errors.password && (
           <FormControlError>
             <FormControlErrorIcon as={AlertCircleIcon} />
-            <FormControlErrorText>At least 6 characters are required.</FormControlErrorText>
+            <FormControlErrorText>{VALIDATION_MESSAGES.password}</FormControlErrorText>
           </FormControlError>
         )}
       </FormControl>
 
       {/* Confirm Password */}
-      <FormControl isInvalid={confirmPasswordError} size={"md"} isDisabled={false} isRequired={true}>
+      <FormControl 
+        isInvalid={errors.confirmPassword} 
+        size={"md"} 
+        isDisabled={isLoading} 
+        isRequired={true}
+      >
         <FormControlLabel>
           <FormControlLabelText>Confirm Password</FormControlLabelText>
         </FormControlLabel>
         <Input>
           <InputField
             type="password"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
+            value={formData.confirmPassword}
+            onChangeText={(value) => updateFormField('confirmPassword', value)}
             placeholder="confirm password"
+            testID="sign-up-confirm-password-input"
           />
         </Input>
         <FormControlHelper>
           <FormControlHelperText>Must match the password above.</FormControlHelperText>
         </FormControlHelper>
-        {confirmPasswordError && (
+        {errors.confirmPassword && (
           <FormControlError>
             <FormControlErrorIcon as={AlertCircleIcon} />
-            <FormControlErrorText>Passwords do not match.</FormControlErrorText>
+            <FormControlErrorText>{VALIDATION_MESSAGES.confirmPassword}</FormControlErrorText>
           </FormControlError>
         )}
       </FormControl>
@@ -319,24 +328,12 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSubmit, onSignInPress 
         action={"primary"}
         variant={"solid"}
         size={"lg"}
-        isDisabled={false}
+        isDisabled={isLoading}
         onPress={handleSubmit}
+        testID="sign-up-submit-button"
       >
         <ButtonText>Sign Up</ButtonText>
       </Button>
-
-      {/* Already have an account section */}
-      <HStack space="sm"className="justify-center align-middle mt-4">
-        <Text>Already have an account?</Text>
-        <Pressable onPress={onSignInPress}>
-          <Text className="text-primary-600 font-bold">
-            Sign In
-          </Text>
-        </Pressable>
-      </HStack>
     </FormContainer>
   );
 };
-
-
-export default SignUpForm;

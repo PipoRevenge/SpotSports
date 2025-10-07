@@ -1,22 +1,30 @@
-
 import { Avatar, AvatarFallbackText, AvatarImage } from "@/src/components/ui/avatar";
 import { Button, ButtonText } from "@/src/components/ui/button";
 import { Card } from "@/src/components/ui/card";
 import { Heading } from "@/src/components/ui/heading";
+import { HStack } from "@/src/components/ui/hstack";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
-import {
-  User, exampleUser
-} from "@/src/types/user";
-import React, { useState } from "react";
+import { useUser } from "@/src/context/user-context";
+import { router } from "expo-router";
+import React from "react";
 import { View } from "react-native";
-
-
+import { useProfileActions } from "../hooks/use-profile-actions";
 
 export const ProfileView: React.FC = () => {
-  const [user] = useState<User>(exampleUser);
+  const { user } = useUser();
+  const { signOut, isSigningOut } = useProfileActions();
 
   const handleEditPress = () => {
+    router.push('/profile/profile-edit');
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
+  if (!user) {
+    return null;
   }
 
   return (
@@ -26,9 +34,21 @@ export const ProfileView: React.FC = () => {
           <Text size="xl" className="font-bold">
             Perfil
           </Text>
-          <Button size="sm" variant="outline" onPress={handleEditPress}>
-            <ButtonText>Editar</ButtonText>
-          </Button>
+          <HStack space="sm">
+            <Button size="sm" variant="outline" onPress={handleEditPress}>
+              <ButtonText>Editar</ButtonText>
+            </Button>
+            <Button 
+              size="sm" 
+              variant="solid" 
+              action="negative"
+              onPress={handleSignOut}
+              isDisabled={isSigningOut}
+              testID="profile-sign-out-button"
+            >
+              <ButtonText>{isSigningOut ? "Cerrando..." : "Cerrar Sesión"}</ButtonText>
+            </Button>
+          </HStack>
         </View>
       </Heading>
 
@@ -36,30 +56,30 @@ export const ProfileView: React.FC = () => {
         {/* Foto de perfil y nombre */}
         <View className="flex-row items-center mb-4">
           <Avatar size="lg" className="mr-4">
-            {user?.photoURL ? (
-              <AvatarImage source={{ uri: user.photoURL }} />
+            {user.userDetails.fullName && user.userDetails.photoURL ? (
+              <AvatarImage source={{ uri: user.userDetails.photoURL }} />
             ) : (
               <AvatarFallbackText>
-                {user?.fullName || user?.username || "Usuario"}
+                {user?.userDetails.fullName || user?.userDetails.userName || "Usuario"}
               </AvatarFallbackText>
             )}
           </Avatar>
           <VStack space="xs">
             <Text size="lg" className="font-bold">
-              {user?.fullName || "Nombre no disponible"}
+              {user?.userDetails.fullName || "Nombre no disponible"}
             </Text>
             <Text className="text-gray-500">
-              @{user?.username || "username"}
+              @{user?.userDetails.userName || "userName"}
             </Text>
-            <Text className="text-gray-500">{user?.email}</Text>
+            <Text className="text-gray-500">{user.userDetails.email}</Text>
           </VStack>
         </View>
 
         {/* Información adicional */}
         <View className="mt-4">
           <Text className="text-gray-800 font-medium mb-1">Biografía</Text>
-          {user?.bio ? (
-            <Text className="text-gray-700">{user.bio}</Text>
+          {user.userDetails.bio ? (
+            <Text className="text-gray-700">{user.userDetails .bio}</Text>
           ) : (
             <Text className="text-gray-500 italic">
               No hay biografía disponible
@@ -68,19 +88,19 @@ export const ProfileView: React.FC = () => {
         </View>
 
         {/* Otros datos */}
-        {user?.birthDate && (
+        {user?.userDetails.birthDate && (
           <View className="mt-3">
             <Text className="text-gray-800 font-medium mb-1">
               Fecha de nacimiento
             </Text>
-            <Text className="text-gray-700">{user.birthDate}</Text>
+            <Text className="text-gray-700">{user.userDetails.birthDate}</Text>
           </View>
         )}
 
-        {user?.phoneNumber && (
+        {user.userDetails.phoneNumber && (
           <View className="mt-3">
             <Text className="text-gray-800 font-medium mb-1">Teléfono</Text>
-            <Text className="text-gray-700">{user.phoneNumber}</Text>
+            <Text className="text-gray-700">{user.userDetails.phoneNumber}</Text>
           </View>
         )}
       </View>

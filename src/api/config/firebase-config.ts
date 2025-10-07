@@ -1,0 +1,73 @@
+// Import the functions you need from the SDKs you need
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { initializeApp } from "firebase/app";
+import {
+  browserLocalPersistence,
+  connectAuthEmulator,
+  //@ts-ignore line
+  getReactNativePersistence,
+  indexedDBLocalPersistence,
+  initializeAuth,
+} from "firebase/auth";
+import { connectDatabaseEmulator, getDatabase } from "firebase/database";
+import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
+import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
+import { connectStorageEmulator, getStorage } from "firebase/storage";
+import { Platform } from "react-native";
+
+// Your web app's Firebase configuration
+// Consider using a more secure way to handle environment variables if needed
+export const firebaseConfig = {
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+console.log('Firebase initialized:', app.name);
+// Initialize auth with persistence
+const auth =
+  Platform.OS === "web"
+    ? initializeAuth(app, {
+        persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+      })
+    : initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage),
+      });
+
+// Initialize services
+const firestore = getFirestore(app);
+const database = getDatabase(app);
+const functions = getFunctions(app);
+const storage = getStorage(app);
+
+// Replace 'YOUR_LOCAL_IP' with the actual IP address of your machine
+// Or use environment variables for configuration
+const localIp = process.env.EXPO_PUBLIC_EMULATOR_IP || "10.0.2.2"; // Default for Android emulator
+
+// Connect to emulators in development environment
+// Use __DEV__ global variable provided by React Native/Expo
+if (__DEV__) {
+  try {
+    // Use try-catch for emulator connections as they might fail
+    connectAuthEmulator(auth, `http://${localIp}:9099`, {
+      disableWarnings: false,
+    });
+    connectFirestoreEmulator(firestore, localIp, 8080);
+    connectDatabaseEmulator(database, localIp, 9000);
+    connectFunctionsEmulator(functions, localIp, 5001);
+    connectStorageEmulator(storage, localIp, 9199);
+    console.log("Connected to Firebase Emulators");
+  } catch (error) {
+    console.error("Error connecting to Firebase Emulators:", error);
+  }
+}
+
+// Export the services
+export { app, auth, database, firestore, functions, localIp, storage };
+
