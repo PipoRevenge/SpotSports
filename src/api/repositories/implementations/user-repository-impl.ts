@@ -2,31 +2,23 @@ import { User, UserDetails } from '@/src/types/user';
 import {
     arrayRemove,
     arrayUnion,
+    collection,
     doc,
     getDoc,
+    getDocs,
+    query,
     setDoc,
-    updateDoc
+    updateDoc,
+    where
 } from 'firebase/firestore';
 import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
 import { firestore } from '../../config/firebase-config';
 import { IUserRepository } from '../interfaces/i-user-repository';
-
-interface UserFirebase {
-    userDetails: UserDetails;
-    metadata: {
-        createdAt: Date;
-        updatedAt: Date;
-    };
-    isVerified: false;
-}
-
-
+import { UserFirebase, UserMapper } from '../mappers/user-mapper';
 
 export class UserRepositoryImpl implements IUserRepository {
     private readonly USERS_COLLECTION = 'users';
     private readonly storage = getStorage();
-
-    
 
     async createUser(userId: string, userData: Partial<UserDetails>): Promise<boolean> {
         try {
@@ -34,24 +26,13 @@ export class UserRepositoryImpl implements IUserRepository {
                 throw new Error('User ID is required');
             }
 
-            const newUser: UserFirebase = {
-                
-                userDetails: {
-                    email: userData.email || "",
-                    userName: userData.userName || "",
-                    photoURL: userData.photoURL || "",
-                    fullName: userData.fullName || "",
-                    bio: userData.bio || "",
-                    birthDate: userData.birthDate || "",
-                    phoneNumber: userData.phoneNumber || "",
-                } as UserDetails,
-                
-                metadata: {
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                },
-                isVerified: false,
-            };
+            // Validar datos requeridos
+            if (!UserMapper.validateUserData(userData)) {
+                throw new Error('Email and userName are required');
+            }
+
+            // Convertir a formato Firebase usando el mapper
+            const newUser: UserFirebase = UserMapper.createUserToFirebase(userData);
 
             const userRef = doc(firestore, this.USERS_COLLECTION, userId);
 
@@ -72,7 +53,9 @@ export class UserRepositoryImpl implements IUserRepository {
                 throw new Error('User not found');
             }
             
-            return userDoc.data() as User;
+            // Convertir de Firebase a modelo de la aplicación usando el mapper
+            const firebaseUser = userDoc.data() as UserFirebase;
+            return UserMapper.fromFirebase(firebaseUser, userId);
         } catch (error) {
             console.error('Error getting user:', error);
             throw new Error('Unable to get user');
@@ -88,36 +71,41 @@ export class UserRepositoryImpl implements IUserRepository {
                 throw new Error('User not found');
             }
 
-            const currentUser = userDoc.data() as User;
+            const currentFirebaseUser = userDoc.data() as UserFirebase;
+            const currentUser = UserMapper.fromFirebase(currentFirebaseUser, userId);
             
             // Handle profile photo upload if photoURL is a local file
             let photoURL = userData.userDetails?.photoURL;
             if (photoURL && photoURL.startsWith('file://')) {
                 try {
                     photoURL = await this.uploadProfilePhoto(userId, photoURL);
+                    // Update the userData with the new photo URL, ensuring required fields from the current user are preserved
+                    userData = {
+                        ...userData,
+                        userDetails: {
+                            ...currentUser.userDetails,
+                            ...userData.userDetails,
+                            photoURL
+                        }
+                    };
                 } catch (photoError) {
                     console.error('Error uploading profile photo:', photoError);
                     // Continue with update but without the photo
-                    photoURL = currentUser.userDetails.photoURL;
+                    if (userData.userDetails) {
+                        userData.userDetails.photoURL = currentUser.userDetails.photoURL;
+                    }
                 }
             }
 
-            const updatedUser = {
-                ...currentUser,
-                ...userData,
-                userDetails: {
-                    ...currentUser.userDetails,
-                    ...userData.userDetails,
-                    ...(photoURL && { photoURL })
-                },
-                metadata: {
-                    ...currentUser.metadata,
-                    updatedAt: new Date()
-                }
-            };
+            // Convertir los cambios a formato Firebase usando el mapper
+            const firebaseUpdates = UserMapper.updateDataToFirebase(userData);
 
-            await updateDoc(userRef, updatedUser);
-            return updatedUser as User;
+            await updateDoc(userRef, firebaseUpdates);
+
+            // Obtener el usuario actualizado y convertirlo de vuelta
+            const updatedDoc = await getDoc(userRef);
+            const updatedFirebaseUser = updatedDoc.data() as UserFirebase;
+            return UserMapper.fromFirebase(updatedFirebaseUser, userId);
         } catch (error) {
             console.error('Error updating user:', error);
             throw new Error('Unable to update user');
@@ -133,7 +121,8 @@ export class UserRepositoryImpl implements IUserRepository {
         try {
             const userRef = doc(firestore, this.USERS_COLLECTION, userId);
             await updateDoc(userRef, {
-                'activity.favoriteSpots': arrayUnion(spotId)
+                'favoriteSpots': arrayUnion(spotId),
+                'updatedAt': new Date()
             });
         } catch (error) {
             console.error('Error adding favorite spot:', error);
@@ -145,7 +134,8 @@ export class UserRepositoryImpl implements IUserRepository {
         try {
             const userRef = doc(firestore, this.USERS_COLLECTION, userId);
             await updateDoc(userRef, {
-                'activity.favoriteSpots': arrayRemove(spotId)
+                'favoriteSpots': arrayRemove(spotId),
+                'updatedAt': new Date()
             });
         } catch (error) {
             console.error('Error removing favorite spot:', error);
@@ -162,7 +152,8 @@ export class UserRepositoryImpl implements IUserRepository {
         try {
             const userRef = doc(firestore, this.USERS_COLLECTION, userId);
             await updateDoc(userRef, {
-                'activity.favoriteSports': arrayUnion(sportId)
+                'favoriteSports': arrayUnion(sportId),
+                'updatedAt': new Date()
             });
         } catch (error) {
             console.error('Error adding favorite sport:', error);
@@ -174,7 +165,8 @@ export class UserRepositoryImpl implements IUserRepository {
         try {
             const userRef = doc(firestore, this.USERS_COLLECTION, userId);
             await updateDoc(userRef, {
-                'activity.favoriteSports': arrayRemove(sportId)
+                'favoriteSports': arrayRemove(sportId),
+                'updatedAt': new Date()
             });
         } catch (error) {
             console.error('Error removing favorite sport:', error);
@@ -192,6 +184,60 @@ export class UserRepositoryImpl implements IUserRepository {
         } catch (error) {
             console.error('Error uploading profile photo:', error);
             throw new Error('Failed to upload profile photo');
+        }
+    }
+
+    async checkUserNameExists(userName: string, excludeUserId?: string): Promise<boolean> {
+        try {
+            if (!userName || typeof userName !== 'string') {
+                throw new Error('Valid userName is required');
+            }
+
+            // Normalizar userName para comparación case-insensitive
+            const normalizedUserName = userName.toLowerCase().trim();
+            
+            if (normalizedUserName.length === 0) {
+                throw new Error('UserName cannot be empty');
+            }
+
+            // Crear consulta para buscar usuarios con el mismo userName
+            const usersRef = collection(firestore, this.USERS_COLLECTION);
+            const q = query(
+                usersRef,
+                where('userName', '==', normalizedUserName)
+            );
+
+            const querySnapshot = await getDocs(q);
+            
+            // Si no hay documentos, el userName está disponible
+            if (querySnapshot.empty) {
+                return false;
+            }
+
+            // Si se proporciona excludeUserId, verificar si el único resultado es el usuario actual
+            if (excludeUserId) {
+                const docs = querySnapshot.docs;
+                // Si hay solo un documento y es del usuario actual, el userName está disponible para él
+                if (docs.length === 1 && docs[0].id === excludeUserId) {
+                    return false;
+                }
+                // Si hay múltiples documentos o el documento no es del usuario actual, está en uso
+                return true;
+            }
+
+            // Si hay cualquier documento y no se excluye ningún usuario, está en uso
+            return true;
+            
+        } catch (error) {
+            console.error('Error checking userName existence:', error);
+            
+            // Si el error es de validación, relanzarlo
+            if (error instanceof Error && error.message.includes('required') || error instanceof Error && error.message.includes('empty')) {
+                throw error;
+            }
+            
+            // Para otros errores, assumir que está en uso para ser conservador
+            throw new Error('Unable to verify userName availability');
         }
     }
 }

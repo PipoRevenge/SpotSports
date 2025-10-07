@@ -36,10 +36,16 @@ export const useSignUp = (): UseSignUpReturn => {
       setGlobalLoading(true);
       setError(null);
 
-      // Step 1: Register user with Firebase Auth
+      // Step 1: Check if username is available
+      const isUserNameTaken = await userRepository.checkUserNameExists(userName);
+      if (isUserNameTaken) {
+        throw new Error('Username is already taken. Please choose a different one.');
+      }
+
+      // Step 2: Register user with Firebase Auth
       const userId = await authRepository.register(email, password);
 
-      // Step 2: Prepare user data
+      // Step 3: Prepare user data
       const userData: Partial<UserDetails> = {
         email,
         userName,
@@ -48,7 +54,7 @@ export const useSignUp = (): UseSignUpReturn => {
         birthDate: birthDate?.toISOString(),
       };
 
-      // Step 3: Upload profile photo if provided
+      // Step 4: Upload profile photo if provided
       let photoURL: string | undefined;
       if (photo) {
         try {
@@ -60,7 +66,7 @@ export const useSignUp = (): UseSignUpReturn => {
         }
       }
 
-      // Step 4: Create user profile in Firestore
+      // Step 5: Create user profile in Firestore
       const userCreated = await userRepository.createUser(userId, userData);
       
       if (!userCreated) {

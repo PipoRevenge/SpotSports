@@ -11,4 +11,5 @@ export interface IUserRepository {
   getUserFavoriteSports(userId: string): Promise<string[]>;
   addFavoriteSport(userId: string, sportId: string): Promise<void>;
   removeFavoriteSport(userId: string, sportId: string): Promise<void>;
+  checkUserNameExists(userName: string, excludeUserId?: string): Promise<boolean>;
 }
