@@ -1,4 +1,5 @@
 import { authRepository, userRepository } from '@/src/api';
+import { useNotification } from '@/src/context/notification-context';
 import { useUser } from '@/src/context/user-context';
 import { UserDetails } from '@/src/types/user';
 import { useState } from 'react';
@@ -21,6 +22,7 @@ export const useSignUp = (): UseSignUpReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { setIsLoading: setGlobalLoading } = useUser();
+  const { showError } = useNotification();
 
   const signUp = async (
     email: string, 
@@ -51,7 +53,7 @@ export const useSignUp = (): UseSignUpReturn => {
         userName,
         fullName: fullName || undefined,
         bio: bio || undefined,
-        birthDate: birthDate?.toISOString(),
+        birthDate: birthDate || undefined,
       };
 
       // Step 4: Upload profile photo if provided
@@ -77,21 +79,26 @@ export const useSignUp = (): UseSignUpReturn => {
       
     } catch (err: any) {
       let errorMessage = 'Failed to create account. Please try again.';
+      let errorTitle = 'Error al crear cuenta';
       
       // Provide more specific error messages based on Firebase error codes
       if (err?.code) {
         switch (err.code) {
           case 'auth/email-already-in-use':
-            errorMessage = 'This email address is already registered.';
+            errorTitle = 'Email en uso';
+            errorMessage = 'Esta dirección de correo ya está registrada. Por favor, inicia sesión o usa otro email.';
             break;
           case 'auth/weak-password':
-            errorMessage = 'Password is too weak. Please choose a stronger password.';
+            errorTitle = 'Contraseña débil';
+            errorMessage = 'La contraseña es muy débil. Debe tener al menos 6 caracteres.';
             break;
           case 'auth/invalid-email':
-            errorMessage = 'Please enter a valid email address.';
+            errorTitle = 'Email inválido';
+            errorMessage = 'Por favor, ingresa una dirección de correo válida.';
             break;
           case 'auth/network-request-failed':
-            errorMessage = 'Network error. Please check your connection and try again.';
+            errorTitle = 'Error de conexión';
+            errorMessage = 'No se pudo conectar al servidor. Verifica tu conexión a internet e intenta nuevamente.';
             break;
           default:
             errorMessage = err.message || errorMessage;
@@ -101,6 +108,7 @@ export const useSignUp = (): UseSignUpReturn => {
       }
       
       setError(errorMessage);
+      showError(errorMessage, errorTitle);
       console.error('Sign up error:', err);
     } finally {
       setIsLoading(false);

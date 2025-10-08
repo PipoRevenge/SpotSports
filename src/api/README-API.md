@@ -12,12 +12,14 @@ src/api/
 ├── config/
 │   └── firebase-config.ts      # Configuración de Firebase
 ├── repositories/
-│   ├── interfaces/             # Contratos de repositorios
+│   ├── interfaces/             # Contratos de repositorios (IUserRepository, IAuthRepository, ...)
 │   │   ├── i-auth-repository.ts
 │   │   └── i-user-repository.ts
-│   └── implementations/        # Implementaciones concretas
-│       ├── auth-repository-impl.ts
-│       └── user-repository-impl.ts
+│   ├── implementations/        # Implementaciones concretas
+│   │   ├── auth-repository-impl.ts
+│   │   └── user-repository-impl.ts
+│   └── mappers/                # Transformadores entre modelos (DTOs, domain, firestore)
+│       └── user-mapper.ts
 └── index.ts                   # Punto de entrada y exportación
 ```
 
@@ -27,6 +29,104 @@ src/api/
 - **Dependency Injection**: Permite fácil testing y cambio de implementaciones
 - **Interface Segregation**: Cada repositorio tiene una responsabilidad específica
 - **Error Handling**: Manejo consistente de errores con mensajes descriptivos
+
+## 🔁 ¿Qué son los Mappers?
+
+Los mappers son funciones/objetos responsables de transformar datos entre distintas representaciones usadas en la aplicación. En este proyecto se usan para:
+
+- Mapear datos crudos de Firestore a modelos de dominio (domain models).
+- Convertir modelos de dominio a DTOs para envío por red o almacenamiento.
+- Normalizar/parsear campos (fechas, ids, flags, relaciones).
+
+Beneficios:
+- Evitan lógica de transformación dispersa en los repositorios o componentes.
+- Centralizan validaciones y conversiones.
+- Hacen más fácil testear las transformaciones.
+
+## 🧭 Convenciones de Mappers
+
+- Carpeta: `src/api/repositories/mappers/`
+- Archivo por entidad: `[entity]-mapper.ts` (por ejemplo `user-mapper.ts`).
+- Exportar funciones puras y fáciles de testear:
+  - `toDomain(raw: any): DomainModel`
+  - `toFirestore(domain: DomainModel): FirestoreData`
+  - `toDTO(domain: DomainModel): DTO`
+- Manejar valores opcionales de forma explícita.
+- No realizar llamadas a servicios externos desde un mapper.
+
+## 🔨 Contrato (mini "contract") para un Mapper de User
+
+- Inputs/outputs:
+  - toDomain(raw: any) -> User
+  - toFirestore(user: User) -> Record<string, any>
+  - toDTO(user: User) -> UserDTO
+- Errores esperados:
+  - Entrada inválida (null/undefined) -> lanzar Error o devolver null según convención del repositorio.
+  - Formato inesperado de campos (fecha como número/ string) -> intentar parsear y documentar el comportamiento.
+- Criterios de éxito:
+  - La estructura devuelta cumple con los tipos esperados en `src/types`.
+
+## 📌 Ejemplo: `user-mapper.ts`
+
+Este ejemplo ilustra un mapper sencillo para usuarios.
+
+```typescript
+// user-mapper.ts (ejemplo)
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: Date;
+};
+
+export type UserDTO = {
+  id: string;
+  displayName: string;
+  email: string;
+  createdAt: string; // ISO
+};
+
+export const userMapper = {
+  toDomain(raw: any): User {
+    if (!raw) throw new Error('Invalid raw user');
+
+    return {
+      id: raw.id || raw._id || '',
+      name: raw.name || raw.displayName || '',
+      email: raw.email || '',
+      createdAt: raw.createdAt ? new Date(raw.createdAt) : new Date(0),
+    };
+  },
+
+  toFirestore(user: User): Record<string, any> {
+    return {
+      name: user.name,
+      email: user.email,
+      createdAt: user.createdAt.toISOString(),
+    };
+  },
+
+  toDTO(user: User): UserDTO {
+    return {
+      id: user.id,
+      displayName: user.name,
+      email: user.email,
+      createdAt: user.createdAt.toISOString(),
+    };
+  },
+};
+```
+
+### Uso típico en un repositorio
+
+Dentro de `user-repository-impl.ts`:
+
+```typescript
+import { userMapper } from '../mappers/user-mapper';
+
+const raw = await firestore.doc(`users/${id}`).get();
+const domainUser = userMapper.toDomain({ id: raw.id, ...raw.data() });
+```
 
 ## 🔧 Normas de Desarrollo
 
@@ -70,6 +170,7 @@ export class [Entity]RepositoryImpl implements I[Entity]Repository {
   
   private handleError(error: any, operation: string): Error {
     // Lógica de manejo de errores consistente
+    return error;
   }
 }
 ```
@@ -164,7 +265,7 @@ if (!result.id || !result.name) {
 }
 ```
 
-### 5. Testing
+## 🧪 Testing
 
 #### Estructura de Tests (Sugerida)
 ```typescript
@@ -285,6 +386,7 @@ Por favor ayuda a debuggear siguiendo las normas de manejo de errores establecid
 - ✅ UserRepository implementado
 - ✅ Configuración de Firebase
 - ✅ Manejo de errores estandarizado
+- ✅ Mappers: añadida carpeta y ejemplo para User
 
 ### Próximas Funcionalidades
 - [ ] SpotRepository

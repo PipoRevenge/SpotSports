@@ -10,12 +10,14 @@ export interface UserFirebase {
   photoURL?: string;
   fullName?: string;
   bio?: string;
-  birthDate?: string;
+  // Puede venir como Timestamp de Firebase, Date, número (ms) o string
+  birthDate?: any;
   phoneNumber?: string;
 
   // Metadata (campos planos en Firebase)
-  createdAt: Date;
-  updatedAt: Date;
+  // Pueden venir como Timestamp de Firebase u otros formatos
+  createdAt?: any;
+  updatedAt?: any;
 
   // Verification status
   isVerified: boolean;
@@ -85,13 +87,13 @@ export class UserMapper {
       photoURL: firebaseUser.photoURL,
       fullName: firebaseUser.fullName,
       bio: firebaseUser.bio,
-      birthDate: firebaseUser.birthDate,
+      birthDate: parseTimestamp(firebaseUser.birthDate) || new Date(),
       phoneNumber: firebaseUser.phoneNumber,
     };
 
     const metadata: UserMetadata = {
-      createdAt: firebaseUser.createdAt,
-      updatedAt: firebaseUser.updatedAt,
+      createdAt: parseTimestamp(firebaseUser.createdAt) || new Date(),
+      updatedAt: parseTimestamp(firebaseUser.updatedAt) || new Date(),
     };
 
     const activity: UserActivity = {
@@ -127,7 +129,7 @@ export class UserMapper {
       photoURL: userData.photoURL || "",
       fullName: userData.fullName || "",
       bio: userData.bio || "",
-      birthDate: userData.birthDate || "",
+      birthDate: userData.birthDate ? (userData.birthDate instanceof Date ? userData.birthDate : parseTimestamp(userData.birthDate)) : now,
       phoneNumber: userData.phoneNumber || "",
 
       // Metadata inicial
@@ -256,4 +258,32 @@ export class UserMapper {
 
     return changes;
   }
+}
+
+/**
+ * Convierte varios formatos de timestamp a Date
+ */
+function parseTimestamp(value: any): Date | undefined {
+  if (value == null) return undefined;
+  if (value instanceof Date) return value;
+  if (typeof value === 'number') return new Date(value);
+  if (typeof value === 'string') {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? undefined : d;
+  }
+  // Firestore Timestamp has toDate()
+  if (typeof value.toDate === 'function') {
+    try {
+      return value.toDate();
+    } catch {
+      // fallthrough
+    }
+  }
+  // Raw object like { seconds, nanos } or { seconds, nanoseconds }
+  if (typeof value === 'object' && (value.seconds !== undefined || value.nanoseconds !== undefined || value.nanos !== undefined)) {
+    const secs = Number(value.seconds || 0);
+    const nanos = Number(value.nanoseconds ?? value.nanos ?? 0);
+    return new Date(secs * 1000 + Math.floor(nanos / 1e6));
+  }
+  return undefined;
 }

@@ -8,7 +8,7 @@ export interface UserDetails {
   userName: string;
   fullName?: string;
   bio?: string;
-  birthDate?: string;
+  birthDate: Date;
   phoneNumber?: string;
 }
 
