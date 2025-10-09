@@ -7,9 +7,9 @@ export interface ValidationResult {
 export interface ProfileData {
   fullName?: string;
   bio?: string;
-  birthDate?: string;
   phoneNumber?: string;
   photoURL?: string;
+  // birthDate removed - not editable for security reasons
 }
 
 // Validación para el nombre completo
@@ -125,10 +125,7 @@ export const validateProfileData = (profileData: ProfileData): ValidationResult 
     fieldErrors.phoneNumber = phoneValidation.error;
   }
 
-  const birthDateValidation = validateBirthDate(profileData.birthDate);
-  if (!birthDateValidation.isValid && birthDateValidation.error) {
-    fieldErrors.birthDate = birthDateValidation.error;
-  }
+  // birthDate validation removed - not editable
 
   // Si hay errores de campo, devolver el primero encontrado
   const firstError = Object.values(fieldErrors)[0];

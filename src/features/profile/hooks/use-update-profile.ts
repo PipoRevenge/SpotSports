@@ -1,71 +1,76 @@
+import { userRepository } from '@/src/api';
 import { useUser } from '@/src/context/user-context';
-import { UserDetails } from '@/src/types/user';
-import { useState } from 'react';
+import { User } from '@/src/types/user';
+import { useCallback, useState } from 'react';
+import { ProfileUpdateData } from '../types/profile-types';
 import { validateProfileData } from '../utils/profile-validation';
 
-
-interface UseUpdateProfileOptions {
-  onSuccess?: () => void;
-  onError?: (error: string) => void;
+interface UseUpdateProfileReturn {
+  updateProfile: (data: ProfileUpdateData) => Promise<boolean>;
+  isUpdating: boolean;
+  error: string | null;
+  clearError: () => void;
 }
 
-interface UpdateProfileData {
-  fullName?: string;
-  bio?: string;
-  birthDate?: string;
-  phoneNumber?: string;
-  photoURL?: string;
-}
-
-export const useUpdateProfile = (options: UseUpdateProfileOptions = {}) => {
-  const { user, updateUserProfile, refreshUserProfile } = useUser();
-  const [isLoading, setIsLoading] = useState(false);
+/**
+ * Hook para actualizar información de perfil
+ */
+export const useUpdateProfile = (): UseUpdateProfileReturn => {
+  const { user, setUser } = useUser();
+  const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const updateProfile = async (profileData: UpdateProfileData) => {
+  const updateProfile = async (data: ProfileUpdateData): Promise<boolean> => {
     if (!user) {
-      const errorMessage = 'Usuario no encontrado';
-      setError(errorMessage);
-      options.onError?.(errorMessage);
-      return;
+      setError('No hay usuario autenticado');
+      return false;
     }
 
-    try {
-      setIsLoading(true);
-      setError(null);
+    setIsUpdating(true);
+    setError(null);
 
-      // Validar datos del perfil
-      const validationResult = validateProfileData(profileData);
-      if (!validationResult.isValid) {
-        throw new Error(validationResult.error);
+    try {
+      // Validar los datos antes de enviar
+      const validation = validateProfileData(data);
+      if (!validation.isValid) {
+        setError(validation.error || 'Datos inválidos');
+        return false;
       }
 
-      // Actualizar perfil
-      await updateUserProfile(profileData as Partial<UserDetails>);
-      
-      // Refrescar datos del usuario desde Firebase
-      await refreshUserProfile();
+      // Preparar los datos para la API
+      // La API espera un objeto Partial<User>, necesitamos estructurarlo correctamente
+      const updateData: Partial<User> = {
+        userDetails: {
+          ...user.userDetails,
+          ...data
+          // birthDate is not included - it remains unchanged for security
+        }
+      };
 
-      options.onSuccess?.();
+      // Llamar a la API para actualizar el perfil
+      const updatedUser = await userRepository.updateUserProfile(user.id, updateData);
+
+      // Actualizar el contexto del usuario con los datos devueltos por la API
+      setUser(updatedUser);
+
+      return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error al actualizar el perfil';
       setError(errorMessage);
-      options.onError?.(errorMessage);
-      throw err;
+      return false;
     } finally {
-      setIsLoading(false);
+      setIsUpdating(false);
     }
   };
 
-  const clearError = () => {
+  const clearError = useCallback(() => {
     setError(null);
-  };
+  }, []);
 
   return {
     updateProfile,
-    isLoading,
+    isUpdating,
     error,
-    clearError,
-    user,
+    clearError
   };
 };
