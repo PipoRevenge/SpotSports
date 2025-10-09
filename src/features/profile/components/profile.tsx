@@ -97,33 +97,19 @@ export const Profile: React.FC<ProfileProps> = ({
           isOwn={isOwnProfile}
         />
 
-        {/* Sección de deportes favoritos */}
-        {user.activity.favoriteSports.length > 0 && (
-          <View>
-            <Text className="text-lg font-bold mb-2">Deportes favoritos</Text>
-            <VStack space="sm">
-              {user.activity.favoriteSports.map((sport, index) => (
-                <Text key={index} className="text-gray-700">
-                  • {sport}
-                </Text>
-              ))}
-            </VStack>
-          </View>
-        )}
-
         {/* Sección de spots favoritos */}
-        {showStats && user.activity.favoriteSpots.length > 0 && (
+        {showStats && user.activity.favoriteSpotsCount > 0 && (
           <View>
             <Text className="text-lg font-bold mb-2">Spots favoritos</Text>
             <Text className="text-gray-500">
-              {user.activity.favoriteSpots.length} spots guardados
+              {user.activity.favoriteSpotsCount} spots guardados
             </Text>
             {/* TODO: Mostrar lista de spots favoritos */}
           </View>
         )}
 
         {/* Sección de actividad reciente */}
-        {showStats && user.activity.reviews.length > 0 && (
+        {showStats && user.activity.reviewsCount > 0 && (
           <View>
             <Text className="text-lg font-bold mb-2">Actividad reciente</Text>
             <Text className="text-gray-500">
@@ -133,8 +119,18 @@ export const Profile: React.FC<ProfileProps> = ({
           </View>
         )}
 
+        {/* Sección de seguidores */}
+        {showStats && (user.activity.followersCount > 0 || user.activity.followingCount > 0) && (
+          <View>
+            <Text className="text-lg font-bold mb-2">Conexiones</Text>
+            <Text className="text-gray-500">
+              {user.activity.followersCount} seguidores • {user.activity.followingCount} siguiendo
+            </Text>
+          </View>
+        )}
+
         {/* Mensaje cuando no hay actividad */}
-        {showStats && user.activity.reviewsCount === 0 && user.activity.favoriteSpots.length === 0 && (
+        {showStats && user.activity.reviewsCount === 0 && user.activity.favoriteSpotsCount === 0 && (
           <View className="mt-8">
             <Text className="text-gray-500 text-center italic">
               {isOwnProfile 

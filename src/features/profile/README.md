@@ -250,8 +250,3 @@ const updatedUser = await userRepository.updateUserProfile(user.id, updateData);
 - [x] ~~Implementar llamadas reales a la API~~ ✅ **COMPLETADO**
 - [x] ~~Añadir soporte para cambio de foto de perfil~~ ✅ **COMPLETADO**
 - [ ] Implementar sistema de seguimiento (follow/unfollow)
-- [ ] Añadir más validaciones de seguridad
-- [ ] Implementar cache para perfiles visitados
-- [ ] Añadir tests unitarios
-- [ ] Implementar `use-profile.ts` hook con API real
-- [ ] Conectar ProfileHeader y Profile components con API

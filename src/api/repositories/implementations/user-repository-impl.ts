@@ -1,8 +1,7 @@
 import { User, UserDetails } from '@/src/types/user';
 import {
-    arrayRemove,
-    arrayUnion,
     collection,
+    deleteDoc,
     doc,
     getDoc,
     getDocs,
@@ -18,6 +17,10 @@ import { UserFirebase, UserMapper } from '../mappers/user-mapper';
 
 export class UserRepositoryImpl implements IUserRepository {
     private readonly USERS_COLLECTION = 'users';
+    private readonly FAVORITE_SPOTS_SUBCOLLECTION = 'favoriteSpots';
+    private readonly FAVORITE_SPORTS_SUBCOLLECTION = 'favoriteSports';
+    private readonly FOLLOWERS_SUBCOLLECTION = 'followers';
+    private readonly FOLLOWING_SUBCOLLECTION = 'following';
     private readonly storage = getStorage();
 
     async createUser(userId: string, userData: Partial<UserDetails>): Promise<boolean> {
@@ -36,7 +39,9 @@ export class UserRepositoryImpl implements IUserRepository {
 
             const userRef = doc(firestore, this.USERS_COLLECTION, userId);
 
+            // Crear el documento del usuario
             await setDoc(userRef, newUser);
+
             return true;
         } catch (error) {
             console.error('Error creating user:', error);
@@ -113,64 +118,296 @@ export class UserRepositoryImpl implements IUserRepository {
     }
 
     async getUserFavoriteSpots(userId: string): Promise<string[]> {
-        const user = await this.getUserById(userId);
-        return user.activity?.favoriteSpots || [];
+        // For now, return empty array since favorites are now handled differently
+        // This method might need to be removed or updated to query a separate collection
+        return [];
     }
 
     async addFavoriteSpot(userId: string, spotId: string): Promise<void> {
         try {
             const userRef = doc(firestore, this.USERS_COLLECTION, userId);
+            
+            // Verificar que el usuario existe
+            const userDoc = await getDoc(userRef);
+            if (!userDoc.exists()) {
+                throw new Error('User not found');
+            }
+            
+            // Agregar a la subcolección favoriteSpots
+            const favoriteSpotsRef = collection(userRef, this.FAVORITE_SPOTS_SUBCOLLECTION);
+            const favoriteSpotDoc = doc(favoriteSpotsRef, spotId);
+            
+            // Verificar si ya existe
+            const existingFavorite = await getDoc(favoriteSpotDoc);
+            if (existingFavorite.exists()) {
+                throw new Error('Spot is already in favorites');
+            }
+            
+            const now = new Date();
+            
+            // Agregar el documento a la subcolección
+            await setDoc(favoriteSpotDoc, {
+                spotId: spotId,
+                addedAt: now
+            });
+            
+            // Incrementar el contador en el documento principal del usuario
+            const currentFirebaseUser = userDoc.data() as UserFirebase;
+            const currentCount = currentFirebaseUser.favoriteSpotsCount || 0;
+            
             await updateDoc(userRef, {
-                'favoriteSpots': arrayUnion(spotId),
-                'updatedAt': new Date()
+                'favoriteSpotsCount': currentCount + 1,
+                'updatedAt': now
             });
         } catch (error) {
             console.error('Error adding favorite spot:', error);
-            throw new Error('Unable to add favorite spot');
+            throw new Error(error instanceof Error ? error.message : 'Unable to add favorite spot');
         }
     }
 
     async removeFavoriteSpot(userId: string, spotId: string): Promise<void> {
         try {
             const userRef = doc(firestore, this.USERS_COLLECTION, userId);
+            
+            // Verificar que el usuario existe
+            const userDoc = await getDoc(userRef);
+            if (!userDoc.exists()) {
+                throw new Error('User not found');
+            }
+            
+            // Eliminar de la subcolección favoriteSpots
+            const favoriteSpotsRef = collection(userRef, this.FAVORITE_SPOTS_SUBCOLLECTION);
+            const favoriteSpotDoc = doc(favoriteSpotsRef, spotId);
+            
+            // Verificar si existe antes de eliminar
+            const existingFavorite = await getDoc(favoriteSpotDoc);
+            if (!existingFavorite.exists()) {
+                throw new Error('Spot is not in favorites');
+            }
+            
+            const now = new Date();
+            
+            // Eliminar el documento de la subcolección
+            await deleteDoc(favoriteSpotDoc);
+            
+            // Decrementar el contador en el documento principal del usuario
+            const currentFirebaseUser = userDoc.data() as UserFirebase;
+            const currentCount = currentFirebaseUser.favoriteSpotsCount || 0;
+            
             await updateDoc(userRef, {
-                'favoriteSpots': arrayRemove(spotId),
-                'updatedAt': new Date()
+                'favoriteSpotsCount': Math.max(0, currentCount - 1), // Ensure count doesn't go negative
+                'updatedAt': now
             });
         } catch (error) {
             console.error('Error removing favorite spot:', error);
-            throw new Error('Unable to remove favorite spot');
+            throw new Error(error instanceof Error ? error.message : 'Unable to remove favorite spot');
         }
     }
 
     async getUserFavoriteSports(userId: string): Promise<string[]> {
-        const user = await this.getUserById(userId);
-        return user.activity?.favoriteSports || [];
+        // For now, return empty array since favorites are now handled differently
+        // This method might need to be removed or updated to query a separate collection
+        return [];
     }
 
     async addFavoriteSport(userId: string, sportId: string): Promise<void> {
         try {
             const userRef = doc(firestore, this.USERS_COLLECTION, userId);
+            
+            // Verificar que el usuario existe
+            const userDoc = await getDoc(userRef);
+            if (!userDoc.exists()) {
+                throw new Error('User not found');
+            }
+            
+            // Agregar a la subcolección favoriteSports
+            const favoriteSportsRef = collection(userRef, this.FAVORITE_SPORTS_SUBCOLLECTION);
+            const favoriteSportDoc = doc(favoriteSportsRef, sportId);
+            
+            // Verificar si ya existe
+            const existingFavorite = await getDoc(favoriteSportDoc);
+            if (existingFavorite.exists()) {
+                throw new Error('Sport is already in favorites');
+            }
+            
+            const now = new Date();
+            
+            // Agregar el documento a la subcolección
+            await setDoc(favoriteSportDoc, {
+                sportId: sportId,
+                addedAt: now
+            });
+            
             await updateDoc(userRef, {
-                'favoriteSports': arrayUnion(sportId),
-                'updatedAt': new Date()
+                'updatedAt': now
             });
         } catch (error) {
             console.error('Error adding favorite sport:', error);
-            throw new Error('Unable to add favorite sport');
+            throw new Error(error instanceof Error ? error.message : 'Unable to add favorite sport');
         }
     }
 
     async removeFavoriteSport(userId: string, sportId: string): Promise<void> {
         try {
             const userRef = doc(firestore, this.USERS_COLLECTION, userId);
+            
+            // Verificar que el usuario existe
+            const userDoc = await getDoc(userRef);
+            if (!userDoc.exists()) {
+                throw new Error('User not found');
+            }
+            
+            // Eliminar de la subcolección favoriteSports
+            const favoriteSportsRef = collection(userRef, this.FAVORITE_SPORTS_SUBCOLLECTION);
+            const favoriteSportDoc = doc(favoriteSportsRef, sportId);
+            
+            // Verificar si existe antes de eliminar
+            const existingFavorite = await getDoc(favoriteSportDoc);
+            if (!existingFavorite.exists()) {
+                throw new Error('Sport is not in favorites');
+            }
+            
+            const now = new Date();
+            
+            // Eliminar el documento de la subcolección
+            await deleteDoc(favoriteSportDoc);
+            
             await updateDoc(userRef, {
-                'favoriteSports': arrayRemove(sportId),
-                'updatedAt': new Date()
+                'updatedAt': now
             });
         } catch (error) {
             console.error('Error removing favorite sport:', error);
-            throw new Error('Unable to remove favorite sport');
+            throw new Error(error instanceof Error ? error.message : 'Unable to remove favorite sport');
+        }
+    }
+
+    async followUser(userId: string, targetUserId: string): Promise<void> {
+        try {
+            const userRef = doc(firestore, this.USERS_COLLECTION, userId);
+            const targetUserRef = doc(firestore, this.USERS_COLLECTION, targetUserId);
+            
+            // Verificar que ambos usuarios existen
+            const [userDoc, targetUserDoc] = await Promise.all([
+                getDoc(userRef),
+                getDoc(targetUserRef)
+            ]);
+            
+            if (!userDoc.exists()) {
+                throw new Error('User not found');
+            }
+            if (!targetUserDoc.exists()) {
+                throw new Error('Target user not found');
+            }
+            
+            const now = new Date();
+            
+            // Agregar targetUserId a la subcolección "following" del usuario actual
+            const followingRef = collection(userRef, this.FOLLOWING_SUBCOLLECTION);
+            const followingDoc = doc(followingRef, targetUserId);
+            
+            // Verificar si ya está siguiendo
+            const existingFollow = await getDoc(followingDoc);
+            if (existingFollow.exists()) {
+                throw new Error('Already following this user');
+            }
+            
+            await setDoc(followingDoc, {
+                userId: targetUserId,
+                followedAt: now
+            });
+            
+            // Agregar userId a la subcolección "followers" del usuario objetivo
+            const followersRef = collection(targetUserRef, this.FOLLOWERS_SUBCOLLECTION);
+            const followerDoc = doc(followersRef, userId);
+            
+            await setDoc(followerDoc, {
+                userId: userId,
+                followedAt: now
+            });
+            
+            // Actualizar contadores
+            const currentUserData = userDoc.data() as UserFirebase;
+            const targetUserData = targetUserDoc.data() as UserFirebase;
+            
+            const currentFollowingCount = currentUserData.followingCount || 0;
+            const targetFollowersCount = targetUserData.followersCount || 0;
+            
+            await Promise.all([
+                updateDoc(userRef, {
+                    'followingCount': currentFollowingCount + 1,
+                    'updatedAt': now
+                }),
+                updateDoc(targetUserRef, {
+                    'followersCount': targetFollowersCount + 1,
+                    'updatedAt': now
+                })
+            ]);
+            
+        } catch (error) {
+            console.error('Error following user:', error);
+            throw new Error(error instanceof Error ? error.message : 'Unable to follow user');
+        }
+    }
+
+    async unfollowUser(userId: string, targetUserId: string): Promise<void> {
+        try {
+            const userRef = doc(firestore, this.USERS_COLLECTION, userId);
+            const targetUserRef = doc(firestore, this.USERS_COLLECTION, targetUserId);
+            
+            // Verificar que ambos usuarios existen
+            const [userDoc, targetUserDoc] = await Promise.all([
+                getDoc(userRef),
+                getDoc(targetUserRef)
+            ]);
+            
+            if (!userDoc.exists()) {
+                throw new Error('User not found');
+            }
+            if (!targetUserDoc.exists()) {
+                throw new Error('Target user not found');
+            }
+            
+            const now = new Date();
+            
+            // Eliminar targetUserId de la subcolección "following" del usuario actual
+            const followingRef = collection(userRef, this.FOLLOWING_SUBCOLLECTION);
+            const followingDoc = doc(followingRef, targetUserId);
+            
+            // Verificar si realmente está siguiendo
+            const existingFollow = await getDoc(followingDoc);
+            if (!existingFollow.exists()) {
+                throw new Error('Not following this user');
+            }
+            
+            await deleteDoc(followingDoc);
+            
+            // Eliminar userId de la subcolección "followers" del usuario objetivo
+            const followersRef = collection(targetUserRef, this.FOLLOWERS_SUBCOLLECTION);
+            const followerDoc = doc(followersRef, userId);
+            
+            await deleteDoc(followerDoc);
+            
+            // Actualizar contadores
+            const currentUserData = userDoc.data() as UserFirebase;
+            const targetUserData = targetUserDoc.data() as UserFirebase;
+            
+            const currentFollowingCount = currentUserData.followingCount || 0;
+            const targetFollowersCount = targetUserData.followersCount || 0;
+            
+            await Promise.all([
+                updateDoc(userRef, {
+                    'followingCount': Math.max(0, currentFollowingCount - 1),
+                    'updatedAt': now
+                }),
+                updateDoc(targetUserRef, {
+                    'followersCount': Math.max(0, targetFollowersCount - 1),
+                    'updatedAt': now
+                })
+            ]);
+            
+        } catch (error) {
+            console.error('Error unfollowing user:', error);
+            throw new Error(error instanceof Error ? error.message : 'Unable to unfollow user');
         }
     }
 
@@ -240,4 +477,6 @@ export class UserRepositoryImpl implements IUserRepository {
             throw new Error('Unable to verify userName availability');
         }
     }
+
+
 }

@@ -1,5 +1,3 @@
-import { CommentReview } from "./comment";
-import { Review } from "./review";
 
 
 export interface UserDetails {
@@ -15,15 +13,15 @@ export interface UserDetails {
 export interface UserMetadata {
   createdAt: Date;
   updatedAt: Date;
+  isVerified: boolean;
 }
 
 export interface UserActivity {
-  favoriteSports: string[];
-  favoriteSpots: string[];
   reviewsCount: number;
-  reviews: Review[];
-  comments: CommentReview[];
   commentsCount: number;
+  favoriteSpotsCount: number;
+  followersCount: number;
+  followingCount: number;
 }
 
 // Interfaz principal de Usuario
@@ -31,7 +29,6 @@ export interface User {
   id: string;
   userDetails: UserDetails;
   metadata: UserMetadata;
-  isVerified: boolean;
   activity: UserActivity;
 }
 

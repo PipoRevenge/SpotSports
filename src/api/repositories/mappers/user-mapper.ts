@@ -18,15 +18,14 @@ export interface UserFirebase {
   // Pueden venir como Timestamp de Firebase u otros formatos
   createdAt?: any;
   updatedAt?: any;
-
-  // Verification status
   isVerified: boolean;
 
   // Activity (campos planos en Firebase)
-  favoriteSports?: string[];
-  favoriteSpots?: string[];
   reviewsCount?: number;
   commentsCount?: number;
+  favoriteSpotsCount?: number;
+  followersCount?: number;
+  followingCount?: number;
   
   // Arrays complejos se almacenan como subcolecciones en Firebase,
   // no como campos directos del documento principal
@@ -60,17 +59,15 @@ export class UserMapper {
       // UserMetadata -> campos planos
       createdAt: user.metadata.createdAt,
       updatedAt: user.metadata.updatedAt,
-
-      // Verification status
-      isVerified: user.isVerified,
+      isVerified: user.metadata.isVerified,
 
       // UserActivity -> campos planos (arrays simples)
-      favoriteSports: user.activity?.favoriteSports || [],
-      favoriteSpots: user.activity?.favoriteSpots || [],
-      reviewsCount: user.activity?.reviewsCount || 0,
-      commentsCount: user.activity?.commentsCount || 0,
-      
-      // Note: reviews y comments se manejan como subcolecciones separadas
+      reviewsCount: user.activity.reviewsCount,
+      commentsCount: user.activity.commentsCount,
+      favoriteSpotsCount: user.activity.favoriteSpotsCount,
+      followersCount: user.activity.followersCount,
+      followingCount: user.activity.followingCount,
+
     };
   }
 
@@ -94,22 +91,21 @@ export class UserMapper {
     const metadata: UserMetadata = {
       createdAt: parseTimestamp(firebaseUser.createdAt) || new Date(),
       updatedAt: parseTimestamp(firebaseUser.updatedAt) || new Date(),
+      isVerified: firebaseUser.isVerified || false,
     };
 
     const activity: UserActivity = {
-      favoriteSports: firebaseUser.favoriteSports || [],
-      favoriteSpots: firebaseUser.favoriteSpots || [],
       reviewsCount: firebaseUser.reviewsCount || 0,
       commentsCount: firebaseUser.commentsCount || 0,
-      reviews: [], // Se cargan por separado desde subcolección
-      comments: [], // Se cargan por separado desde subcolección
+      favoriteSpotsCount: firebaseUser.favoriteSpotsCount || 0,
+      followersCount: firebaseUser.followersCount || 0,
+      followingCount: firebaseUser.followingCount || 0,
     };
 
     return {
       id: userId,
       userDetails,
       metadata,
-      isVerified: firebaseUser.isVerified,
       activity,
     };
   }
@@ -135,15 +131,14 @@ export class UserMapper {
       // Metadata inicial
       createdAt: now,
       updatedAt: now,
-
-      // Estado inicial
       isVerified: false,
 
       // Activity inicial
-      favoriteSports: [],
-      favoriteSpots: [],
       reviewsCount: 0,
       commentsCount: 0,
+      favoriteSpotsCount: 0,
+      followersCount: 0,
+      followingCount: 0,
     };
   }
 
@@ -175,27 +170,28 @@ export class UserMapper {
       if (userData.metadata.updatedAt !== undefined) {
         firebaseUpdate.updatedAt = userData.metadata.updatedAt;
       }
-    }
-
-    // Mapear verification status
-    if (userData.isVerified !== undefined) {
-      firebaseUpdate.isVerified = userData.isVerified;
+      if (userData.metadata.isVerified !== undefined) {
+        firebaseUpdate.isVerified = userData.metadata.isVerified;
+      }
     }
 
     // Mapear activity si existe
     if (userData.activity) {
       const activity = userData.activity;
-      if (activity.favoriteSports !== undefined) {
-        firebaseUpdate.favoriteSports = activity.favoriteSports;
-      }
-      if (activity.favoriteSpots !== undefined) {
-        firebaseUpdate.favoriteSpots = activity.favoriteSpots;
-      }
       if (activity.reviewsCount !== undefined) {
         firebaseUpdate.reviewsCount = activity.reviewsCount;
       }
       if (activity.commentsCount !== undefined) {
         firebaseUpdate.commentsCount = activity.commentsCount;
+      }
+      if (activity.favoriteSpotsCount !== undefined) {
+        firebaseUpdate.favoriteSpotsCount = activity.favoriteSpotsCount;
+      }
+      if (activity.followersCount !== undefined) {
+        firebaseUpdate.followersCount = activity.followersCount;
+      }
+      if (activity.followingCount !== undefined) {
+        firebaseUpdate.followingCount = activity.followingCount;
       }
     }
 

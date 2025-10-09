@@ -108,12 +108,16 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           <Text className="text-gray-500 text-sm">Reseñas</Text>
         </VStack>
         <VStack className="items-center">
-          <Text className="font-bold text-lg">{user.activity.favoriteSpots.length}</Text>
+          <Text className="font-bold text-lg">{user.activity.favoriteSpotsCount}</Text>
           <Text className="text-gray-500 text-sm">Spots favoritos</Text>
         </VStack>
         <VStack className="items-center">
-          <Text className="font-bold text-lg">{user.activity.favoriteSports.length}</Text>
-          <Text className="text-gray-500 text-sm">Deportes</Text>
+          <Text className="font-bold text-lg">{user.activity.followersCount}</Text>
+          <Text className="text-gray-500 text-sm">Seguidores</Text>
+        </VStack>
+        <VStack className="items-center">
+          <Text className="font-bold text-lg">{user.activity.followingCount}</Text>
+          <Text className="text-gray-500 text-sm">Siguiendo</Text>
         </VStack>
       </HStack>
 
@@ -151,7 +155,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         </View>
       )}
 
-      {user.isVerified && (
+      {user.metadata.isVerified && (
         <View className="mt-2">
           <Text className="text-blue-600 text-sm">✓ Usuario verificado</Text>
         </View>
