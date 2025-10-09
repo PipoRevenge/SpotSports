@@ -1,3 +1,4 @@
+import { FormContainer } from '@/src/components/commons/forms/form-container';
 import { useImagePicker } from '@/src/components/commons/media-picker/image-picker';
 import { Avatar, AvatarFallbackText, AvatarImage } from '@/src/components/ui/avatar';
 import { Button, ButtonText } from '@/src/components/ui/button';
@@ -5,17 +6,18 @@ import { HStack } from '@/src/components/ui/hstack';
 import { Icon } from '@/src/components/ui/icon';
 import { Input, InputField } from '@/src/components/ui/input';
 import { Text } from '@/src/components/ui/text';
+import { Textarea, TextareaInput } from '@/src/components/ui/textarea';
 import { View } from '@/src/components/ui/view';
 import { VStack } from '@/src/components/ui/vstack';
 import { useUser } from '@/src/context/user-context';
 import { Camera } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, TouchableOpacity } from 'react-native';
+import { Alert, TouchableOpacity } from 'react-native';
 import { useUpdateProfile } from '../hooks/use-update-profile';
 import { ProfileEditProps, ProfileUpdateData } from '../types/profile-types';
 import { formatFullName, validateProfileData } from '../utils/profile-validation';
 
-export const ProfileEdit: React.FC<ProfileEditProps> = ({
+export const ProfileEditForm: React.FC<ProfileEditProps> = ({
   onSave,
   onCancel
 }) => {
@@ -111,7 +113,7 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({
   }
 
   return (
-    <ScrollView className="flex-1 bg-white">
+    <FormContainer title={'Editar perfil'}>
       <VStack className="p-4" space="lg">
         {/* Header con foto de perfil */}
         <View className="items-center">
@@ -159,16 +161,16 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({
           {/* Biografía */}
           <View>
             <Text className="font-medium mb-2">Biografía</Text>
-            <Input>
-              <InputField
+            <Textarea size="lg" className="min-h-24">
+              <TextareaInput
                 value={formData.bio}
                 onChangeText={(value) => handleInputChange('bio', value)}
                 placeholder="Cuéntanos sobre ti..."
                 multiline
-                numberOfLines={4}
+                numberOfLines={5}
                 style={{ textAlignVertical: 'top' }}
               />
-            </Input>
+            </Textarea>
             <Text className="text-gray-500 text-sm mt-1">
               {formData.bio?.length || 0}/500 caracteres
             </Text>
@@ -223,6 +225,6 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({
           </Button>
         </HStack>
       </VStack>
-    </ScrollView>
+    </FormContainer>
   );
 };

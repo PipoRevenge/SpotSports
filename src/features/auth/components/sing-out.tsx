@@ -13,41 +13,66 @@ interface SignOutProps {
   triggerText?: string;
   variant?: 'outline' | 'solid';
   size?: 'sm' | 'md' | 'lg';
+  isOpen?: boolean;
+  onClose?: () => void;
+  showTrigger?: boolean;
 }
 
 export const SignOut: React.FC<SignOutProps> = ({ 
   triggerText = "Cerrar Sesión",
   variant = "outline",
-  size = "md"
+  size = "md",
+  isOpen: isOpenProp,
+  onClose: onCloseProp,
+  showTrigger = true
 }) => {
-  const [showAlertDialog, setShowAlertDialog] = useState(false);
+  const [internalShowDialog, setInternalShowDialog] = useState(false);
   const { signOut, isSigningOut } = useSignOut();
+  
+  // Si se pasa isOpen como prop, usar ese valor, sino usar el estado interno
+  const showAlertDialog = isOpenProp !== undefined ? isOpenProp : internalShowDialog;
 
   const handleSignOut = async () => {
     await signOut();
-    setShowAlertDialog(false);
+    if (onCloseProp) {
+      onCloseProp();
+    } else {
+      setInternalShowDialog(false);
+    }
   };
 
   const handleCancel = () => {
-    setShowAlertDialog(false);
+    if (onCloseProp) {
+      onCloseProp();
+    } else {
+      setInternalShowDialog(false);
+    }
   };
 
   return (
     <>
-      <Button
-        variant={variant}
-        size={size}
-        onPress={() => setShowAlertDialog(true)}
-      >
-        <HStack space="sm" className="items-center">
-          <Icon as={LogOut} size="sm" />
-          <ButtonText>{triggerText}</ButtonText>
-        </HStack>
-      </Button>
+      {showTrigger && (
+        <Button
+          variant={variant}
+          size={size}
+          onPress={() => {
+            if (onCloseProp) {
+              // Si se está usando como componente controlado, no hacer nada aquí
+              return;
+            }
+            setInternalShowDialog(true);
+          }}
+        >
+          <HStack space="sm" className="items-center">
+            <Icon as={LogOut} size="sm" />
+            <ButtonText>{triggerText}</ButtonText>
+          </HStack>
+        </Button>
+      )}
       
       <AlertDialog
         isOpen={showAlertDialog}
-        onClose={() => setShowAlertDialog(false)}
+        onClose={handleCancel}
         size="md"
       >
         <AlertDialogBackdrop />

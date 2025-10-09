@@ -1,4 +1,4 @@
-import { ProfileEdit } from "@/src/features/profile";
+import { ProfileEditForm } from "@/src/features/profile";
 import { router } from "expo-router";
 import React from "react";
 
@@ -14,7 +14,7 @@ export default function ProfileEditPage() {
     };
 
     return (
-        <ProfileEdit 
+        <ProfileEditForm
             onSave={handleSave}
             onCancel={handleCancel}
         />

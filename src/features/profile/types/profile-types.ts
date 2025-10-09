@@ -1,10 +1,20 @@
 import { User } from '@/src/types/user';
+import { LucideIcon } from 'lucide-react-native';
 
 // Enum para diferentes tipos de acciones en el perfil
 export enum ProfileActionType {
   VIEW_OWN = 'view_own',
   VIEW_OTHER = 'view_other',
   EDIT = 'edit'
+}
+
+// Interfaz para opciones del menú
+export interface MenuOption {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  onPress: () => void;
+  disabled?: boolean;
 }
 
 // Enum para estados de seguimiento (si se implementa en el futuro)
@@ -36,6 +46,7 @@ export interface ProfileHeaderProps {
   onFollowPress?: () => void;
   followStatus?: FollowStatus;
   isOwn?: boolean;
+  menuOptions?: MenuOption[]; // Opciones personalizadas del menú
 }
 
 // Props para componente de perfil completo

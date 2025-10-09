@@ -1,10 +1,14 @@
 import { Avatar, AvatarFallbackText, AvatarImage } from '@/src/components/ui/avatar';
 import { Button, ButtonText } from '@/src/components/ui/button';
 import { HStack } from '@/src/components/ui/hstack';
+import { Icon } from '@/src/components/ui/icon';
+import { Menu, MenuItem, MenuItemLabel } from '@/src/components/ui/menu';
 import { Text } from '@/src/components/ui/text';
 import { View } from '@/src/components/ui/view';
 import { VStack } from '@/src/components/ui/vstack';
+import { Edit, LogOut, MoreVertical, Settings } from 'lucide-react-native';
 import React from 'react';
+import { ScrollView } from 'react-native';
 import { FollowStatus, ProfileActionType, ProfileHeaderProps } from '../types/profile-types';
 import { formatProfileDate } from '../utils/profile-date-utils';
 
@@ -14,7 +18,8 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   onEditPress,
   onFollowPress,
   followStatus = FollowStatus.NOT_FOLLOWING,
-  isOwn = false
+  isOwn = false,
+  menuOptions
 }) => {
   if (!user) {
     return null;
@@ -22,10 +27,59 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 
   const renderActionButtons = () => {
     if (actionType === ProfileActionType.VIEW_OWN || isOwn) {
+      // Si se proporcionan opciones personalizadas, usarlas
+      if (menuOptions && menuOptions.length > 0) {
+        return (
+          <Menu
+            placement="bottom right"
+            trigger={({ ...triggerProps }) => {
+              return (
+                <Button variant="outline" size="sm" {...triggerProps}>
+                  <Icon as={MoreVertical} className="color-gray-600" />
+                </Button>
+              );
+            }}
+          >
+            {menuOptions.map((option) => (
+              <MenuItem 
+                key={option.key} 
+                textValue={option.label} 
+                onPress={option.onPress}
+                disabled={option.disabled}
+              >
+                <Icon as={option.icon} size="sm" className="mr-2" />
+                <MenuItemLabel size="sm">{option.label}</MenuItemLabel>
+              </MenuItem>
+            ))}
+          </Menu>
+        );
+      }
+
+      // Menú por defecto si no se proporcionan opciones personalizadas
       return (
-        <Button variant="outline" size="sm" onPress={onEditPress}>
-          <ButtonText>Editar perfil</ButtonText>
-        </Button>
+        <Menu
+          placement="bottom right"
+          trigger={({ ...triggerProps }) => {
+            return (
+              <Button variant="outline" size="sm" {...triggerProps}>
+                <Icon as={MoreVertical} className="color-gray-600" />
+              </Button>
+            );
+          }}
+        >
+          <MenuItem key="edit" textValue="Editar perfil" onPress={onEditPress}>
+            <Icon as={Edit} size="sm" className="mr-2" />
+            <MenuItemLabel size="sm">Editar perfil</MenuItemLabel>
+          </MenuItem>
+          <MenuItem key="settings" textValue="Configuración">
+            <Icon as={Settings} size="sm" className="mr-2" />
+            <MenuItemLabel size="sm">Configuración</MenuItemLabel>
+          </MenuItem>
+          <MenuItem key="logout" textValue="Cerrar sesión">
+            <Icon as={LogOut} size="sm" className="mr-2" />
+            <MenuItemLabel size="sm">Cerrar sesión</MenuItemLabel>
+          </MenuItem>
+        </Menu>
       );
     }
 
@@ -68,10 +122,14 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   };
 
   return (
-    <View className="mt-4">
+    <ScrollView className="">
+      
+      <View className="justify-end items-end mb-2  top-0 right-0">
+        {renderActionButtons()}
+      </View>
       {/* Foto de perfil y información básica */}
       <View className="flex-row items-center mb-4">
-        <Avatar size="lg" className="mr-4">
+        <Avatar size="xl" className="mr-4">
           {user.userDetails.photoURL ? (
             <AvatarImage source={{ uri: user.userDetails.photoURL }} />
           ) : (
@@ -83,7 +141,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         
         <View className="flex-1">
           <VStack space="xs">
-            <HStack className="items-center justify-between">
+            <HStack space="md" className="items-center">
               <VStack space="xs" className="flex-1">
                 <Text size="lg" className="font-bold">
                   {user.userDetails.fullName || "Nombre no disponible"}
@@ -95,14 +153,25 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                   <Text className="text-gray-500">{user.userDetails.email}</Text>
                 )}
               </VStack>
-              {renderActionButtons()}
+              <HStack space="lg">
+              <VStack className="items-center">
+                <Text className="font-bold text-lg">{user.activity.followersCount}</Text>
+                <Text className="text-gray-500 text-sm">Seguidores</Text>
+              </VStack>
+              <VStack className="items-center">
+                <Text className="font-bold text-lg">{user.activity.followingCount}</Text>
+                <Text className="text-gray-500 text-sm">Siguiendo</Text>
+              </VStack>
+              </HStack>
+              
             </HStack>
           </VStack>
         </View>
+        
       </View>
 
       {/* Estadísticas del usuario */}
-      <HStack className="mb-4" space="lg">
+      <HStack className="mb-4 justify-end" space="lg">
         <VStack className="items-center">
           <Text className="font-bold text-lg">{user.activity.reviewsCount}</Text>
           <Text className="text-gray-500 text-sm">Reseñas</Text>
@@ -111,14 +180,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           <Text className="font-bold text-lg">{user.activity.favoriteSpotsCount}</Text>
           <Text className="text-gray-500 text-sm">Spots favoritos</Text>
         </VStack>
-        <VStack className="items-center">
-          <Text className="font-bold text-lg">{user.activity.followersCount}</Text>
-          <Text className="text-gray-500 text-sm">Seguidores</Text>
-        </VStack>
-        <VStack className="items-center">
-          <Text className="font-bold text-lg">{user.activity.followingCount}</Text>
-          <Text className="text-gray-500 text-sm">Siguiendo</Text>
-        </VStack>
+        
       </HStack>
 
       {/* Biografía */}
@@ -160,7 +222,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           <Text className="text-blue-600 text-sm">✓ Usuario verificado</Text>
         </View>
       )}
-    </View>
+    </ScrollView>
   );
 };
 

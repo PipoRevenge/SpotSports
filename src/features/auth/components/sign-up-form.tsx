@@ -5,6 +5,7 @@ import { Avatar, AvatarFallbackText, AvatarImage } from "@/src/components/ui/ava
 import { FormControl, FormControlError, FormControlErrorIcon, FormControlErrorText, FormControlHelper, FormControlHelperText, FormControlLabel, FormControlLabelText } from "@/src/components/ui/form-control";
 import { AlertCircleIcon, Icon } from "@/src/components/ui/icon";
 import { Input, InputField } from "@/src/components/ui/input";
+import { Textarea, TextareaInput } from "@/src/components/ui/textarea";
 import { VStack } from "@/src/components/ui/vstack";
 import { Button, ButtonText } from "@components/ui/button";
 import { Camera } from "lucide-react-native";
@@ -153,9 +154,9 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
         <FormControlLabel>
           <FormControlLabelText>Bio (Optional)</FormControlLabelText>
         </FormControlLabel>
-        <Input>
-          <InputField type="text" value={formData.bio} onChangeText={value => updateFormField("bio", value)} placeholder="Tell us about yourself..." multiline numberOfLines={3} testID="sign-up-bio-input" />
-        </Input>
+        <Textarea size="lg" className="min-h-20">
+          <TextareaInput value={formData.bio} onChangeText={value => updateFormField("bio", value)} placeholder="Tell us about yourself..." multiline numberOfLines={4} style={{ textAlignVertical: 'top' }} testID="sign-up-bio-input" />
+        </Textarea>
       </FormControl>
 
       {/* Birth Date */}
