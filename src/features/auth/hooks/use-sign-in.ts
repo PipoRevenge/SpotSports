@@ -1,5 +1,5 @@
-import { authRepository } from '@/src/api';
-import { useUser } from '@/src/context/user-context';
+import { authRepository } from '@/src/api/repositories';
+import { useUser } from '@/src/entities/user/context/user-context';
 import { useState } from 'react';
 
 interface SignInResult {

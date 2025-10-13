@@ -3,7 +3,7 @@ import { GluestackUIProvider } from '@components/ui/gluestack-ui-provider';
 
 import { Stack } from "expo-router";
 import { NotificationProvider } from '../context/notification-context';
-import { UserProvider } from '../context/user-context';
+import { UserProvider } from '../entities/user/context/user-context';
 
 export default function RootLayout() {
   return (

@@ -9,7 +9,7 @@ import { Text } from '@/src/components/ui/text';
 import { Textarea, TextareaInput } from '@/src/components/ui/textarea';
 import { View } from '@/src/components/ui/view';
 import { VStack } from '@/src/components/ui/vstack';
-import { useUser } from '@/src/context/user-context';
+import { useUser } from '@/src/entities/user/context/user-context';
 import { Camera } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { Alert, TouchableOpacity } from 'react-native';

@@ -1,6 +1,7 @@
 // Componentes
-export { SignOut } from './components/sing-out';
-
+export { SignInForm } from './components/sign-in-form';
+export { SignOut } from './components/sign-out';
+export { SignUpForm } from './components/sign-up-form';
 // Hooks
 export { useSignIn } from './hooks/use-sign-in';
 export { useSignOut } from './hooks/use-sign-out';
@@ -9,3 +10,4 @@ export { useUsernameValidation } from './hooks/use-username-validation';
 
 // Tipos
 export * from './types/auth';
+

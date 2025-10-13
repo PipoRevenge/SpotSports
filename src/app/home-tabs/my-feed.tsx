@@ -1,7 +1,7 @@
 import { HStack } from "@/src/components/ui/hstack";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
-import { SignOut } from "@/src/features/auth/components/sing-out";
+
 
 export default function MyFeedScreen() {
   return (
@@ -12,11 +12,7 @@ export default function MyFeedScreen() {
           <Text style={{ fontSize: 24, fontWeight: 'bold' }}>My Feed</Text>
           <Text className="text-typography-600">Latest updates from your favorite spots and sports!</Text>
         </VStack>
-        <SignOut 
-          triggerText="Salir"
-          variant="outline" 
-          size="sm" 
-        />
+
       </HStack>
 
       {/* Feed content placeholder */}

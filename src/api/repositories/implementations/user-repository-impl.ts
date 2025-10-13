@@ -1,4 +1,4 @@
-import { User, UserDetails } from '@/src/types/user';
+import { User, UserDetails } from '@/src/entities/user/model/user';
 import {
     collection,
     deleteDoc,
@@ -11,7 +11,7 @@ import {
     where
 } from 'firebase/firestore';
 import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
-import { firestore } from '../../config/firebase-config';
+import { firestore } from '../../../lib/firebase-config';
 import { IUserRepository } from '../interfaces/i-user-repository';
 import { UserFirebase, UserMapper } from '../mappers/user-mapper';
 
@@ -51,7 +51,7 @@ export class UserRepositoryImpl implements IUserRepository {
 
     async getUserById(userId: string): Promise<User> {
         try {
-            const userRef = doc(firestore, this.USERS_COLLECTION, userId);
+            const userRef =  doc(firestore, this.USERS_COLLECTION, userId);
             const userDoc = await getDoc(userRef);
             
             if (!userDoc.exists()) {

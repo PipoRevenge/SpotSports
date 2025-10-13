@@ -1,6 +1,5 @@
 # Welcome to your Expo app 👋
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
 ## Get started
 
@@ -16,38 +15,6 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
 
 ---
 
@@ -63,6 +30,8 @@ Este proyecto sigue la estructura de desarrollo basada en el enfoque de **Bullet
 Contiene todo el código fuente de la aplicación.
 
 #### 1.1 **api/**
+La carpeta api implementa un patrón de repositorio con inyección de dependencias para gestionar todas las operaciones de datos en la aplicación SpotsSports. Abstrae las interacciones de Firebase, gestiona las transformaciones de datos mediante mapeadores y garantiza un código limpio y testeable según los principios SOLID. Sus responsabilidades incluyen operaciones CRUD, autenticación, gestión de errores y validación de datos.
+
 - **config/**: Configuraciones relacionadas con servicios externos, como Firebase.
 - **repositories/**: Implementaciones y abstracciones para interactuar con datos externos o APIs.
   - **interfaces/**: Definición de contratos (interfaces) para los repositorios.
@@ -90,7 +59,7 @@ Contiene todo el código fuente de la aplicación.
 - Organización modular por características.
 - Cada carpeta incluye:
   - **components/**: Componentes específicos de la característica.
-  - **hooks/**: Hooks personalizados relacionados con la característica.
+  - **hooks/**: Hooks personalizados relacionados con la característica (Logica de negocio y llamadadas a la api simplificada).
   - **types/**: Tipos TypeScript específicos de la característica.
   - **utils/**: Utilidades específicas de la característica.
 

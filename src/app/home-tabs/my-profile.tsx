@@ -1,7 +1,7 @@
 import { Text } from '@/src/components/ui/text';
 import { View } from '@/src/components/ui/view';
 import { VStack } from '@/src/components/ui/vstack';
-import { useUser } from '@/src/context/user-context';
+import { useUser } from '@/src/entities/user/context/user-context';
 import { SignOut } from '@/src/features/auth';
 import { ProfileHeader } from '@/src/features/user-profile/components/profile-header';
 import { useProfile } from '@/src/features/user-profile/hooks/use-profile';

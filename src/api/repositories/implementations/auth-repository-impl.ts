@@ -4,7 +4,7 @@ import {
     signInWithEmailAndPassword,
     signOut
 } from 'firebase/auth';
-import { auth } from '../../config/firebase-config';
+import { auth } from '../../../lib/firebase-config';
 import { IAuthRepository } from '../interfaces/i-auth-repository';
 
 export class AuthRepositoryImpl implements IAuthRepository {

@@ -1,4 +1,4 @@
-import { User, UserActivity, UserDetails, UserMetadata } from '@/src/types/user';
+import { User, UserActivity, UserDetails, UserMetadata } from '@/src/entities/user/model/user';
 
 /**
  * Interface que representa el modelo de usuario tal como se almacena en Firebase

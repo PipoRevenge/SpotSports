@@ -1,4 +1,4 @@
-import { User } from '@/src/types/user';
+import { User } from '@/src/entities/user/model/user';
 import { LucideIcon } from 'lucide-react-native';
 
 // Enum para diferentes tipos de acciones en el perfil

@@ -1,4 +1,4 @@
-import { User, UserDetails } from '@/src/types/user';
+import { User, UserDetails } from '@/src/entities/user/model/user';
 
 export interface IUserRepository {
   createUser(userId: string, userData: Partial<UserDetails>): Promise<boolean>;

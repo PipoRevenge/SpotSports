@@ -1,5 +1,5 @@
-import { authRepository, userRepository } from '@/src/api';
-import { User } from '@/src/types/user';
+import { authRepository, userRepository } from '@/src/api/repositories';
+import { User } from '@/src/entities/user/model/user';
 import { router } from 'expo-router';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 

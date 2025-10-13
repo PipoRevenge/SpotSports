@@ -1,5 +1,5 @@
-import { useUser } from '@/src/context/user-context';
-import { User } from '@/src/types/user';
+import { useUser } from '@/src/entities/user/context/user-context';
+import { User } from '@/src/entities/user/model/user';
 import { useEffect, useState } from 'react';
 
 interface UseProfileReturn {

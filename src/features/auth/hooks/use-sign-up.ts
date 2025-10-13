@@ -1,7 +1,7 @@
-import { authRepository, userRepository } from '@/src/api';
+import { authRepository, userRepository } from '@/src/api/repositories';
 import { useNotification } from '@/src/context/notification-context';
-import { useUser } from '@/src/context/user-context';
-import { UserDetails } from '@/src/types/user';
+import { useUser } from '@/src/entities/user/context/user-context';
+import { UserDetails } from '@/src/entities/user/model/user';
 import { useState } from 'react';
 
 interface UseSignUpReturn {

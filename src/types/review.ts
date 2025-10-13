@@ -1,6 +1,6 @@
+import { User } from "../entities/user/model/user";
 import { CommentReview } from "./comment";
 import { Spot } from "./spot";
-import { User } from "./user";
 
 export interface ReviewDetails {
   title: string;

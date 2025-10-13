@@ -19,7 +19,7 @@ import { Input, InputField } from "@/src/components/ui/input";
 
 import React, { useState } from "react";
 import { AuthFormErrors, SignInFormData } from "../types/auth";
-import { validateSignInForm } from "../utils/validation";
+import { validateSignInForm } from "../utils/validations";
 
 interface SignInFormProps {
   onSubmit?: (email: string, password: string) => void;

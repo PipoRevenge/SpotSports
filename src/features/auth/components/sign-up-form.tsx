@@ -13,7 +13,7 @@ import React, { useState } from "react";
 import { TouchableOpacity } from "react-native";
 import { useUsernameValidation } from "../hooks/use-username-validation";
 import { AuthFormErrors, SignUpFormData } from "../types/auth";
-import { validateSignUpForm } from "../utils/validation";
+import { validateSignUpForm } from "../utils/validations";
 interface SignUpFormProps {
   onSubmit?: (email: string, password: string, userName: string, photo?: string, birthDate?: Date, fullName?: string, bio?: string) => void;
   onSignInPress?: () => void;
