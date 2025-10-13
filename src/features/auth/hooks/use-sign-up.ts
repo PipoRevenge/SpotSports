@@ -41,7 +41,7 @@ export const useSignUp = (): UseSignUpReturn => {
       // Step 1: Check if username is available
       const isUserNameTaken = await userRepository.checkUserNameExists(userName);
       if (isUserNameTaken) {
-        throw new Error('Username is already taken. Please choose a different one.');
+        throw new Error('El nombre de usuario ya está en uso. Por favor, elige otro diferente.');
       }
 
       // Step 2: Register user with Firebase Auth
@@ -72,40 +72,15 @@ export const useSignUp = (): UseSignUpReturn => {
       const userCreated = await userRepository.createUser(userId, userData);
       
       if (!userCreated) {
-        throw new Error('Failed to create user profile');
+        throw new Error('No se pudo crear el perfil de usuario');
       }
 
       // Navigation will be handled by the UserContext when auth state changes
       
     } catch (err: any) {
-      let errorMessage = 'Failed to create account. Please try again.';
-      let errorTitle = 'Error al crear cuenta';
-      
-      // Provide more specific error messages based on Firebase error codes
-      if (err?.code) {
-        switch (err.code) {
-          case 'auth/email-already-in-use':
-            errorTitle = 'Email en uso';
-            errorMessage = 'Esta dirección de correo ya está registrada. Por favor, inicia sesión o usa otro email.';
-            break;
-          case 'auth/weak-password':
-            errorTitle = 'Contraseña débil';
-            errorMessage = 'La contraseña es muy débil. Debe tener al menos 6 caracteres.';
-            break;
-          case 'auth/invalid-email':
-            errorTitle = 'Email inválido';
-            errorMessage = 'Por favor, ingresa una dirección de correo válida.';
-            break;
-          case 'auth/network-request-failed':
-            errorTitle = 'Error de conexión';
-            errorMessage = 'No se pudo conectar al servidor. Verifica tu conexión a internet e intenta nuevamente.';
-            break;
-          default:
-            errorMessage = err.message || errorMessage;
-        }
-      } else if (err?.message) {
-        errorMessage = err.message;
-      }
+      // Los errores ya vienen con mensajes apropiados desde los repositorios
+      const errorMessage = err?.message || 'Error al crear la cuenta. Por favor, intenta nuevamente.';
+      const errorTitle = 'Error al crear cuenta';
       
       setError(errorMessage);
       showError(errorMessage, errorTitle);

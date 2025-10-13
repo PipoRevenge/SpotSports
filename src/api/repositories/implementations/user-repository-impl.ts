@@ -26,12 +26,12 @@ export class UserRepositoryImpl implements IUserRepository {
     async createUser(userId: string, userData: Partial<UserDetails>): Promise<boolean> {
         try {
             if (!userId) {
-                throw new Error('User ID is required');
+                throw new Error('El ID de usuario es requerido');
             }
 
             // Validar datos requeridos
             if (!UserMapper.validateUserData(userData)) {
-                throw new Error('Email and userName are required');
+                throw new Error('El email y nombre de usuario son requeridos');
             }
 
             // Convertir a formato Firebase usando el mapper
@@ -43,17 +43,40 @@ export class UserRepositoryImpl implements IUserRepository {
             await setDoc(userRef, newUser);
 
             return true;
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error creating user:', error);
-            return false;
+            
+            // Si ya es un error con mensaje personalizado, relanzarlo
+            if (error?.message && (
+                error.message.includes('requerido') || 
+                error.message.includes('requeridos')
+            )) {
+                throw error;
+            }
+            
+            // Manejar errores de Firestore
+            if (error?.code) {
+                switch (error.code) {
+                    case 'permission-denied':
+                        throw new Error('No tienes permisos para crear este usuario. Verifica tu autenticación.');
+                    case 'unavailable':
+                        throw new Error('El servicio no está disponible. Por favor, intenta más tarde.');
+                    case 'already-exists':
+                        throw new Error('Este usuario ya existe en el sistema.');
+                    default:
+                        throw new Error('Error al crear el perfil de usuario. Por favor, intenta nuevamente.');
+                }
+            }
+            
+            throw new Error('Error inesperado al crear el perfil de usuario.');
         }
     }
 
     async getUserById(userId: string): Promise<User> {
         try {
-            const userRef =  doc(firestore, this.USERS_COLLECTION, userId);
+            const userRef = await doc(firestore, this.USERS_COLLECTION, userId);
             const userDoc = await getDoc(userRef);
-            
+            console.log('Fetched user document:', userDoc);
             if (!userDoc.exists()) {
                 throw new Error('User not found');
             }
@@ -61,9 +84,27 @@ export class UserRepositoryImpl implements IUserRepository {
             // Convertir de Firebase a modelo de la aplicación usando el mapper
             const firebaseUser = userDoc.data() as UserFirebase;
             return UserMapper.fromFirebase(firebaseUser, userId);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error getting user:', error);
-            throw new Error('Unable to get user');
+            
+            // Preservar el mensaje "User not found" para que el contexto pueda hacer retry
+            if (error?.message === 'User not found') {
+                throw error;
+            }
+            
+            // Para otros errores de Firestore
+            if (error?.code) {
+                switch (error.code) {
+                    case 'permission-denied':
+                        throw new Error('No tienes permisos para acceder a este usuario.');
+                    case 'unavailable':
+                        throw new Error('El servicio no está disponible. Por favor, intenta más tarde.');
+                    default:
+                        throw new Error('Error al obtener los datos del usuario.');
+                }
+            }
+            
+            throw new Error('No se pudo obtener el usuario');
         }
     }
 
@@ -415,26 +456,55 @@ export class UserRepositoryImpl implements IUserRepository {
         try {
             const photoRef = ref(this.storage, `userMedia/${userId}/profile.jpg`);
             const response = await fetch(photoUri);
+            
+            if (!response.ok) {
+                throw new Error('No se pudo cargar la imagen desde la URI proporcionada');
+            }
+            
             const blob = await response.blob();
             const uploadResult = await uploadBytes(photoRef, blob);
             return await getDownloadURL(uploadResult.ref);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error uploading profile photo:', error);
-            throw new Error('Failed to upload profile photo');
+            
+            // Si ya es un error con mensaje personalizado, relanzarlo
+            if (error?.message && error.message.includes('cargar la imagen')) {
+                throw error;
+            }
+            
+            // Manejar errores de Storage
+            if (error?.code) {
+                switch (error.code) {
+                    case 'storage/unauthorized':
+                        throw new Error('No tienes permisos para subir esta foto. Verifica tu autenticación.');
+                    case 'storage/canceled':
+                        throw new Error('La carga de la foto fue cancelada.');
+                    case 'storage/unknown':
+                        throw new Error('Error desconocido al subir la foto. Por favor, intenta nuevamente.');
+                    case 'storage/quota-exceeded':
+                        throw new Error('Se ha excedido el límite de almacenamiento. Contacta al administrador.');
+                    case 'storage/invalid-format':
+                        throw new Error('El formato de la imagen no es válido. Usa JPG, PNG o similar.');
+                    default:
+                        throw new Error('Error al subir la foto de perfil. Por favor, intenta nuevamente.');
+                }
+            }
+            
+            throw new Error('No se pudo subir la foto de perfil');
         }
     }
 
     async checkUserNameExists(userName: string, excludeUserId?: string): Promise<boolean> {
         try {
             if (!userName || typeof userName !== 'string') {
-                throw new Error('Valid userName is required');
+                throw new Error('Se requiere un nombre de usuario válido');
             }
 
             // Normalizar userName para comparación case-insensitive
             const normalizedUserName = userName.toLowerCase().trim();
             
             if (normalizedUserName.length === 0) {
-                throw new Error('UserName cannot be empty');
+                throw new Error('El nombre de usuario no puede estar vacío');
             }
 
             // Crear consulta para buscar usuarios con el mismo userName
@@ -465,16 +535,30 @@ export class UserRepositoryImpl implements IUserRepository {
             // Si hay cualquier documento y no se excluye ningún usuario, está en uso
             return true;
             
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error checking userName existence:', error);
             
             // Si el error es de validación, relanzarlo
-            if (error instanceof Error && error.message.includes('required') || error instanceof Error && error.message.includes('empty')) {
+            if (error instanceof Error && (
+                error.message.includes('requerido') || 
+                error.message.includes('vacío')
+            )) {
                 throw error;
             }
             
-            // Para otros errores, assumir que está en uso para ser conservador
-            throw new Error('Unable to verify userName availability');
+            // Manejar errores de Firestore
+            if (error?.code) {
+                switch (error.code) {
+                    case 'permission-denied':
+                        throw new Error('No tienes permisos para verificar nombres de usuario.');
+                    case 'unavailable':
+                        throw new Error('El servicio no está disponible. Por favor, intenta más tarde.');
+                    default:
+                        throw new Error('Error al verificar la disponibilidad del nombre de usuario.');
+                }
+            }
+            
+            throw new Error('No se pudo verificar la disponibilidad del nombre de usuario');
         }
     }
 

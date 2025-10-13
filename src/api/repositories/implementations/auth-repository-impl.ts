@@ -39,22 +39,27 @@ export class AuthRepositoryImpl implements IAuthRepository {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             return userCredential.user.uid;
         } catch (error: any) {
+            console.error('Registration error:', error);
+            
             if (error?.code) {
                 switch (error.code) {
-                    case 'auth/network-request-failed':
-                        throw new Error('Network connection error. Please check your internet connection.');
                     case 'auth/email-already-in-use':
-                        throw new Error('Email already registered');
-                    case 'auth/invalid-email':
-                        throw new Error('Invalid email format');
+                        throw new Error('Esta dirección de correo ya está registrada. Por favor, inicia sesión o usa otro email.');
                     case 'auth/weak-password':
-                        throw new Error('Password is too weak');
+                        throw new Error('La contraseña es muy débil. Debe tener al menos 6 caracteres.');
+                    case 'auth/invalid-email':
+                        throw new Error('Por favor, ingresa una dirección de correo válida.');
+                    case 'auth/network-request-failed':
+                        throw new Error('No se pudo conectar al servidor. Verifica tu conexión a internet e intenta nuevamente.');
+                    case 'auth/operation-not-allowed':
+                        throw new Error('El registro con email/contraseña no está habilitado. Contacta al administrador.');
+                    case 'auth/too-many-requests':
+                        throw new Error('Demasiados intentos fallidos. Por favor, intenta más tarde.');
                     default:
-                        console.error('Registration error:', error);
-                        throw new Error('Registration failed');
+                        throw new Error('Error al crear la cuenta. Por favor, intenta nuevamente.');
                 }
             }
-            throw error;
+            throw new Error('Error inesperado al registrar usuario. Por favor, intenta nuevamente.');
         }
     }
 
