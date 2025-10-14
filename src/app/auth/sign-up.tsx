@@ -7,7 +7,7 @@ import { useSignUp } from '@/src/features/auth/hooks/use-sign-up';
 
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, KeyboardAvoidingView } from 'react-native';
 
 export default function SignUp() {
   const router = useRouter();
@@ -41,6 +41,7 @@ export default function SignUp() {
   };
 
   return (
+    <KeyboardAvoidingView behavior="padding" enabled>
     <ScrollView>
       <VStack className='flex-1 p-4 gap-2'>
         <SignUpForm 
@@ -68,6 +69,7 @@ export default function SignUp() {
           </Button>
         </VStack>
       </VStack>
-    </ScrollView>   
+    </ScrollView>
+    </KeyboardAvoidingView>   
   );
 }

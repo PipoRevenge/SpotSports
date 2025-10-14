@@ -3,8 +3,8 @@ import { FormContainer } from "@/src/components/commons/forms/form-container";
 import { useImagePicker } from "@/src/components/commons/media-picker/image-picker";
 import { Avatar, AvatarFallbackText, AvatarImage } from "@/src/components/ui/avatar";
 import { FormControl, FormControlError, FormControlErrorIcon, FormControlErrorText, FormControlHelper, FormControlHelperText, FormControlLabel, FormControlLabelText } from "@/src/components/ui/form-control";
-import { AlertCircleIcon, Icon } from "@/src/components/ui/icon";
-import { Input, InputField } from "@/src/components/ui/input";
+import { AlertCircleIcon, EyeIcon, EyeOffIcon, Icon } from "@/src/components/ui/icon";
+import { Input, InputField, InputIcon, InputSlot } from "@/src/components/ui/input";
 import { Textarea, TextareaInput } from "@/src/components/ui/textarea";
 import { VStack } from "@/src/components/ui/vstack";
 import { Button, ButtonText } from "@components/ui/button";
@@ -45,6 +45,8 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
     bio: ""
   });
   const [errors, setErrors] = useState<AuthFormErrors>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const {
     pickImage
   } = useImagePicker();
@@ -200,7 +202,15 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
           <FormControlLabelText>Password</FormControlLabelText>
         </FormControlLabel>
         <Input>
-          <InputField type="password" value={formData.password} onChangeText={value => updateFormField("password", value)} placeholder="password" testID="sign-up-password-input" />
+          <InputField 
+            type={showPassword ? "text" : "password"}
+            value={formData.password} 
+            onChangeText={value => updateFormField("password", value)} 
+            placeholder="password" 
+            testID="sign-up-password-input" />
+          <InputSlot className="pr-3" onPress={() => setShowPassword(!showPassword)}>
+            <InputIcon as={showPassword ? EyeIcon : EyeOffIcon} />
+          </InputSlot>
         </Input>
         <FormControlHelper>
           <FormControlHelperText>
@@ -221,7 +231,13 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
           <FormControlLabelText>Confirm Password</FormControlLabelText>
         </FormControlLabel>
         <Input>
-          <InputField type="password" value={formData.confirmPassword} onChangeText={value => updateFormField("confirmPassword", value)} placeholder="confirm password" testID="sign-up-confirm-password-input" />
+          <InputField 
+            type={"password"}
+            value={formData.confirmPassword} 
+            onChangeText={value => updateFormField("confirmPassword", value)} 
+            placeholder="confirm password" 
+            testID="sign-up-confirm-password-input" />
+
         </Input>
         <FormControlHelper>
           <FormControlHelperText>

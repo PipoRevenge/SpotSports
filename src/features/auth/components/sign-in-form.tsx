@@ -14,8 +14,8 @@ import {
   FormControlLabel,
   FormControlLabelText,
 } from "@/src/components/ui/form-control";
-import { AlertCircleIcon } from "@/src/components/ui/icon";
-import { Input, InputField } from "@/src/components/ui/input";
+import { AlertCircleIcon, EyeIcon, EyeOffIcon } from "@/src/components/ui/icon";
+import { Input, InputField, InputIcon, InputSlot } from "@/src/components/ui/input";
 
 import React, { useState } from "react";
 import { AuthFormErrors, SignInFormData } from "../types/auth";
@@ -44,7 +44,7 @@ export const SignInForm: React.FC<SignInFormProps> = ({
     password: "",
   });
   const [errors, setErrors] = useState<AuthFormErrors>({});
-
+  const [showPassword, setShowPassword] = useState(false);
 
   const updateFormField = (field: keyof SignInFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -66,7 +66,6 @@ export const SignInForm: React.FC<SignInFormProps> = ({
 
     if (onSubmit) {
       onSubmit(formData.email, formData.password);
-      // Toast de éxito se manejará desde el componente padre tras confirmación
     }
   };
 
@@ -118,12 +117,15 @@ export const SignInForm: React.FC<SignInFormProps> = ({
         </FormControlLabel>
         <Input>
           <InputField 
-            type="password" 
+            type={showPassword ? "text" : "password"}
             value={formData.password}
             onChangeText={(value) => updateFormField('password', value)}
             placeholder="password"
             testID="sign-in-password-input"
           />
+          <InputSlot className="pr-3" onPress={() => setShowPassword(!showPassword)}>
+            <InputIcon as={showPassword ? EyeIcon : EyeOffIcon} />
+          </InputSlot>
         </Input>
 
         <FormControlHelper>

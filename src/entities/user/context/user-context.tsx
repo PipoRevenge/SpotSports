@@ -24,18 +24,35 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (userId) {
           setIsAuthenticated(true);
           
-          // Load user data from Firestore
-          try {
-            const userData = await userRepository.getUserById(userId);
-            setUser(userData);
-            
-            // Navigate to main app after successful authentication and data load
-            router.replace('/home-tabs/my-feed');
-          } catch (userError) {
-            console.error('Error loading user data:', userError);
-            // If user data doesn't exist, navigate to auth to complete registration
-            setUser(null);
-            router.replace('/auth/authentication');
+          // Load user data from Firestore with retry logic
+          let userData = null;
+          let attempts = 0;
+          const maxAttempts = 3;
+          
+          while (attempts < maxAttempts && !userData) {
+            try {
+              attempts++;
+              userData = await userRepository.getUserById(userId);
+              
+              if (userData) {
+                setUser(userData);
+                // Navigate to main app after successful authentication and data load
+                router.replace('/home-tabs/my-feed');
+                break;
+              }
+            } catch (userError) {
+             
+              
+              if (attempts < maxAttempts) {
+                // Wait 1 second before retrying
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              } else {
+                // If all attempts failed, navigate to auth to complete registration
+                console.error("Failed" , userError);
+                setUser(null);
+                router.replace('/auth/authentication');
+              }
+            }
           }
         } else {
           setIsAuthenticated(false);
