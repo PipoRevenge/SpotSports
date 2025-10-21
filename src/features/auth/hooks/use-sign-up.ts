@@ -21,7 +21,7 @@ interface UseSignUpReturn {
 export const useSignUp = (): UseSignUpReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { setIsLoading: setGlobalLoading, setUser } = useUser();
+  const { setIsLoading: setGlobalLoading } = useUser();
   const { showError } = useNotification();
 
   const signUp = async (

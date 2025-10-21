@@ -7,7 +7,7 @@ import { UserProvider } from '../entities/user/context/user-context';
 
 export default function RootLayout() {
   return (
-    <GluestackUIProvider mode="system">
+    <GluestackUIProvider mode="system" >
       <NotificationProvider>
       <UserProvider>
         <Stack screenOptions={{ headerShown: false }} />
