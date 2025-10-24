@@ -1,11 +1,22 @@
-import { sportRepository } from '@/src/api/repositories';
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CreateSportData, SportOption, SportSimple } from "../types/sport-types";
+import { SportCategory, SportOption, SportSimple } from "../types/sport-types";
+import {
+  getSelectedSportIds,
+  addAndSelectSport as helperAddAndSelectSport,
+  markSportsAsSelected,
+  toggleSportSelection,
+  toSportOption
+} from "../utils/sport-helpers";
+import { validateSportSelection } from "../utils/sport-validations";
 import { useSearchSports } from "./use-search-sports";
 
 // Caché global para mantener las selecciones entre renders y componentes
 const selectedSportsCache: Record<string, boolean> = {};
 
+/**
+ * Hook para manejar la selección de deportes
+ * Encapsula toda la lógica de negocio para seleccionar múltiples deportes
+ */
 export const useSelectSports = (
   initialSelectedSports: string[] = [],
   availableSports?: SportSimple[]
@@ -22,8 +33,6 @@ export const useSelectSports = (
   
   // Estado para deportes con selección
   const [sportOptions, setSportOptions] = useState<SportOption[]>([]);
-  const [isCreating, setIsCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
   
   // Refs para seguimiento de estado
   const initializedRef = useRef(false);
@@ -31,7 +40,9 @@ export const useSelectSports = (
   const manualSelectionRef = useRef<Set<string>>(new Set());
   const instanceIdRef = useRef(`sports-${Math.random().toString(36).substring(2, 9)}`);
 
-  // Función para inicializar el caché con selecciones iniciales
+  /**
+   * Función para inicializar el caché con selecciones iniciales
+   */
   const initializeCache = useCallback((ids: string[]) => {
     ids.forEach(id => {
       selectedSportsCache[id] = true;
@@ -39,7 +50,9 @@ export const useSelectSports = (
     initialSelectedRef.current = [...ids];
   }, []);
 
-  // Inicializar opciones y caché cuando se cargan los deportes
+  /**
+   * Inicializar opciones y caché cuando se cargan los deportes
+   */
   useEffect(() => {
     if (sourceSports.length === 0) return;
     
@@ -59,10 +72,7 @@ export const useSelectSports = (
         selectedSportsCache[sport.id] = true;
       }
       
-      return {
-        ...sport,
-        selected: isSelected
-      };
+      return toSportOption(sport, isSelected);
     });
     
     setSportOptions(options);
@@ -86,14 +96,8 @@ export const useSelectSports = (
       manualSelectionRef.current.add(sportId);
     }
 
-    // Actualizar el estado de UI
-    setSportOptions(prev => 
-      prev.map(sport => 
-        sport.id === sportId 
-          ? { ...sport, selected: !currentSelected }
-          : sport
-      )
-    );
+    // Actualizar el estado de UI usando el helper
+    setSportOptions(prev => toggleSportSelection(prev, sportId));
     
     console.log(`[${instanceIdRef.current}] Sport toggled: ${sportId}, now ${!currentSelected}`);
   }, []);
@@ -106,21 +110,8 @@ export const useSelectSports = (
     selectedSportsCache[sport.id] = true;
     manualSelectionRef.current.add(sport.id);
     
-    setSportOptions(prev => {
-      // Verificar si el deporte ya existe
-      const exists = prev.find(option => option.id === sport.id);
-      if (exists) {
-        // Si existe, solo cambiarlo a seleccionado
-        return prev.map(option => 
-          option.id === sport.id 
-            ? { ...option, selected: true }
-            : option
-        );
-      } else {
-        // Si no existe, agregarlo como seleccionado
-        return [...prev, { ...sport, selected: true }];
-      }
-    });
+    // Actualizar estado usando el helper
+    setSportOptions(prev => helperAddAndSelectSport(prev, sport));
     
     console.log(`Deporte añadido y seleccionado: ${sport.name} (${sport.id})`);
     console.log(`[${instanceIdRef.current}] Cache updated:`, 
@@ -131,10 +122,8 @@ export const useSelectSports = (
    * Obtiene los deportes seleccionados
    */
   const getSelectedSports = useCallback((): string[] => {
-    // Usar primero el estado de UI, pero validar con el caché como respaldo
-    const selectedFromOptions = sportOptions
-      .filter(sport => sport.selected || selectedSportsCache[sport.id])
-      .map(sport => sport.id);
+    // Usar helper para obtener IDs de las opciones actuales
+    const selectedFromOptions = getSelectedSportIds(sportOptions);
     
     // También incluir deportes del caché que no estén en las opciones
     const allSelectedIds = new Set([
@@ -151,7 +140,6 @@ export const useSelectSports = (
   const setSelectedSports = useCallback((selectedSportIds: string[]) => {
     // Actualizar caché
     Object.keys(selectedSportsCache).forEach(id => {
-      selectedSportsCache[id] = false;
       delete selectedSportsCache[id];
     });
     
@@ -162,13 +150,8 @@ export const useSelectSports = (
     // Actualizar referencia manual
     manualSelectionRef.current = new Set(selectedSportIds);
     
-    // Actualizar opciones UI
-    setSportOptions(prev =>
-      prev.map(sport => ({
-        ...sport,
-        selected: selectedSportIds.includes(sport.id)
-      }))
-    );
+    // Actualizar opciones UI usando helper
+    setSportOptions(prev => markSportsAsSelected(prev, selectedSportIds));
     
     console.log(`[${instanceIdRef.current}] Selected sports set:`, selectedSportIds);
   }, []);
@@ -186,13 +169,8 @@ export const useSelectSports = (
     
     manualSelectionRef.current.clear();
     
-    // Resetear opciones pero mantener iniciales
-    setSportOptions(prev =>
-      prev.map(sport => ({
-        ...sport,
-        selected: initialSelectedRef.current.includes(sport.id)
-      }))
-    );
+    // Resetear opciones pero mantener iniciales usando helper
+    setSportOptions(prev => markSportsAsSelected(prev, initialSelectedRef.current));
     
     console.log(`[${instanceIdRef.current}] Selection reset`);
   }, []);
@@ -201,60 +179,19 @@ export const useSelectSports = (
    * Valida que al menos un deporte esté seleccionado
    */
   const validateSelection = useCallback((): boolean => {
-    return getSelectedSports().length > 0;
+    const selectedIds = getSelectedSports();
+    return validateSportSelection(selectedIds);
   }, [getSelectedSports]);
-
+  
   /**
-   * Crea un nuevo deporte
+   * Recargar deportes desde la API
    */
-  const createSport = useCallback(async (sportData: CreateSportData): Promise<string> => {
-    setIsCreating(true);
-    setCreateError(null);
-    
-    try {
-      const sportId = await sportRepository.createSport({
-        name: sportData.name,
-        description: sportData.description,
-        category: sportData.category,
-        icon: sportData.icon,
-      }, 'user'); // TODO: Obtener el ID del usuario actual
-
-      // Añadir inmediatamente al caché
-      selectedSportsCache[sportId] = true;
-      manualSelectionRef.current.add(sportId);
-
-      // Agregar el nuevo deporte a las opciones
-      const newSport: SportOption = {
-        id: sportId,
-        name: sportData.name,
-        selected: true, // Seleccionar automáticamente el nuevo deporte
-      };
-
-      setSportOptions(prev => [...prev, newSport]);
-
-      // Recargar deportes si estamos usando la API
-      if (!availableSports) {
-        // Esperar a que se complete la carga antes de continuar
-        await loadSports();
-      }
-
-      console.log(`[${instanceIdRef.current}] New sport created and selected: ${sportData.name} (${sportId})`);
-      return sportId;
-    } catch (error: any) {
-      setCreateError(error.message || 'Error al crear el deporte');
-      throw error;
-    } finally {
-      setIsCreating(false);
+  const reloadSports = useCallback(async (category?: SportCategory) => {
+    if (!availableSports) {
+      await loadSports(category);
     }
   }, [availableSports, loadSports]);
 
-  /**
-   * Limpia el error de creación
-   */
-  const clearCreateError = useCallback(() => {
-    setCreateError(null);
-  }, []);
-  
   // Efecto para sincronizar cambios de props con el estado interno
   useEffect(() => {
     // Si hay cambios en los deportes iniciales seleccionados (desde props)
@@ -291,13 +228,8 @@ export const useSelectSports = (
         selectedSportsCache[id] = true;
       });
       
-      // Actualizar UI
-      setSportOptions(prev =>
-        prev.map(sport => ({
-          ...sport,
-          selected: allSelected.includes(sport.id)
-        }))
-      );
+      // Actualizar UI usando helper
+      setSportOptions(prev => markSportsAsSelected(prev, allSelected));
     }
   }, [initialSelectedSports]);
   
@@ -313,19 +245,21 @@ export const useSelectSports = (
   }, []);
 
   return {
+    // Estado
     sportOptions,
     loading: sportsLoading,
     error: sportsError,
-    isCreating,
-    createError,
+    availableSports: sourceSports,
+    
+    // Acciones de selección
     toggleSport,
     addAndSelectSport,
     getSelectedSports,
     setSelectedSports,
     resetSelection,
     validateSelection,
-    createSport,
-    clearCreateError,
-    availableSports: sourceSports,
+    
+    // Acciones de datos
+    reloadSports,
   };
 };

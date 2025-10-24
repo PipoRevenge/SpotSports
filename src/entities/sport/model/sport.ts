@@ -1,9 +1,9 @@
 export interface SportDetails {
   name: string;
   description: string;
+  category?: string; // Opcional - los deportes pueden no tener categoría
   icon?: string;
   image?: string;
-  category?: string;
 }
 
 export interface SportMetadata {

@@ -1,15 +1,21 @@
 import { sportRepository } from '@/src/api/repositories';
 import { useCallback, useEffect, useState } from 'react';
-import { SportSimple, SportState, UseSportsSearchOptions } from '../types/sport-types';
+import { SportCategory, SportFilters, SportState, UseSportsSearchOptions } from '../types/sport-types';
+import { SPORT_ERROR_MESSAGES, SPORT_SEARCH_CONFIG } from '../utils/sport-constants';
+import { toSimpleSport } from '../utils/sport-helpers';
 
 /**
  * Hook para buscar y gestionar deportes desde la API
+ * Maneja toda la lógica de negocio relacionada con la búsqueda de deportes con filtros
  */
 export const useSearchSports = (options: UseSportsSearchOptions = {}) => {
   const {
     autoLoad = true,
-    searchDelay = 300
+    searchDelay = SPORT_SEARCH_CONFIG.DEFAULT_SEARCH_DELAY,
+    defaultFilters = {}
   } = options;
+  
+  const [filters, setFilters] = useState<SportFilters>(defaultFilters);
 
   const [state, setState] = useState<SportState>({
     sports: [],
@@ -21,21 +27,16 @@ export const useSearchSports = (options: UseSportsSearchOptions = {}) => {
   });
 
   /**
-   * Convierte Sport del dominio a SportSimple para la UI
+   * Carga todos los deportes activos, opcionalmente filtrados por categoría
    */
-  const toSimpleSport = useCallback((sport: any): SportSimple => ({
-    id: sport.id,
-    name: sport.details.name,
-  }), []);
-
-  /**
-   * Carga todos los deportes activos
-   */
-  const loadSports = useCallback(async () => {
+  const loadSports = useCallback(async (category?: SportCategory) => {
     setState(prev => ({ ...prev, loading: true, error: null }));
     
     try {
-      const sports = await sportRepository.getActiveSports();
+      const sports = category 
+        ? await sportRepository.getActiveSportsByCategory(category)
+        : await sportRepository.getActiveSports();
+        
       const simpleSports = sports.map(toSimpleSport);
       
       setState(prev => ({
@@ -48,10 +49,10 @@ export const useSearchSports = (options: UseSportsSearchOptions = {}) => {
       setState(prev => ({
         ...prev,
         loading: false,
-        error: error.message || 'Error al cargar deportes',
+        error: error.message || SPORT_ERROR_MESSAGES.LOAD_ERROR,
       }));
     }
-  }, [toSimpleSport]);
+  }, []);
 
   /**
    * Busca deportes por nombre
@@ -78,10 +79,73 @@ export const useSearchSports = (options: UseSportsSearchOptions = {}) => {
       setState(prev => ({
         ...prev,
         searchLoading: false,
-        searchError: error.message || 'Error al buscar deportes',
+        searchError: error.message || SPORT_ERROR_MESSAGES.SEARCH_ERROR,
       }));
     }
-  }, [toSimpleSport]);
+  }, []);
+
+  /**
+   * Busca deportes con filtros aplicados
+   */
+  const searchWithFilters = useCallback(async (searchFilters: SportFilters) => {
+    setFilters(searchFilters);
+    
+    const { query, category } = searchFilters;
+    
+    // Si no hay filtros, limpiar resultados
+    if (!query?.trim() && !category) {
+      setState(prev => ({ 
+        ...prev, 
+        searchResults: [], 
+        searchLoading: false,
+        searchError: null,
+      }));
+      return;
+    }
+    
+    setState(prev => ({ ...prev, searchLoading: true, searchError: null }));
+    
+    try {
+      // Usar el nuevo método de búsqueda con filtros del repositorio
+      const results = await sportRepository.searchSportsWithFilters({ query, category });
+      const simpleResults = results.map(toSimpleSport);
+      
+      setState(prev => ({
+        ...prev,
+        searchResults: simpleResults,
+        searchLoading: false,
+      }));
+    } catch (error: any) {
+      console.error('❌ Error al buscar deportes con filtros:', error);
+      setState(prev => ({
+        ...prev,
+        searchLoading: false,
+        searchError: error.message || SPORT_ERROR_MESSAGES.SEARCH_ERROR,
+      }));
+    }
+  }, []);
+
+  /**
+   * Actualiza el filtro de categoría
+   */
+  const setCategory = useCallback((category?: SportCategory) => {
+    setFilters(prevFilters => {
+      const newFilters = { ...prevFilters, category };
+      searchWithFilters(newFilters);
+      return newFilters;
+    });
+  }, [searchWithFilters]);
+
+  /**
+   * Actualiza el filtro de búsqueda
+   */
+  const setQuery = useCallback((query?: string) => {
+    setFilters(prevFilters => {
+      const newFilters = { ...prevFilters, query };
+      searchWithFilters(newFilters);
+      return newFilters;
+    });
+  }, [searchWithFilters]);
 
   /**
    * Busca deportes con debounce
@@ -128,10 +192,14 @@ export const useSearchSports = (options: UseSportsSearchOptions = {}) => {
     searchResults: state.searchResults,
     searchLoading: state.searchLoading,
     searchError: state.searchError,
+    filters,
     
     // Acciones
     loadSports,
     searchSports,
+    searchWithFilters,
+    setCategory,
+    setQuery,
     debouncedSearch,
     clearSearch,
     reload,

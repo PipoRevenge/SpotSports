@@ -10,11 +10,15 @@ import {
 import { HStack } from "@/src/components/ui/hstack";
 import { CloseIcon } from "@/src/components/ui/icon";
 import { Input, InputField } from "@/src/components/ui/input";
+import { Pressable } from "@/src/components/ui/pressable";
 import { Text } from "@/src/components/ui/text";
 import { Textarea, TextareaInput } from "@/src/components/ui/textarea";
 import { VStack } from "@/src/components/ui/vstack";
 import React, { useState } from "react";
+import { ScrollView } from "react-native";
 import { CreateSportData } from "../types/sport-types";
+import { LOADING_STATES, SPORT_CATEGORIES_LIST, SPORT_PLACEHOLDERS, SPORT_VALIDATION_LIMITS } from "../utils/sport-constants";
+import { validateSportDescription, validateSportName } from "../utils/sport-validations";
 
 interface CreateSportFormProps {
   onSubmit: (data: CreateSportData) => Promise<void>;
@@ -28,24 +32,34 @@ interface FormErrors {
   description?: string;
 }
 
+interface FormData {
+  name: string;
+  description: string;
+  category: string; // Puede estar vacío
+}
+
+/**
+ * Formulario para crear un nuevo deporte
+ * Componente controlado que solo maneja la UI y validación de formulario
+ */
 export const CreateSportForm: React.FC<CreateSportFormProps> = ({
   onSubmit,
   onCancel,
   isLoading = false,
   error = null
 }) => {
-  const [formData, setFormData] = useState<CreateSportData>({
+  const [formData, setFormData] = useState<FormData>({
     name: "",
     description: "",
-    category: "",
+    category: "", // Sin categoría por defecto
   });
 
   const [formErrors, setFormErrors] = useState<FormErrors>({});
 
   /**
-   * Actualiza un campo del formulario
+   * Actualiza un campo del formulario y limpia su error
    */
-  const updateField = (field: keyof CreateSportData, value: string) => {
+  const updateField = (field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
     // Limpiar error del campo
@@ -55,25 +69,21 @@ export const CreateSportForm: React.FC<CreateSportFormProps> = ({
   };
 
   /**
-   * Valida el formulario
+   * Valida el formulario usando las utilidades de validación
    */
   const validateForm = (): boolean => {
     const errors: FormErrors = {};
 
-    if (!formData.name?.trim()) {
-      errors.name = "El nombre del deporte es requerido";
-    } else if (formData.name.trim().length < 2) {
-      errors.name = "El nombre debe tener al menos 2 caracteres";
-    } else if (formData.name.trim().length > 50) {
-      errors.name = "El nombre no puede tener más de 50 caracteres";
+    // Validar nombre
+    const nameError = validateSportName(formData.name);
+    if (nameError) {
+      errors.name = nameError;
     }
 
-    if (!formData.description?.trim()) {
-      errors.description = "La descripción del deporte es requerida";
-    } else if (formData.description.trim().length < 5) {
-      errors.description = "La descripción debe tener al menos 5 caracteres";
-    } else if (formData.description.trim().length > 200) {
-      errors.description = "La descripción no puede tener más de 200 caracteres";
+    // Validar descripción
+    const descriptionError = validateSportDescription(formData.description);
+    if (descriptionError) {
+      errors.description = descriptionError;
     }
 
     setFormErrors(errors);
@@ -89,12 +99,14 @@ export const CreateSportForm: React.FC<CreateSportFormProps> = ({
     }
 
     try {
-      await onSubmit({
-        ...formData,
+      // Convertir datos del formulario al tipo esperado
+      const sportData: CreateSportData = {
         name: formData.name.trim(),
-        description: formData.description.trim(), // Ahora es requerido
-        category: formData.category?.trim() || undefined,
-      });
+        description: formData.description.trim(),
+        category: formData.category.trim() ? formData.category.trim() as any : undefined,
+      };
+      
+      await onSubmit(sportData);
     } catch {
       // El error se maneja en el componente padre
     }
@@ -105,7 +117,7 @@ export const CreateSportForm: React.FC<CreateSportFormProps> = ({
       {/* Header */}
       <HStack className="items-center justify-between mb-4">
         <Text className="text-lg font-semibold text-gray-900">
-          Crear Nuevo Deporte
+          Create New Sport
         </Text>
         <Button
           variant="ghost"
@@ -126,19 +138,19 @@ export const CreateSportForm: React.FC<CreateSportFormProps> = ({
           </Box>
         )}
 
-        {/* Nombre del deporte */}
+        {/* Sport name */}
         <FormControl isInvalid={!!formErrors.name} isRequired>
           <FormControlLabel>
             <FormControlLabelText className="text-gray-700 font-medium">
-              Nombre del Deporte
+              Sport Name
             </FormControlLabelText>
           </FormControlLabel>
           <Input className="mt-1">
             <InputField
               value={formData.name}
               onChangeText={(value) => updateField('name', value)}
-              placeholder="Ej: Padel, Rugby, Crossfit..."
-              maxLength={50}
+              placeholder={SPORT_PLACEHOLDERS.NAME}
+              maxLength={SPORT_VALIDATION_LIMITS.NAME_MAX_LENGTH}
               editable={!isLoading}
               className="text-gray-900"
             />
@@ -152,19 +164,19 @@ export const CreateSportForm: React.FC<CreateSportFormProps> = ({
           )}
         </FormControl>
 
-        {/* Descripción */}
+        {/* Description */}
         <FormControl isInvalid={!!formErrors.description} isRequired>
           <FormControlLabel>
             <FormControlLabelText className="text-gray-700 font-medium">
-              Descripción
+              Description
             </FormControlLabelText>
           </FormControlLabel>
           <Textarea className="mt-1">
             <TextareaInput
               value={formData.description}
               onChangeText={(value) => updateField('description', value)}
-              placeholder="Describe brevemente el deporte, sus características principales..."
-              maxLength={200}
+              placeholder={SPORT_PLACEHOLDERS.DESCRIPTION}
+              maxLength={SPORT_VALIDATION_LIMITS.DESCRIPTION_MAX_LENGTH}
               numberOfLines={3}
               editable={!isLoading}
               className="text-gray-900"
@@ -179,27 +191,73 @@ export const CreateSportForm: React.FC<CreateSportFormProps> = ({
           )}
         </FormControl>
 
-        {/* Categoría */}
+        {/* Category */}
         <FormControl>
           <FormControlLabel>
             <FormControlLabelText className="text-gray-700 font-medium">
-              Categoría
-              <Text className="text-gray-500 font-normal"> (Opcional)</Text>
+              Category
+              <Text className="text-gray-500 font-normal"> (Optional)</Text>
             </FormControlLabelText>
           </FormControlLabel>
-          <Input className="mt-1">
-            <InputField
-              value={formData.category}
-              onChangeText={(value) => updateField('category', value)}
-              placeholder="Ej: Acuático, Aéreo, Terrestre, Combate..."
-              maxLength={30}
-              editable={!isLoading}
-              className="text-gray-900"
-            />
-          </Input>
+          
+          {/* Selector de categorías */}
+          <Box className="mt-1">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <HStack space="xs" className="py-2">
+                {/* Option to remove category */}
+                <Pressable
+                  onPress={() => updateField('category', '')}
+                  className={`px-3 py-2 rounded-full border ${
+                    !formData.category
+                      ? 'bg-gray-100 border-gray-400'
+                      : 'bg-white border-gray-300'
+                  }`}
+                  disabled={isLoading}
+                >
+                  <Text
+                    className={`text-sm ${
+                      !formData.category
+                        ? 'text-gray-700 font-medium'
+                        : 'text-gray-500'
+                    }`}
+                  >
+                    No Category
+                  </Text>
+                </Pressable>
+                
+                {/* Available categories */}
+                {SPORT_CATEGORIES_LIST.map((category) => {
+                  const isSelected = formData.category === category.value;
+                  
+                  return (
+                    <Pressable
+                      key={category.value}
+                      onPress={() => updateField('category', category.value)}
+                      className={`px-3 py-2 rounded-full border ${
+                        isSelected
+                          ? 'bg-blue-100 border-blue-500'
+                          : 'bg-white border-gray-300'
+                      }`}
+                      disabled={isLoading}
+                    >
+                      <Text
+                        className={`text-sm font-medium ${
+                          isSelected
+                            ? 'text-blue-700'
+                            : 'text-gray-700'
+                        }`}
+                      >
+                        {category.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </HStack>
+            </ScrollView>
+          </Box>
         </FormControl>
 
-        {/* Botones */}
+        {/* Buttons */}
         <HStack className="mt-6" space="md">
           <Button 
             variant="outline" 
@@ -207,7 +265,7 @@ export const CreateSportForm: React.FC<CreateSportFormProps> = ({
             onPress={onCancel}
             disabled={isLoading}
           >
-            <ButtonText className="text-gray-700">Cancelar</ButtonText>
+            <ButtonText className="text-gray-700">Cancel</ButtonText>
           </Button>
           <Button 
             className="flex-1 bg-blue-600"
@@ -215,7 +273,7 @@ export const CreateSportForm: React.FC<CreateSportFormProps> = ({
             disabled={isLoading}
           >
             <ButtonText className="text-white font-medium">
-              {isLoading ? "Creando..." : "Crear Deporte"}
+              {isLoading ? LOADING_STATES.CREATING : "Create Sport"}
             </ButtonText>
           </Button>
         </HStack>

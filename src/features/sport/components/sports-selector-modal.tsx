@@ -15,14 +15,19 @@ import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import React, { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import { ScrollView } from "react-native";
+import { useCreateSport } from "../hooks/use-create-sport";
 import { useSelectSports } from "../hooks/use-select-sports";
 import { CreateSportData, SportSimple, SportsSelectorProps, SportsSelectorRef } from "../types/sport-types";
+import { formatSelectedCount } from "../utils/sport-helpers";
 import { CreateSportForm } from "./create-sport-form";
 import { SportSearch } from "./sport-search";
 
-
 type ViewMode = 'select' | 'create';
 
+/**
+ * Modal selector de deportes refactorizado
+ * Componente que maneja solo la UI y delega la lógica a los hooks especializados
+ */
 export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorProps>(
   ({
     selectedSports,
@@ -36,23 +41,25 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>('select');
 
+    // Hooks especializados para lógica de negocio
     const {
       sportOptions,
       loading,
       error: sportsError,
-      isCreating,
-      createError,
       toggleSport,
       addAndSelectSport,
       getSelectedSports,
       resetSelection,
       validateSelection,
+      reloadSports,
+    } = useSelectSports(selectedSports, availableSports);
+
+    const {
+      isCreating,
+      createError,
       createSport,
       clearCreateError,
-    } = useSelectSports(selectedSports, availableSports);
-    
-    // El hook useSelectSports ahora maneja la sincronización con el caché global
-    // No necesitamos sincronización adicional aquí
+    } = useCreateSport();
 
     /**
      * Exponer métodos públicos
@@ -97,16 +104,30 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
     const handleCreateSport = useCallback(async (sportData: CreateSportData) => {
       try {
         if (onCreateSport) {
+          // Usar función personalizada si se proporciona
           const sportId = await onCreateSport(sportData);
-          addAndSelectSport({ id: sportId, name: sportData.name });
+          addAndSelectSport({ 
+            id: sportId, 
+            name: sportData.name, 
+            category: sportData.category 
+          });
         } else {
-          await createSport(sportData);
+          // Usar hook interno de creación
+          const sportId = await createSport(sportData);
+          addAndSelectSport({ 
+            id: sportId, 
+            name: sportData.name, 
+            category: sportData.category 
+          });
+          
+          // Recargar deportes para mantener sincronización
+          await reloadSports();
         }
         setViewMode('select');
       } catch (error) {
         throw error;
       }
-    }, [onCreateSport, createSport, addAndSelectSport]);
+    }, [onCreateSport, createSport, addAndSelectSport, reloadSports]);
 
     const selectedCount = getSelectedSports().length;
     const errorMessage = error || sportsError;
@@ -121,9 +142,7 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
             className="border-gray-300"
           >
             <ButtonText className="text-gray-700">
-              {selectedCount > 0 
-                ? `${selectedCount} deporte${selectedCount !== 1 ? 's' : ''} seleccionado${selectedCount !== 1 ? 's' : ''}` 
-                : "Añadir deportes"}
+              {formatSelectedCount(selectedCount)}
             </ButtonText>
           </Button>
           
@@ -160,10 +179,10 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
         <Modal
           isOpen={isModalVisible}
           onClose={closeModal}
-          size="full"
+          className="p-2"
         >
           <ModalBackdrop />
-          <ModalContent className="h-full max-h-full m-6 border-2 border-gray-300 rounded-2xl shadow-lg bg-white p-2">
+          <ModalContent className=" w-fit h-fit m-6 border-2 border-gray-300 rounded-2xl shadow-lg bg-white p-2">
             <ModalHeader className="border-b border-gray-400 px-4 py-3">
               <HStack className="items-center justify-between">
                 <Heading size="xl" >
@@ -189,6 +208,7 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
                           placeholder="Buscar deportes en la base de datos..."
                           showAllOnEmpty={true}
                           maxResults={10}
+                          showCategoryFilter={true}
                         />
 
                         {/* Lista de deportes seleccionados */}
@@ -197,7 +217,7 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
                             Deportes seleccionados ({selectedCount})
                           </Text>
                           {loading ? (
-                            <Box className="py-8">
+                            <Box className="p-4">
                               <Text className="text-center text-gray-600">Cargando deportes...</Text>
                             </Box>
                           ) : sportOptions.filter(s => s.selected).length > 0 ? (
@@ -206,27 +226,28 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
                                 .filter(sport => sport.selected)
                                 .map((sport) => (
                                   <HStack 
-                                    key={sport.id}
-                                    className="items-center justify-between p-3 bg-white rounded-lg border border-gray-400"
+                                    key={sport.id} 
+                                    className="items-center justify-between p-3 bg-white rounded-lg border border-gray-300"
                                   >
                                     <Text className="text-gray-900 flex-1">{sport.name}</Text>
                                     <Button
-                                      variant="link"
+                                      variant="ghost"
                                       size="sm"
                                       onPress={() => toggleSport(sport.id)}
+                                      className="p-2"
                                     >
-                                      <ButtonIcon as={TrashIcon} className="text-red-600" />
+                                      <ButtonIcon as={TrashIcon} className="text-red-500" size="sm" />
                                     </Button>
                                   </HStack>
                                 ))}
                             </VStack>
                           ) : (
-                            <Box className="py-8 bg-white rounded-lg">
-                              <Text className="text-center text-gray-600">
-                                No hay deportes seleccionados
-                              </Text>
-                              <Text className="text-center text-gray-500 text-sm mt-2">
-                                Usa el buscador para agregar deportes
+                            <Box className="p-4 bg-white rounded-lg border border-gray-300">
+                              <Text className="text-center text-gray-500">
+                                {required 
+                                  ? "Selecciona al menos un deporte para continuar" 
+                                  : "No hay deportes seleccionados"
+                                }
                               </Text>
                             </Box>
                           )}
@@ -242,7 +263,9 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
                             }}
                             className="mt-4"
                           >
-                            <ButtonText className="text-gray-700">Crear Nuevo Deporte</ButtonText>
+                            <ButtonText className="text-blue-600 font-medium">
+                              + Crear nuevo deporte
+                            </ButtonText>
                           </Button>
                         )}
                       </VStack>
@@ -269,7 +292,7 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
                   className="bg-blue-600 hover:bg-blue-700"
                 >
                   <ButtonText className="text-white font-semibold">
-                    Aceptar ({selectedCount} deporte{selectedCount !== 1 ? 's' : ''})
+                    Aceptar ({formatSelectedCount(selectedCount)})
                   </ButtonText>
                 </Button>
               </Box>

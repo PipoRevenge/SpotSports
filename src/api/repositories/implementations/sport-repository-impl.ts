@@ -130,6 +130,122 @@ export class SportRepositoryImpl implements ISportRepository {
   }
 
   /**
+   * Busca deportes por categoría
+   */
+  async searchSportsByCategory(category: string): Promise<Sport[]> {
+    try {
+      if (!category?.trim()) {
+        return [];
+      }
+
+      const sportsRef = collection(firestore, this.SPORTS_COLLECTION);
+      const q = firestoreQuery(
+        sportsRef,
+        where('category', '==', category.trim()),
+        orderBy('name', 'asc'),
+        limit(50)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => 
+        SportMapper.toDomain(doc.id, doc.data() as SportMapper.SportFirebase)
+      );
+      
+    } catch (error: any) {
+      console.error('Error searching sports by category:', error);
+      throw new Error(error.message || 'No se pudieron buscar los deportes por categoría');
+    }
+  }
+
+  /**
+   * Busca deportes con filtros múltiples
+   */
+  async searchSportsWithFilters(filters: { query?: string; category?: string }): Promise<Sport[]> {
+    try {
+      const { query, category } = filters;
+
+      // Si no hay filtros, retornar vacío
+      if (!query?.trim() && !category?.trim()) {
+        return [];
+      }
+
+      // Si solo hay categoría, usar búsqueda por categoría
+      if (category?.trim() && !query?.trim()) {
+        return this.searchSportsByCategory(category);
+      }
+
+      // Si solo hay query, usar búsqueda por nombre
+      if (query?.trim() && !category?.trim()) {
+        return this.searchSportsByName(query);
+      }
+
+      // Si hay ambos filtros, combinar
+      const sportsRef = collection(firestore, this.SPORTS_COLLECTION);
+      let q = firestoreQuery(
+        sportsRef,
+        orderBy('name', 'asc'),
+        limit(50)
+      );
+
+      // Agregar filtro de categoría si existe
+      if (category?.trim()) {
+        q = firestoreQuery(
+          sportsRef,
+          where('category', '==', category.trim()),
+          orderBy('name', 'asc'),
+          limit(50)
+        );
+      }
+
+      const querySnapshot = await getDocs(q);
+      let results = querySnapshot.docs.map(doc => 
+        SportMapper.toDomain(doc.id, doc.data() as SportMapper.SportFirebase)
+      );
+
+      // Filtrar por nombre en el cliente si hay query
+      if (query?.trim()) {
+        const searchQuery = query.trim().toLowerCase();
+        results = results.filter(sport => 
+          sport.details.name.toLowerCase().includes(searchQuery)
+        );
+      }
+
+      return results;
+      
+    } catch (error: any) {
+      console.error('Error searching sports with filters:', error);
+      throw new Error(error.message || 'No se pudieron buscar los deportes con filtros');
+    }
+  }
+
+  /**
+   * Obtiene deportes por categoría
+   */
+  async getActiveSportsByCategory(category: string): Promise<Sport[]> {
+    try {
+      if (!category?.trim()) {
+        return [];
+      }
+
+      const sportsRef = collection(firestore, this.SPORTS_COLLECTION);
+      const q = firestoreQuery(
+        sportsRef,
+        where('category', '==', category.trim()),
+        orderBy('name', 'asc')
+      );
+      
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => 
+        SportMapper.toDomain(doc.id, doc.data() as SportMapper.SportFirebase)
+      );
+      
+    } catch (error: any) {
+      console.error('Error getting sports by category:', error);
+      throw new Error(error.message || 'No se pudieron obtener los deportes por categoría');
+    }
+  }
+
+  /**
    * Actualiza un deporte
    */
   async updateSport(id: string, sportData: Partial<SportDetails>): Promise<Sport> {
@@ -233,8 +349,8 @@ export class SportRepositoryImpl implements ISportRepository {
       );
       
     } catch (error: any) {
-      console.error('Error getting active sports:', error);
-      throw new Error(error.message || 'No se pudieron obtener los deportes activos');
+      console.error('Error getting sports:', error);
+      throw new Error(error.message || 'No se pudieron obtener los deportes');
     }
   }
 

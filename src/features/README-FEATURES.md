@@ -58,8 +58,7 @@ feature-name/
 ├── utils/               # 🛠️ Utilidades
 │   ├── feature-validations.ts
 │   └── feature-helpers.ts
-└── api/                 # 📡 Llamadas a API (opcional)
-    └── feature-api.ts
+
 ```
 
 ### 2. **Paso a Paso: Crear una Nueva Feature**
@@ -98,7 +97,7 @@ export interface NuevaFeatureFilters {
 }
 ```
 
-#### **Paso 3: Crear hooks personalizados**
+#### **Paso 3: Crear hooks personalizados (que contengan la logica de negocio por un lado y por el otro lo demas)**
 ```typescript
 // hooks/use-nueva-feature.ts
 import { useState, useEffect } from 'react';
@@ -131,7 +130,7 @@ export const useNuevaFeature = (id: string) => {
 };
 ```
 
-#### **Paso 4: Implementar validaciones**
+#### **Paso 4: Implementar validaciones/ utilidades asi como helpers**
 ```typescript
 // utils/nueva-feature-validations.ts
 import { z } from 'zod';
@@ -150,7 +149,7 @@ export const validateNuevaFeature = (data: unknown) => {
 };
 ```
 
-#### **Paso 5: Crear componentes reutilizables**
+#### **Paso 5: Crear componentes reutilizables que tengan en se encargue exclusivamente de la vista y de como se comporta**
 ```tsx
 // components/nueva-feature-card.tsx
 import React from 'react';

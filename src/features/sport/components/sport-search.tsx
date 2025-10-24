@@ -8,7 +8,10 @@ import { VStack } from "@/src/components/ui/vstack";
 import React, { useEffect, useState } from "react";
 import { ScrollView } from "react-native";
 import { useSearchSports } from "../hooks/use-search-sports";
-import { SportSimple } from "../types/sport-types";
+import { SportCategory, SportSimple } from "../types/sport-types";
+import { LOADING_STATES, SPORT_PLACEHOLDERS, SPORT_SEARCH_CONFIG } from "../utils/sport-constants";
+import { filterSportsExcluding, formatResultsCount, limitResults } from "../utils/sport-helpers";
+import { CategoryFilter } from "./category-filter";
 
 interface SportSearchProps {
   onSportSelect: (sport: SportSimple) => void;
@@ -16,14 +19,20 @@ interface SportSearchProps {
   placeholder?: string;
   showAllOnEmpty?: boolean;
   maxResults?: number;
+  showCategoryFilter?: boolean;
 }
 
+/**
+ * Componente de búsqueda de deportes
+ * Solo maneja la UI y delega la lógica de negocio al hook useSearchSports
+ */
 export const SportSearch: React.FC<SportSearchProps> = ({
   onSportSelect,
   excludeIds = [],
-  placeholder = "Buscar deportes...",
+  placeholder = SPORT_PLACEHOLDERS.SEARCH,
   showAllOnEmpty = true,
-  maxResults = 10
+  maxResults = SPORT_SEARCH_CONFIG.MAX_SEARCH_RESULTS,
+  showCategoryFilter = false
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   
@@ -34,40 +43,59 @@ export const SportSearch: React.FC<SportSearchProps> = ({
     searchResults,
     searchLoading,
     searchError,
-    searchSports,
+    filters,
+    searchWithFilters,
     clearSearch
   } = useSearchSports();
 
-  // Determinar qué deportes mostrar
-  const resultsToShow = searchQuery.trim() 
+  // Estado local para la categoría seleccionada
+  const [selectedCategory, setSelectedCategory] = useState(filters.category);
+
+  // Determinar qué deportes mostrar basado en si hay filtros activos
+  const hasActiveFilters = searchQuery.trim() || selectedCategory;
+  const resultsToShow = hasActiveFilters
     ? searchResults 
     : (showAllOnEmpty ? sports : []);
 
-  // Filtrar deportes excluidos y limitar resultados
-  const filteredResults = resultsToShow
-    .filter(sport => !excludeIds.includes(sport.id))
-    .slice(0, maxResults);
+  // Filtrar deportes excluidos y limitar resultados usando helpers
+  const filteredResults = limitResults(
+    filterSportsExcluding(resultsToShow, excludeIds), 
+    maxResults
+  );
 
   /**
-   * Efecto para buscar deportes con debounce
+   * Efecto para buscar deportes con debounce cuando cambia el texto
    */
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (searchQuery.trim()) {
-        searchSports(searchQuery);
+      const currentFilters = {
+        query: searchQuery.trim() || undefined,
+        category: selectedCategory
+      };
+      
+      // Solo buscar si hay algún filtro
+      if (currentFilters.query || currentFilters.category) {
+        searchWithFilters(currentFilters);
       } else {
         clearSearch();
       }
-    }, 300);
+    }, SPORT_SEARCH_CONFIG.DEFAULT_SEARCH_DELAY);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, searchSports, clearSearch]);
+  }, [searchQuery, selectedCategory, searchWithFilters, clearSearch]);
 
   /**
    * Maneja el cambio en el input de búsqueda
    */
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
+  };
+
+  /**
+   * Maneja el cambio de categoría
+   */
+  const handleCategoryChange = (category?: SportCategory) => {
+    setSelectedCategory(category);
   };
 
   /**
@@ -113,12 +141,20 @@ export const SportSearch: React.FC<SportSearchProps> = ({
         )}
       </Input>
 
+      {/* Filtro de categorías */}
+      {showCategoryFilter && (
+        <CategoryFilter
+          selectedCategory={selectedCategory}
+          onCategoryChange={handleCategoryChange}
+        />
+      )}
+
       {/* Resultados de búsqueda */}
-      {showResults && (
+        {showResults && (
         <Box className="bg-white border border-gray-400 rounded-lg shadow-lg">
           {isSearching ? (
             <Box className="p-4">
-              <Text className="text-center text-gray-600">Buscando deportes...</Text>
+              <Text className="text-center text-gray-600">{LOADING_STATES.SEARCHING}</Text>
             </Box>
           ) : searchErrorToShow ? (
             <Box className="p-4 bg-red-50 rounded-lg">
@@ -128,7 +164,7 @@ export const SportSearch: React.FC<SportSearchProps> = ({
             <VStack space="xs">
               <Box className="p-3 bg-gray-50 border-b border-gray-400 rounded-t-lg">
                 <Text className="text-xs text-gray-600 font-medium">
-                  {filteredResults.length} deporte{filteredResults.length !== 1 ? 's' : ''} encontrado{filteredResults.length !== 1 ? 's' : ''}
+                  {formatResultsCount(filteredResults.length)}
                 </Text>
               </Box>
               <ScrollView style={{ maxHeight: 300 }}>

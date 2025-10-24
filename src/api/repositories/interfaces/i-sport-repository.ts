@@ -13,13 +13,22 @@ export interface ISportRepository {
   // Buscar deportes por nombre
   searchSportsByName(query: string): Promise<Sport[]>;
   
+  // Buscar deportes por categoría
+  searchSportsByCategory(category: string): Promise<Sport[]>;
+  
+  // Buscar deportes con filtros múltiples
+  searchSportsWithFilters(filters: { query?: string; category?: string }): Promise<Sport[]>;
+  
+  // Obtener deportes por categoría
+  getActiveSportsByCategory(category: string): Promise<Sport[]>;
+  
   // Actualizar deporte
   updateSport(id: string, sportData: Partial<SportDetails>): Promise<Sport>;
   
   // Desactivar deporte (soft delete)
   deactivateSport(id: string): Promise<void>;
   
-  // Obtener deportes activos
+  // Obtener todos los deportes
   getActiveSports(): Promise<Sport[]>;
   
   // Verificar si existe un deporte por nombre
