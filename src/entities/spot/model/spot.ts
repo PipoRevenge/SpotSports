@@ -1,22 +1,25 @@
-import { GeoPoint } from "./geopoint";
-import { Review } from "./review";
+import { GeoPoint } from "@/src/types/geopoint";
 
 export interface SpotDetails {
   name: string;
   description: string;
-  images: string[];
+  availableSports: string[]; //lista de deportes disponibles en el spot
+  media: string[]; //imagenes o videos del spot
   location: GeoPoint;
-  address?: string;
-  rating: number;
-  sports: SportSpotRating[];
-  schedule?: Record<string, string>;
-  contactInfo?: {
-    phone?: string;
-    email?: string;
-    website?: string;
+  overallRating: number;
+  contactInfo: {
+    phone: string;
+    email: string;
+    website: string;
   };
-
 }
+
+
+export interface SportSpot {
+  sportId: string;
+  sportName: string;
+}
+
 export interface SportSpotRating {
   sportId: string;
   sportName: string;
@@ -25,15 +28,15 @@ export interface SportSpotRating {
 }
 
 export interface SpotMetadata {
+  isVerified: boolean;
+  isActive: boolean;
   createdAt: Date;
-  updatedAt?: Date;
-  createdBy?: string;
+  updatedAt: Date;
+  createdBy: string;
 }
 
 export interface SpotActivity {
-  favorites: number;
   reviewsCount: number;
-  reviews?: Review[];
   visitsCount: number;
 }
 
@@ -42,8 +45,6 @@ export interface Spot {
   id: string;
   details: SpotDetails;
   metadata: SpotMetadata;
-  isVerified?: boolean;
-  isActive?: boolean;
   activity?: SpotActivity;
 }
 
