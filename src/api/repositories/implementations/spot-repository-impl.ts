@@ -1,8 +1,11 @@
 import { Spot, SpotDetails } from '@/src/entities/spot/model/spot';
 import { firestore } from '@/src/lib/firebase-config';
+import { GeoPoint } from '@/src/types/geopoint';
 import { addDoc, collection, doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { geohashForLocation } from 'geofire-common';
 import { ISpotRepository } from '../interfaces/i-spot-repository';
 import { SpotFirebase, spotMapper } from '../mappers/spot-mapper';
+
 
 /**
  * Implementación del repositorio de spots usando Firebase Firestore
@@ -31,9 +34,13 @@ export class SpotRepositoryImpl implements ISpotRepository {
       // Convertir a formato de Firebase
       const firestoreData = spotMapper.toFirestore(spotData);
 
-      // Agregar timestamps
+      // Generar geohash para la ubicación
+      const geohash = await this.createGeohash(spotData.location);
+
+      // Agregar timestamps y geohash
       const spotWithTimestamps = {
         ...firestoreData,
+        geohash: geohash,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
@@ -97,4 +104,16 @@ export class SpotRepositoryImpl implements ISpotRepository {
       }
     }
   }
+
+  private async createGeohash(location: GeoPoint): Promise<string> {
+    // Validar ubicación
+    if (!location || !location.latitude || !location.longitude) {
+      throw new Error('Valid location is required');
+    }
+
+    // Convertir coordenadas a geohash
+    const geohash = geohashForLocation([location.latitude, location.longitude]);
+    return geohash;
+  }
+
 }

@@ -2,13 +2,13 @@
 
 // Types
 export type {
-    SportOption, SpotCreateFormData, SpotCreateFormProps, SpotFormErrors, SpotFormState
+    SpotCreateFormData, SpotCreateFormProps, SpotFormErrors, SpotFormState
 } from './types/spot-types';
 
 // Components
 export { SpotCreateForm } from './components/spot-create-form';
 export { SpotDataDetails } from './components/spot-data-details';
-export { SpotMapPoint } from './components/spot-map-point';
+
 
 // Hooks
 export { useCreateSpot } from './hooks/use-create-spot';
@@ -18,3 +18,4 @@ export {
     SPOT_VALIDATION_MESSAGES, validateAvailableSports, validateContactEmail,
     validateContactWebsite, validateLocation, validateSpotCreateForm, validateSpotDescription, validateSpotName
 } from './utils/spot-validations';
+

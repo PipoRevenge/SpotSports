@@ -15,6 +15,7 @@ export interface SpotFirebase {
     latitude: number;
     longitude: number;
   };
+  geohash: string;
   overallRating: number;
   
   // ContactInfo (campos planos en Firebase)
@@ -91,7 +92,7 @@ export const spotMapper = {
   /**
    * Convierte modelo de dominio a formato de Firebase
    */
-  toFirestore(spotDetails: SpotDetails): Omit<SpotFirebase, 'createdAt' | 'updatedAt'> {
+  toFirestore(spotDetails: SpotDetails): Omit<SpotFirebase, 'createdAt' | 'updatedAt' | 'geohash'> {
     return {
       name: spotDetails.name,
       description: spotDetails.description,
@@ -116,16 +117,19 @@ export const spotMapper = {
   /**
    * Convierte modelo completo de dominio a formato de Firebase (para actualizaciones)
    */
-  toFirestoreComplete(spot: Spot): SpotFirebase {
+  toFirestoreComplete(spot: Spot, geohash: string): SpotFirebase {
     const baseData = this.toFirestore(spot.details);
     
     return {
       ...baseData,
+      geohash: geohash,
       isVerified: spot.metadata.isVerified || false,
       isActive: spot.metadata.isActive !== false,
       createdBy: spot.metadata.createdBy || "", 
       reviewsCount: spot.activity?.reviewsCount || 0,
       visitsCount: spot.activity?.visitsCount || 0,
+      createdAt: spot.metadata.createdAt,
+      updatedAt: spot.metadata.updatedAt,
     };
   }
 };

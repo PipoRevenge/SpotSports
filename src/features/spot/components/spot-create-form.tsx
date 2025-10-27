@@ -1,4 +1,4 @@
-import PointPicker from "@/src/components/commons/map/point-picker";
+import { LocationPickerModal } from "@/src/components/commons/map/location-picker-modal";
 import { Button, ButtonText } from "@/src/components/ui/button";
 import {
   FormControl,
@@ -13,8 +13,9 @@ import { Text } from "@/src/components/ui/text";
 import { Textarea, TextareaInput } from "@/src/components/ui/textarea";
 import { VStack } from "@/src/components/ui/vstack";
 import { GeoPoint } from "@/src/types/geopoint";
+import { MapPin } from "lucide-react-native";
 import React, { useState } from "react";
-import { Alert, ScrollView, View } from "react-native";
+import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
 import { useCreateSpot } from "../hooks/use-create-spot";
 import {
   SpotCreateFormData,
@@ -47,6 +48,9 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
   // Errores de validación
   const [formErrors, setFormErrors] = useState<SpotFormErrors>({});
 
+  // Estado del modal de ubicación
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+
   /**
    * Actualiza un campo del formulario
    */
@@ -76,6 +80,20 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
    */
   const handleLocationSelect = (location: { latitude: number; longitude: number }) => {
     updateFormField('location', location as GeoPoint);
+  };
+
+  /**
+   * Abre el modal de selección de ubicación
+   */
+  const openLocationModal = () => {
+    setIsLocationModalOpen(true);
+  };
+
+  /**
+   * Cierra el modal de selección de ubicación
+   */
+  const closeLocationModal = () => {
+    setIsLocationModalOpen(false);
   };
 
   /**
@@ -192,19 +210,35 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
             <FormControlLabelText>Ubicación</FormControlLabelText>
           </FormControlLabel>
           <Text className="text-sm text-gray-600 mb-2">
-            Toca en el mapa para seleccionar la ubicación del spot
+            Selecciona la ubicación del spot en el mapa
           </Text>
-          <View className="h-64 rounded-lg overflow-hidden">
-            <PointPicker
-              onLocationSelect={handleLocationSelect}
-              initialRegion={formData.location ? {
-                latitude: formData.location.latitude,
-                longitude: formData.location.longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              } : undefined}
-            />
-          </View>
+          
+          {/* Botón para abrir el modal de ubicación */}
+          <TouchableOpacity
+            onPress={openLocationModal}
+            className="border border-gray-300 rounded-lg p-4 bg-white"
+          >
+            <HStack space="md" className="items-center">
+              <MapPin size={24} color={formData.location ? "#007AFF" : "#9CA3AF"} />
+              <VStack className="flex-1">
+                {formData.location ? (
+                  <>
+                    <Text className="font-semibold text-gray-900">
+                      Ubicación seleccionada
+                    </Text>
+                    <Text className="text-xs text-gray-600 mt-1">
+                      Lat: {formData.location.latitude.toFixed(6)}, Lng: {formData.location.longitude.toFixed(6)}
+                    </Text>
+                  </>
+                ) : (
+                  <Text className="text-gray-500">
+                    Toca para seleccionar ubicación en el mapa
+                  </Text>
+                )}
+              </VStack>
+            </HStack>
+          </TouchableOpacity>
+
           {formErrors.location && (
             <FormControlError>
               <FormControlErrorText>{formErrors.location}</FormControlErrorText>
@@ -295,6 +329,17 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
           </Button>
         </HStack>
       </VStack>
+
+      {/* Modal de selección de ubicación */}
+      <LocationPickerModal
+        isOpen={isLocationModalOpen}
+        onClose={closeLocationModal}
+        onConfirm={handleLocationSelect}
+        initialLocation={formData.location}
+        title="Seleccionar Ubicación del Spot"
+        confirmText="Confirmar Ubicación"
+        cancelText="Cancelar"
+      />
     </ScrollView>
   );
 };
