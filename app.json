@@ -51,7 +51,8 @@
           "locationAlwaysAndWhenInUsePermission": "Permitir que $(PRODUCT_NAME) use tu ubicación para mostrar spots deportivos cercanos y ayudarte a crear nuevos spots.",
           "locationWhenInUsePermission": "Permitir que $(PRODUCT_NAME) use tu ubicación para mostrar spots deportivos cercanos."
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

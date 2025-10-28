@@ -1,4 +1,5 @@
 import { LocationPickerModal } from "@/src/components/commons/map/location-picker-modal";
+import { MediaItem, MediaPickerCarousel } from "@/src/components/commons/media-picker/media-picker-carousel";
 import { Button, ButtonText } from "@/src/components/ui/button";
 import {
   FormControl,
@@ -76,6 +77,13 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
   };
 
   /**
+   * Maneja el cambio de archivos multimedia
+   */
+  const handleMediaChange = (newMedia: MediaItem[]) => {
+    updateFormField('media', newMedia);
+  };
+
+  /**
    * Maneja la selección de ubicación en el mapa
    */
   const handleLocationSelect = (location: { latitude: number; longitude: number }) => {
@@ -126,7 +134,10 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
   };
 
   return (
-    <ScrollView className="flex-1 bg-white">
+    <ScrollView 
+      className="flex-1 bg-white"
+      keyboardShouldPersistTaps="handled"
+    >
       <VStack className="p-4" space="lg">
         {/* Título */}
         <Text className="text-2xl font-bold text-center">
@@ -203,6 +214,19 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
             )}
           </FormControl>
         )}
+
+        {/* Multimedia - Fotos y Videos */}
+        <FormControl isInvalid={!!formErrors.media} isRequired>
+          <FormControlLabel>
+            <FormControlLabelText>Fotos y Videos del Spot</FormControlLabelText>
+          </FormControlLabel>
+          <MediaPickerCarousel
+            media={formData.media}
+            onMediaChange={handleMediaChange}
+            error={formErrors.media}
+            maxCount={10}
+          />
+        </FormControl>
 
         {/* Ubicación */}
         <FormControl isInvalid={!!formErrors.location} isRequired>

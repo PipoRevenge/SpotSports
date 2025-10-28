@@ -19,6 +19,9 @@ export const SPOT_VALIDATION_MESSAGES = {
   availableSports: {
     required: "Debe seleccionar al menos un deporte"
   },
+  media: {
+    required: "Debe añadir al menos una foto o video del spot"
+  },
   location: {
     required: "Debe seleccionar una ubicación en el mapa"
   },
@@ -74,6 +77,17 @@ export const validateSpotDescription = (description: string): string | null => {
 export const validateAvailableSports = (sports: string[]): string | null => {
   if (!sports || sports.length === 0) {
     return SPOT_VALIDATION_MESSAGES.availableSports.required;
+  }
+  
+  return null;
+};
+
+/**
+ * Valida los archivos multimedia
+ */
+export const validateMedia = (media: any[]): string | null => {
+  if (!media || media.length === 0) {
+    return SPOT_VALIDATION_MESSAGES.media.required;
   }
   
   return null;
@@ -140,6 +154,10 @@ export const validateSpotCreateForm = (formData: SpotCreateFormData): {
   // Validar deportes disponibles
   const sportsError = validateAvailableSports(formData.availableSports);
   if (sportsError) errors.availableSports = sportsError;
+  
+  // Validar media
+  const mediaError = validateMedia(formData.media);
+  if (mediaError) errors.media = mediaError;
   
   // Validar ubicación
   const locationError = validateLocation(formData.location);

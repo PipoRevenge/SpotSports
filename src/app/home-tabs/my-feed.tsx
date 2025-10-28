@@ -1,6 +1,6 @@
 import { Button, ButtonText } from "@/src/components/ui/button";
 import { VStack } from "@/src/components/ui/vstack";
-import { uploadTestSports } from '@/src/hooks/test-data-upload';
+
 import { router } from "expo-router";
 
 export default function MyFeedScreen() {
@@ -13,7 +13,7 @@ export default function MyFeedScreen() {
 
       <Button variant="solid" onPress={async () => {
         try {
-          await uploadTestSports();
+
           alert('Deportes de prueba subidos exitosamente');
         } catch (error) {
           console.error('Error al subir los deportes de prueba:', error);

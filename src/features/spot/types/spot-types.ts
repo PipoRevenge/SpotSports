@@ -1,12 +1,20 @@
 import { GeoPoint } from "@/src/types/geopoint";
 import React from "react";
 
+// Media item para el formulario
+export interface MediaItem {
+  uri: string;
+  type: "image" | "video";
+  thumbnail?: string;
+  duration?: number;
+}
+
 // Form data para creación de spot
 export interface SpotCreateFormData {
   name: string;
   description: string;
   availableSports: string[];
-  media: string[];
+  media: MediaItem[];
   location: GeoPoint | null;
   contactPhone?: string;
   contactEmail?: string;
@@ -25,6 +33,7 @@ export interface SpotFormErrors {
   name?: string;
   description?: string;
   availableSports?: string;
+  media?: string; // Añadido
   location?: string;
   contactEmail?: string;
   contactWebsite?: string;
