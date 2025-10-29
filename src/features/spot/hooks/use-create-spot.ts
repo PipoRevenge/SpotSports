@@ -1,5 +1,6 @@
 import { spotRepository } from "@/src/api/repositories";
 import { SpotDetails } from "@/src/entities/spot/model/spot";
+import { useUser } from "@/src/entities/user/context/user-context";
 import { useState } from "react";
 import { SpotCreateFormData, SpotFormState } from "../types/spot-types";
 import { validateSpotCreateForm } from "../utils/spot-validations";
@@ -13,6 +14,7 @@ export const useCreateSpot = () => {
     error: null,
     success: false
   });
+  const { user } = useUser();
 
   /**
    * Función para crear un nuevo spot
@@ -21,6 +23,16 @@ export const useCreateSpot = () => {
     setState({ isLoading: true, error: null, success: false });
 
     try {
+      // Verificar que el usuario esté autenticado
+      if (!user || !user.id) {
+        setState({ 
+          isLoading: false, 
+          error: "Debes estar autenticado para crear un spot", 
+          success: false 
+        });
+        return false;
+      }
+
       // Validar formulario
       const validation = validateSpotCreateForm(formData);
       
@@ -39,7 +51,7 @@ export const useCreateSpot = () => {
         name: formData.name.trim(),
         description: formData.description.trim(),
         availableSports: formData.availableSports,
-        media: formData.media,
+        media: formData.media.map(item => item.uri), // Extraer solo las URIs
         location: formData.location!,
         overallRating: 0, // Rating inicial
         contactInfo: {
@@ -49,8 +61,8 @@ export const useCreateSpot = () => {
         }
       };
 
-      // Llamar al repositorio para crear el spot
-      await spotRepository.createSpot(spotDetails);
+      // Llamar al repositorio para crear el spot con el userId
+      await spotRepository.createSpot(spotDetails, user.id);
 
       setState({ isLoading: false, error: null, success: true });
       return true;

@@ -43,7 +43,7 @@ const auth =
 // Initialize services
 const firestore = getFirestore(app);
 const database = getDatabase(app);
-const functions = getFunctions(app);
+const functions = getFunctions(app, 'europe-west1'); // Importante: especificar la región
 const storage = getStorage(app);
 
 // Replace 'YOUR_LOCAL_IP' with the actual IP address of your machine

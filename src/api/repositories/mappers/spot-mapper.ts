@@ -92,25 +92,25 @@ export const spotMapper = {
   /**
    * Convierte modelo de dominio a formato de Firebase
    */
-  toFirestore(spotDetails: SpotDetails): Omit<SpotFirebase, 'createdAt' | 'updatedAt' | 'geohash'> {
+  toFirestore(spotDetails: SpotDetails, userId: string): Omit<SpotFirebase, 'createdAt' | 'updatedAt' | 'geohash'> {
     return {
       name: spotDetails.name,
       description: spotDetails.description,
-      availableSports: spotDetails.availableSports,
-      media: spotDetails.media,
+      availableSports: spotDetails.availableSports || [],
+      media: spotDetails.media || [],
       location: {
         latitude: spotDetails.location.latitude,
         longitude: spotDetails.location.longitude,
       },
-      overallRating: spotDetails.overallRating,
-      contactPhone: spotDetails.contactInfo.phone ,
-      contactEmail: spotDetails.contactInfo.email,
-      contactWebsite: spotDetails.contactInfo.website,
+      overallRating: spotDetails.overallRating || 0,
+      contactPhone: spotDetails.contactInfo?.phone || "",
+      contactEmail: spotDetails.contactInfo?.email || "",
+      contactWebsite: spotDetails.contactInfo?.website || "",
       isVerified: false, // Por defecto false hasta verificación
       isActive: true, // Por defecto activo
       reviewsCount: 0, // Inicia en 0
       visitsCount: 0, // Inicia en 0
-      createdBy: "", // Se debe asignar al crear el spot
+      createdBy: userId,
     };
   },
 
@@ -118,7 +118,7 @@ export const spotMapper = {
    * Convierte modelo completo de dominio a formato de Firebase (para actualizaciones)
    */
   toFirestoreComplete(spot: Spot, geohash: string): SpotFirebase {
-    const baseData = this.toFirestore(spot.details);
+    const baseData = this.toFirestore(spot.details, spot.metadata.createdBy);
     
     return {
       ...baseData,
