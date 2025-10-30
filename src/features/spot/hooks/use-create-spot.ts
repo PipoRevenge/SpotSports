@@ -33,6 +33,16 @@ export const useCreateSpot = () => {
         return false;
       }
 
+      // Verificar que el usuario tenga username
+      if (!user.userDetails?.userName) {
+        setState({ 
+          isLoading: false, 
+          error: "El usuario debe tener un nombre de usuario configurado", 
+          success: false 
+        });
+        return false;
+      }
+
       // Validar formulario
       const validation = validateSpotCreateForm(formData);
       
@@ -61,8 +71,8 @@ export const useCreateSpot = () => {
         }
       };
 
-      // Llamar al repositorio para crear el spot con el userId
-      await spotRepository.createSpot(spotDetails, user.id);
+      // Llamar al repositorio para crear el spot con el userId y username
+      await spotRepository.createSpot(spotDetails, user.id, user.userDetails.userName);
 
       setState({ isLoading: false, error: null, success: true });
       return true;

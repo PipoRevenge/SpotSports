@@ -3,14 +3,14 @@ import { RatingStar } from "@/src/components/commons/rating-start/rating-star";
 import { HStack } from "@/src/components/ui/hstack";
 import { Popover, PopoverArrow, PopoverBody, PopoverContent, PopoverHeader } from "@/src/components/ui/popover";
 import {
-  Table,
-  TableBody,
-  TableData,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableData,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/src/components/ui/table";
-import { SportSpotRating } from "@/src/types/spot";
+import { SportSpotRating } from "@/src/entities/spot/model/spot";
 
 
 import { Icon } from "@components/ui/icon";
@@ -77,7 +77,7 @@ export const SpotSportsTable: React.FC<SportRatingSpotTableProps> = ({
                       <Text className="text-base font-bold">{sport.sportName}</Text>
                     </PopoverHeader>
                     <PopoverBody>
-                      <Text className="text-gray-600">{sport.sportId}</Text>
+                      <Text className="text-gray-600">{sport.sportDescription || 'No description available'}</Text>
                     </PopoverBody>
                   </PopoverContent>
                 </Popover>

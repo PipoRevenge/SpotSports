@@ -7,6 +7,7 @@ import {
     getDocs,
     query,
     setDoc,
+    Timestamp,
     updateDoc,
     where
 } from 'firebase/firestore';
@@ -184,7 +185,7 @@ export class UserRepositoryImpl implements IUserRepository {
                 throw new Error('Spot is already in favorites');
             }
             
-            const now = new Date();
+            const now = Timestamp.now();
             
             // Agregar el documento a la subcolección
             await setDoc(favoriteSpotDoc, {
@@ -226,7 +227,7 @@ export class UserRepositoryImpl implements IUserRepository {
                 throw new Error('Spot is not in favorites');
             }
             
-            const now = new Date();
+            const now = Timestamp.now();
             
             // Eliminar el documento de la subcolección
             await deleteDoc(favoriteSpotDoc);
@@ -271,7 +272,7 @@ export class UserRepositoryImpl implements IUserRepository {
                 throw new Error('Sport is already in favorites');
             }
             
-            const now = new Date();
+            const now = Timestamp.now();
             
             // Agregar el documento a la subcolección
             await setDoc(favoriteSportDoc, {
@@ -308,7 +309,7 @@ export class UserRepositoryImpl implements IUserRepository {
                 throw new Error('Sport is not in favorites');
             }
             
-            const now = new Date();
+            const now = Timestamp.now();
             
             // Eliminar el documento de la subcolección
             await deleteDoc(favoriteSportDoc);
@@ -340,7 +341,7 @@ export class UserRepositoryImpl implements IUserRepository {
                 throw new Error('Target user not found');
             }
             
-            const now = new Date();
+            const now = Timestamp.now();
             
             // Agregar targetUserId a la subcolección "following" del usuario actual
             const followingRef = collection(userRef, this.FOLLOWING_SUBCOLLECTION);
@@ -408,7 +409,7 @@ export class UserRepositoryImpl implements IUserRepository {
                 throw new Error('Target user not found');
             }
             
-            const now = new Date();
+            const now = Timestamp.now();
             
             // Eliminar targetUserId de la subcolección "following" del usuario actual
             const followingRef = collection(userRef, this.FOLLOWING_SUBCOLLECTION);

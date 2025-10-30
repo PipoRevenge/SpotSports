@@ -1,8 +1,8 @@
 import { Spot, SpotDetails } from '@/src/entities/spot/model/spot';
 import { firestore, storage } from '@/src/lib/firebase-config';
 import { GeoPoint } from '@/src/types/geopoint';
-import { addDoc, collection, doc, getDoc, Timestamp, updateDoc } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { addDoc, collection, doc, getDoc, Timestamp } from 'firebase/firestore';
+import { getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 import { geohashForLocation } from 'geofire-common';
 import { ISpotRepository } from '../interfaces/i-spot-repository';
 import { SpotFirebase, spotMapper } from '../mappers/spot-mapper';
@@ -13,11 +13,12 @@ import { SpotFirebase, spotMapper } from '../mappers/spot-mapper';
  */
 export class SpotRepositoryImpl implements ISpotRepository {
   private readonly COLLECTION_NAME = 'spots';
+  private readonly SPOT_SPORT_METRICS_COLLECTION = 'spot_sport_metrics';
 
   /**
    * Crear un nuevo spot
    */
-  async createSpot(spotData: SpotDetails, userId: string): Promise<string> {
+  async createSpot(spotData: SpotDetails, userId: string, username: string): Promise<string> {
     try {
       // Validar datos de entrada
       if (!spotData) {
@@ -36,6 +37,10 @@ export class SpotRepositoryImpl implements ISpotRepository {
         throw new Error('User ID is required');
       }
 
+      if (!username || username.trim().length === 0) {
+        throw new Error('Username is required');
+      }
+
       // Crear el spot sin media primero (solo con array vacío)
       const spotDataWithoutMedia = {
         ...spotData,
@@ -43,7 +48,7 @@ export class SpotRepositoryImpl implements ISpotRepository {
       };
 
       // Convertir a formato de Firebase
-      const firestoreData = spotMapper.toFirestore(spotDataWithoutMedia, userId);
+      const firestoreData = spotMapper.toFirestore(spotDataWithoutMedia, userId, username);
 
       // Generar geohash para la ubicación
       const geohash = await this.createGeohash(spotData.location);
@@ -68,18 +73,18 @@ export class SpotRepositoryImpl implements ISpotRepository {
 
       console.log('Spot created successfully with ID:', spotId);
 
+      // Crear documentos en spot_sport_metrics para cada deporte
+      if (spotData.availableSports && spotData.availableSports.length > 0) {
+        console.log('Creating spot_sport_metrics documents...');
+        await this.createSpotSportMetrics(spotId, spotData.availableSports);
+        console.log('Spot sport metrics created successfully');
+      }
+
       // Si hay media, subirla a Storage
       if (spotData.media && spotData.media.length > 0) {
         console.log('Uploading media files...');
-        const mediaUrls = await this.uploadSpotMedia(spotId, userId, spotData.media);
-        
-        // Actualizar el documento con las URLs de los archivos subidos
-        await updateDoc(docRef, {
-          media: mediaUrls,
-          updatedAt: Timestamp.now()
-        });
-        
-        console.log('Media uploaded successfully:', mediaUrls);
+        await this.uploadSpotMedia(spotId, userId, spotData.media);
+        console.log('Media uploaded successfully');
       }
 
       return spotId;
@@ -119,7 +124,16 @@ export class SpotRepositoryImpl implements ISpotRepository {
 
       // Obtener datos y convertir a modelo de dominio
       const spotData = docSnap.data() as SpotFirebase;
-      const spotWithId = { ...spotData, id: docSnap.id };
+      
+      // Cargar las URLs de media desde Storage
+      const mediaUrls = await this.getSpotMediaUrls(id);
+      
+      // Agregar las URLs al objeto antes de convertir
+      const spotWithId = { 
+        ...spotData, 
+        id: docSnap.id,
+        media: mediaUrls 
+      };
 
       // Convertir usando el mapper
       return spotMapper.toDomain(spotWithId);
@@ -148,12 +162,49 @@ export class SpotRepositoryImpl implements ISpotRepository {
   }
 
   /**
+   * Crear documentos en spot_sport_metrics para cada deporte disponible
+   */
+  private async createSpotSportMetrics(spotId: string, sportIds: string[]): Promise<void> {
+    try {
+      const metricsCollection = collection(firestore, this.SPOT_SPORT_METRICS_COLLECTION);
+      
+      // Crear una referencia al documento del spot
+      const spotRef = doc(firestore, this.COLLECTION_NAME, spotId);
+      
+      // Crear un documento para cada deporte
+      const createPromises = sportIds.map(async (sportId) => {
+        // Crear referencia al deporte
+        const sportRef = doc(firestore, 'sports', sportId);
+        
+        // Crear documento en spot_sport_metrics
+        const metricData = {
+          spot_ref: spotRef,
+          sport_ref: sportRef,
+          avg_difficulty: 0,
+          avg_quality: 0,
+          review_count: 0,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        };
+        
+        // Usar addDoc para generar ID automático
+        const docRef = await addDoc(metricsCollection, metricData);
+        console.log(`Created metric document: ${docRef.id}`);
+      });
+      
+      // Ejecutar todas las creaciones en paralelo
+      await Promise.all(createPromises);
+    } catch (error) {
+      console.error('Error creating spot sport metrics:', error);
+      throw new Error(`Failed to create spot sport metrics: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Subir archivos multimedia a Storage y retornar las URLs
    */
-  private async uploadSpotMedia(spotId: string, userId: string, mediaUris: string[]): Promise<string[]> {
+  private async uploadSpotMedia(spotId: string, userId: string, mediaUris: string[]): Promise<void> {
     try {
-      const uploadedUrls: string[] = [];
-      
       // Obtener fecha actual en formato YYYY_MM_DD
       const now = new Date();
       const dateStr = `${now.getFullYear()}_${String(now.getMonth() + 1).padStart(2, '0')}_${String(now.getDate()).padStart(2, '0')}`;
@@ -183,13 +234,7 @@ export class SpotRepositoryImpl implements ISpotRepository {
         // Subir a Storage
         console.log(`Uploading file ${fileNumber}/${mediaUris.length}: ${fileName}`);
         await uploadBytes(storageRef, blob);
-        
-        // Obtener URL de descarga
-        const downloadUrl = await getDownloadURL(storageRef);
-        uploadedUrls.push(downloadUrl);
       }
-      
-      return uploadedUrls;
     } catch (error) {
       console.error('Error uploading spot media:', error);
       throw new Error(`Failed to upload media: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -229,6 +274,29 @@ export class SpotRepositoryImpl implements ISpotRepository {
     }
     
     return cleaned as T;
+  }
+
+  /**
+   * Obtener URLs de las imágenes de un spot desde Storage
+   */
+  private async getSpotMediaUrls(spotId: string): Promise<string[]> {
+    try {
+      // Crear referencia a la carpeta de media del spot
+      const mediaFolderRef = ref(storage, `spots/${spotId}/media`);
+      
+      // Listar todos los archivos en la carpeta
+      const result = await listAll(mediaFolderRef);
+      
+      // Obtener las URLs de descarga de cada archivo
+      const urlPromises = result.items.map(itemRef => getDownloadURL(itemRef));
+      const urls = await Promise.all(urlPromises);
+      
+      return urls;
+    } catch (error) {
+      console.error('Error getting spot media URLs:', error);
+      // Si hay error (por ejemplo, carpeta no existe), retornar array vacío
+      return [];
+    }
   }
 
 }

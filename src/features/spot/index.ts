@@ -6,10 +6,11 @@ export type { MediaItem, SpotCreateFormData, SpotCreateFormProps, SpotFormErrors
 // Components
 export { SpotCreateForm } from './components/spot-create-form';
 export { SpotDataDetails } from './components/spot-data-details';
-
+export { SpotImageGallery } from './components/spot-image-gallery';
 
 // Hooks
 export { useCreateSpot } from './hooks/use-create-spot';
+export { useSpotDetails } from './hooks/use-spot-details';
 
 // Utils
 export {

@@ -86,7 +86,7 @@ export const toFirestore = (sport: Sport): SportFirebase => {
  * Convierte SportDetails a formato Firebase para creación
  */
 export const detailsToFirestore = (details: SportDetails, createdBy: string = 'system'): SportFirebase => {
-  const now = new Date();
+  const now = Timestamp.now();
   
   const result: SportFirebase = {
     name: details.name,

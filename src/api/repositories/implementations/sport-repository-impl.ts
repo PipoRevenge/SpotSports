@@ -1,16 +1,17 @@
 import { Sport, SportDetails } from '@/src/entities/sport/model/sport';
 import { firestore } from '@/src/lib/firebase-config';
 import {
-  addDoc,
-  collection,
-  doc,
-  query as firestoreQuery,
-  getDoc,
-  getDocs,
-  limit,
-  orderBy,
-  updateDoc,
-  where
+    addDoc,
+    collection,
+    doc,
+    query as firestoreQuery,
+    getDoc,
+    getDocs,
+    limit,
+    orderBy,
+    Timestamp,
+    updateDoc,
+    where
 } from 'firebase/firestore';
 import { ISportRepository } from '../interfaces/i-sport-repository';
 import * as SportMapper from '../mappers/sport-mapper';
@@ -270,7 +271,7 @@ export class SportRepositoryImpl implements ISportRepository {
 
       const sportRef = doc(firestore, this.SPORTS_COLLECTION, id);
       const updateData: any = {
-        updatedAt: new Date(),
+        updatedAt: Timestamp.now(),
       };
 
       // Solo actualizar campos que tienen valor
@@ -323,7 +324,7 @@ export class SportRepositoryImpl implements ISportRepository {
       }
 
       await updateDoc(sportRef, {
-        updatedAt: new Date(),
+        updatedAt: Timestamp.now(),
       });
       
     } catch (error: any) {

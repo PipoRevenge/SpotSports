@@ -1,5 +1,5 @@
 import { Spot, SpotActivity, SpotDetails, SpotMetadata } from "@/src/entities/spot/model/spot";
-import { GeoPoint } from "@/src/types/geopoint";
+import { GeoPoint } from "firebase/firestore";
 
 /**
  * Interface que representa el modelo de spot tal como se almacena en Firebase
@@ -9,12 +9,10 @@ export interface SpotFirebase {
   name: string;
   description: string;
   availableSports: string[];
-  media: string[];
-  // GeoPoint se almacena como { latitude: number, longitude: number }
-  location: {
-    latitude: number;
-    longitude: number;
-  };
+  // media NO se almacena en Firestore, solo en Storage
+  media?: string[];
+  // GeoPoint de Firebase
+  location: GeoPoint;
   geohash: string;
   overallRating: number;
   
@@ -57,7 +55,7 @@ export const spotMapper = {
       location: {
         latitude: raw.location?.latitude || 0,
         longitude: raw.location?.longitude || 0,
-      } as GeoPoint,
+      },
       overallRating: raw.overallRating || 0,
       contactInfo: {
         phone: raw.contactPhone || "",
@@ -91,17 +89,15 @@ export const spotMapper = {
 
   /**
    * Convierte modelo de dominio a formato de Firebase
+   * Nota: media NO se guarda en Firestore, solo en Storage
    */
-  toFirestore(spotDetails: SpotDetails, userId: string): Omit<SpotFirebase, 'createdAt' | 'updatedAt' | 'geohash'> {
+  toFirestore(spotDetails: SpotDetails, userId: string, username: string): Omit<SpotFirebase, 'createdAt' | 'updatedAt' | 'geohash' | 'media'> {
     return {
       name: spotDetails.name,
       description: spotDetails.description,
       availableSports: spotDetails.availableSports || [],
-      media: spotDetails.media || [],
-      location: {
-        latitude: spotDetails.location.latitude,
-        longitude: spotDetails.location.longitude,
-      },
+      // media NO se incluye - solo se almacena en Storage
+      location: new GeoPoint(spotDetails.location.latitude, spotDetails.location.longitude),
       overallRating: spotDetails.overallRating || 0,
       contactPhone: spotDetails.contactInfo?.phone || "",
       contactEmail: spotDetails.contactInfo?.email || "",
@@ -110,15 +106,16 @@ export const spotMapper = {
       isActive: true, // Por defecto activo
       reviewsCount: 0, // Inicia en 0
       visitsCount: 0, // Inicia en 0
-      createdBy: userId,
+      createdBy: username, // Usar username en lugar de userId
     };
   },
 
   /**
    * Convierte modelo completo de dominio a formato de Firebase (para actualizaciones)
+   * Nota: media NO se incluye, se maneja directamente en Storage
    */
-  toFirestoreComplete(spot: Spot, geohash: string): SpotFirebase {
-    const baseData = this.toFirestore(spot.details, spot.metadata.createdBy);
+  toFirestoreComplete(spot: Spot, geohash: string, username: string): Omit<SpotFirebase, 'media'> {
+    const baseData = this.toFirestore(spot.details, spot.metadata.createdBy, username);
     
     return {
       ...baseData,

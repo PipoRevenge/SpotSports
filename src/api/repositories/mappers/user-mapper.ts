@@ -1,4 +1,5 @@
 import { User, UserActivity, UserDetails, UserMetadata } from '@/src/entities/user/model/user';
+import { Timestamp } from 'firebase/firestore';
 
 /**
  * Interface que representa el modelo de usuario tal como se almacena en Firebase
@@ -116,7 +117,7 @@ export class UserMapper {
    * @returns UserFirebase - Usuario completo para Firebase con valores por defecto
    */
   static createUserToFirebase(userData: Partial<UserDetails>): UserFirebase {
-    const now = new Date();
+    const now = Timestamp.now();
     
     return {
       // UserDetails con valores por defecto
@@ -125,7 +126,7 @@ export class UserMapper {
       photoURL: userData.photoURL || "",
       fullName: userData.fullName || "",
       bio: userData.bio || "",
-      birthDate: userData.birthDate ? (userData.birthDate instanceof Date ? userData.birthDate : parseTimestamp(userData.birthDate)) : now,
+      birthDate: userData.birthDate ? (userData.birthDate instanceof Date ? userData.birthDate : parseTimestamp(userData.birthDate)) : now.toDate(),
       phoneNumber: userData.phoneNumber || "",
 
       // Metadata inicial
@@ -196,7 +197,7 @@ export class UserMapper {
     }
 
     // Siempre actualizar updatedAt
-    firebaseUpdate.updatedAt = new Date();
+    firebaseUpdate.updatedAt = Timestamp.now();
 
     return firebaseUpdate;
   }

@@ -23,6 +23,7 @@ export interface SportSpot {
 export interface SportSpotRating {
   sportId: string;
   sportName: string;
+  sportDescription?: string;
   rating: number;
   difficulty: number;
 }
