@@ -130,18 +130,20 @@ export const useNuevaFeature = (id: string) => {
 };
 ```
 
-#### **Paso 4: Implementar validaciones/ utilidades asi como helpers**
+#### **Paso 4: Implementar validaciones con Zod**
+All validations should use Zod for consistency and type safety:
+
 ```typescript
 // utils/nueva-feature-validations.ts
 import { z } from 'zod';
 
 export const nuevaFeatureSchema = z.object({
   name: z.string()
-    .min(2, 'El nombre debe tener al menos 2 caracteres')
-    .max(50, 'El nombre no puede exceder 50 caracteres'),
+    .min(2, 'Name must be at least 2 characters long')
+    .max(50, 'Name cannot exceed 50 characters'),
   description: z.string()
-    .min(10, 'La descripción debe tener al menos 10 caracteres')
-    .max(500, 'La descripción no puede exceder 500 caracteres'),
+    .min(10, 'Description must be at least 10 characters long')
+    .max(500, 'Description cannot exceed 500 characters'),
 });
 
 export const validateNuevaFeature = (data: unknown) => {

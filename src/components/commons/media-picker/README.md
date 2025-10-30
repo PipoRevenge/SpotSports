@@ -70,6 +70,7 @@ El componente solicita automáticamente los permisos necesarios:
 ```tsx
 import { MediaPickerCarousel, MediaItem } from '@/src/components/commons/media-picker/media-picker-carousel';
 import { FormControl, FormControlLabel, FormControlLabelText } from '@/src/components/ui/form-control';
+import { z } from 'zod';
 
 const MyForm = () => {
   const [formData, setFormData] = useState({
@@ -99,17 +100,19 @@ const MyForm = () => {
     </FormControl>
   );
 };
-```
 
-## Integración con validaciones
+const mediaItemSchema = z.object({
+  uri: z.string().min(1, 'Media URI is required'),
+  type: z.enum(['image', 'video']),
+  thumbnail: z.string().optional(),
+  duration: z.number().optional(),
+});
 
-Función de validación para uso con formularios:
+export const mediaArraySchema = z.array(mediaItemSchema)
+  .min(1, 'At least one photo or video must be added');
 
-```typescript
 export const validateMedia = (media: MediaItem[]): string | null => {
-  if (!media || media.length === 0) {
-    return "Debe añadir al menos una foto o video";
-  }
-  return null;
+  const result = mediaArraySchema.safeParse(media);
+  return result.success ? null : result.error.errors[0].message;
 };
 ```

@@ -3,7 +3,7 @@ import { HStack } from "@/src/components/ui/hstack";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { Spot } from "@/src/entities/spot/model/spot";
-import { SpotImageGallery } from "@/src/features/spot/components/spot-image-gallery";
+import { SpotImageGallery } from "@/src/features/spot/components/spot-view/spot-image-gallery";
 import React from "react";
 
 

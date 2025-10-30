@@ -9,5 +9,5 @@ export { useSignUp } from './hooks/use-sign-up';
 export { useUsernameValidation } from './hooks/use-username-validation';
 
 // Tipos
-export * from './types/auth';
+export * from './types/auth-types';
 

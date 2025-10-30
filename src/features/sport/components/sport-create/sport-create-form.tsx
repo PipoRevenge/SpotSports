@@ -16,9 +16,9 @@ import { Textarea, TextareaInput } from "@/src/components/ui/textarea";
 import { VStack } from "@/src/components/ui/vstack";
 import React, { useState } from "react";
 import { ScrollView } from "react-native";
-import { CreateSportData } from "../types/sport-types";
-import { LOADING_STATES, SPORT_CATEGORIES_LIST, SPORT_PLACEHOLDERS, SPORT_VALIDATION_LIMITS } from "../utils/sport-constants";
-import { validateSportDescription, validateSportName } from "../utils/sport-validations";
+import { CreateSportData } from "../../types/sport-types";
+import { LOADING_STATES, SPORT_CATEGORIES_LIST, SPORT_PLACEHOLDERS, SPORT_VALIDATION_LIMITS } from "../../utils/sport-constants";
+import { validateSportDescription, validateSportName } from "../../utils/sport-validations";
 
 interface CreateSportFormProps {
   onSubmit: (data: CreateSportData) => Promise<void>;

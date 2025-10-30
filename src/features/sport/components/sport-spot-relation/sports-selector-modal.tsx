@@ -15,12 +15,12 @@ import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import React, { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import { ScrollView } from "react-native";
-import { useCreateSport } from "../hooks/use-create-sport";
-import { useSelectSports } from "../hooks/use-select-sports";
-import { CreateSportData, SportSimple, SportsSelectorProps, SportsSelectorRef } from "../types/sport-types";
-import { formatSelectedCount } from "../utils/sport-helpers";
-import { CreateSportForm } from "./create-sport-form";
-import { SportSearch } from "./sport-search";
+import { useCreateSport } from "../../hooks/use-create-sport";
+import { useSelectSports } from "../../hooks/use-select-sports";
+import { CreateSportData, SportSimple, SportsSelectorProps, SportsSelectorRef } from "../../types/sport-types";
+import { formatSelectedCount } from "../../utils/sport-helpers";
+import { CreateSportForm } from "../sport-create/sport-create-form";
+import { SportSearch } from "../sport-search/sport-search";
 
 type ViewMode = 'select' | 'create';
 

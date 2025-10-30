@@ -18,8 +18,8 @@ import { AlertCircleIcon, EyeIcon, EyeOffIcon } from "@/src/components/ui/icon";
 import { Input, InputField, InputIcon, InputSlot } from "@/src/components/ui/input";
 
 import React, { useState } from "react";
-import { AuthFormErrors, SignInFormData } from "../types/auth";
-import { validateSignInForm } from "../utils/validations";
+import { AuthFormErrors, SignInFormData } from "../types/auth-types";
+import { validateSignInForm } from "../utils/auth-validations";
 
 interface SignInFormProps {
   onSubmit?: (email: string, password: string) => void;

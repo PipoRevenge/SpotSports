@@ -2,9 +2,9 @@ import { Text } from '@/src/components/ui/text';
 import { View } from '@/src/components/ui/view';
 import { VStack } from '@/src/components/ui/vstack';
 
-import { ProfileHeader } from '@/src/features/user-profile/components/profile-header';
-import { useProfile } from '@/src/features/user-profile/hooks/use-profile';
-import { ProfileActionType } from '@/src/features/user-profile/types/profile-types';
+import { ProfileHeader } from '@/src/features/user/components/profile-header';
+import { useProfile } from '@/src/features/user/hooks/use-profile';
+import { ProfileActionType } from '@/src/features/user/types/profile-types';
 import { useLocalSearchParams } from "expo-router";
 import React from "react";
 import { ActivityIndicator, RefreshControl, ScrollView } from 'react-native';

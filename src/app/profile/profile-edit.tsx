@@ -1,4 +1,4 @@
-import { ProfileEditForm } from "@/src/features/user-profile";
+import { ProfileEditForm } from "@/src/features/user";
 import { router } from "expo-router";
 import React from "react";
 

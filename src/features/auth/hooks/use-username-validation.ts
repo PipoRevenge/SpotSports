@@ -1,5 +1,5 @@
 import { userRepository } from '@/src/api/repositories';
-import { validateUsername } from '@/src/features/auth/utils/validations';
+import { validateUsername } from '@/src/features/auth/utils/auth-validations';
 import { useCallback, useEffect, useState } from 'react';
 
 interface UseUsernameValidationReturn {

@@ -1,9 +1,9 @@
 // Components
-export { CategoryFilter } from "./components/category-filter";
-export { CreateSportForm } from "./components/create-sport-form";
-export { SportSearch } from "./components/sport-search";
-export { SportsSelectorModal as SportsSelector, SportsSelectorModal } from "./components/sports-selector-modal";
-export { SpotSportsTable } from "./components/spot-sports-table";
+export { CreateSportForm } from "./components/sport-create/sport-create-form";
+export { CategoryFilter } from "./components/sport-search/category-filter";
+export { SportSearch } from "./components/sport-search/sport-search";
+export { SportsSelectorModal as SportsSelector, SportsSelectorModal } from "./components/sport-spot-relation/sports-selector-modal";
+export { SpotSportsTable } from "./components/sport-spot-relation/spot-sports-table";
 
 // Hooks
 export { useCreateSport } from "./hooks/use-create-sport";
@@ -12,7 +12,7 @@ export { useSelectSports } from "./hooks/use-select-sports";
 
 // Types
 export type {
-    CreateSportData, Sport, SportCategory, SportFilters, SportOption, SportSimple, SportState, SportsSelectorProps, SportsSelectorRef, UseSportsSearchOptions
+    CreateSportData, Sport, SportCategory, SportFilters, SportOption, SportSimple, SportsSelectorProps, SportsSelectorRef, SportState, UseSportsSearchOptions
 } from "./types/sport-types";
 
 // Utilities

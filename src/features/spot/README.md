@@ -30,9 +30,10 @@ spot/
 - **Formulario completo** con validaciones en tiempo real
 - **Selección de ubicación** mediante mapa interactivo
 - **Selección múltiple de deportes** disponibles
+- **Carga de multimedia** (fotos y videos)
 - **Información de contacto** opcional (teléfono, email, website)
-- **Validaciones robustas** para todos los campos
-- **Manejo de errores** con mensajes descriptivos
+- **Validaciones robustas** usando Zod schemas
+- **Manejo de errores** con mensajes descriptivos en inglés
 
 #### 🗃️ Tipos y Validaciones
 - **Tipos TypeScript** completos para toda la feature
@@ -96,12 +97,29 @@ if (!validation.isValid) {
 - **Nombre del spot** (3-100 caracteres)
 - **Descripción** (10-500 caracteres)
 - **Deportes disponibles** (al menos uno)
+- **Multimedia** (al menos una foto o video)
 - **Ubicación** (coordenadas del mapa)
 
 #### Campos Opcionales
 - **Teléfono de contacto**
 - **Email de contacto** (validado si se proporciona)
 - **Sitio web** (validado si se proporciona)
+
+### 🔍 Sistema de Validación
+
+El sistema utiliza **Zod** para todas las validaciones:
+
+```typescript
+import { spotCreateFormSchema } from '@/features/spot';
+
+// Validar datos completos
+const result = spotCreateFormSchema.safeParse(formData);
+
+// Validaciones individuales
+validateSpotName("Sport Center");
+validateSpotDescription("Great place for sports...");
+validateMedia([{ uri: "...", type: "image" }]);
+```
 
 ### 🎨 Deportes Disponibles
 

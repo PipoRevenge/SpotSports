@@ -7,10 +7,10 @@ import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import React, { useEffect, useState } from "react";
 import { ScrollView } from "react-native";
-import { useSearchSports } from "../hooks/use-search-sports";
-import { SportCategory, SportSimple } from "../types/sport-types";
-import { LOADING_STATES, SPORT_PLACEHOLDERS, SPORT_SEARCH_CONFIG } from "../utils/sport-constants";
-import { filterSportsExcluding, formatResultsCount, limitResults } from "../utils/sport-helpers";
+import { useSearchSports } from "../../hooks/use-search-sports";
+import { SportCategory, SportSimple } from "../../types/sport-types";
+import { LOADING_STATES, SPORT_PLACEHOLDERS, SPORT_SEARCH_CONFIG } from "../../utils/sport-constants";
+import { filterSportsExcluding, formatResultsCount, limitResults } from "../../utils/sport-helpers";
 import { CategoryFilter } from "./category-filter";
 
 interface SportSearchProps {

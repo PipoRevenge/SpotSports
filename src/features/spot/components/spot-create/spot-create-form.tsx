@@ -2,11 +2,11 @@ import { LocationPickerModal } from "@/src/components/commons/map/location-picke
 import { MediaItem, MediaPickerCarousel } from "@/src/components/commons/media-picker/media-picker-carousel";
 import { Button, ButtonText } from "@/src/components/ui/button";
 import {
-  FormControl,
-  FormControlError,
-  FormControlErrorText,
-  FormControlLabel,
-  FormControlLabelText
+    FormControl,
+    FormControlError,
+    FormControlErrorText,
+    FormControlLabel,
+    FormControlLabelText
 } from "@/src/components/ui/form-control";
 import { HStack } from "@/src/components/ui/hstack";
 import { Input, InputField } from "@/src/components/ui/input";
@@ -17,13 +17,13 @@ import { GeoPoint } from "@/src/types/geopoint";
 import { MapPin } from "lucide-react-native";
 import React, { useState } from "react";
 import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
-import { useCreateSpot } from "../hooks/use-create-spot";
+import { useCreateSpot } from "../../hooks/use-create-spot";
 import {
-  SpotCreateFormData,
-  SpotCreateFormProps,
-  SpotFormErrors
-} from "../types/spot-types";
-import { validateSpotCreateForm } from "../utils/spot-validations";
+    SpotCreateFormData,
+    SpotCreateFormProps,
+    SpotFormErrors
+} from "../../types/spot-types";
+import { validateSpotCreateForm } from "../../utils/spot-validations";
 
 export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
   onSuccess,

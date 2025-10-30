@@ -4,8 +4,8 @@ import { ScrollView } from "@/src/components/ui/scroll-view";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import React from "react";
-import { SportCategory } from "../types/sport-types";
-import { SPORT_CATEGORIES_LIST, SPORT_PLACEHOLDERS } from "../utils/sport-constants";
+import { SportCategory } from "../../types/sport-types";
+import { SPORT_CATEGORIES_LIST, SPORT_PLACEHOLDERS } from "../../utils/sport-constants";
 
 interface CategoryFilterProps {
   selectedCategory?: SportCategory;

@@ -65,13 +65,25 @@ Beneficios:
   - Formato inesperado de campos (fecha como número/ string) -> intentar parsear y documentar el comportamiento.
 - Criterios de éxito:
   - La estructura devuelta cumple con los tipos esperados en `src/types`.
+  - **Recommended**: Use Zod schemas to validate raw data before mapping.
 
-## 📌 Ejemplo: `user-mapper.ts`
+## 📌 Ejemplo: `user-mapper.ts` with Zod
 
-Este ejemplo ilustra un mapper sencillo para usuarios.
+This example illustrates a mapper with Zod validation.
 
 ```typescript
-// user-mapper.ts (ejemplo)
+// user-mapper.ts (ejemplo con Zod)
+import { z } from 'zod';
+
+const rawUserSchema = z.object({
+  id: z.string().optional(),
+  _id: z.string().optional(),
+  name: z.string().optional(),
+  displayName: z.string().optional(),
+  email: z.string().email(),
+  createdAt: z.union([z.string(), z.date()]).optional(),
+});
+
 export type User = {
   id: string;
   name: string;
@@ -88,13 +100,15 @@ export type UserDTO = {
 
 export const userMapper = {
   toDomain(raw: any): User {
-    if (!raw) throw new Error('Invalid raw user');
+    const validated = rawUserSchema.parse(raw);
 
     return {
-      id: raw.id || raw._id || '',
-      name: raw.name || raw.displayName || '',
-      email: raw.email || '',
-      createdAt: raw.createdAt ? new Date(raw.createdAt) : new Date(0),
+      id: validated.id || validated._id || '',
+      name: validated.name || validated.displayName || '',
+      email: validated.email,
+      createdAt: validated.createdAt 
+        ? new Date(validated.createdAt) 
+        : new Date(0),
     };
   },
 

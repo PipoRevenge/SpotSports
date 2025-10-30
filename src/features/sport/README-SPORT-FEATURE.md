@@ -174,20 +174,26 @@ selectorRef.current?.reset()           // Resetear selección
 ## 🛠️ Utilidades Disponibles
 
 ### **Validaciones**
+All validations use **Zod schemas** with English messages:
+
 ```typescript
 import { 
   validateCreateSport,
   validateSportName, 
   validateSportDescription,
-  validateSportSelection 
+  validateSportSelection,
+  createSportSchema
 } from '@/features/sport';
 
-// Validar datos completos de creación
+// Validate complete data with Zod
 const { success, errors } = validateCreateSport(sportData);
 
-// Validaciones individuales
-const nameError = validateSportName("Fútbol");
-const descError = validateSportDescription("Deporte de equipo...");
+// Use Zod schema directly
+const result = createSportSchema.safeParse(sportData);
+
+// Individual validations
+const nameError = validateSportName("Football");
+const descError = validateSportDescription("Team sport played with...");
 const hasSelection = validateSportSelection(['sport1', 'sport2']);
 ```
 
