@@ -1,11 +1,11 @@
 import { Spot, SpotDetails } from '@/src/entities/spot/model/spot';
 import { firestore, storage } from '@/src/lib/firebase-config';
 import { GeoPoint } from '@/src/types/geopoint';
-import { addDoc, collection, doc, getDoc, Timestamp } from 'firebase/firestore';
+import { addDoc, collection, doc, GeoPoint as FirebaseGeoPoint, getDoc, Timestamp } from 'firebase/firestore';
 import { getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 import { geohashForLocation } from 'geofire-common';
 import { ISpotRepository } from '../interfaces/i-spot-repository';
-import { SpotFirebase, spotMapper } from '../mappers/spot-mapper';
+import { SpotMapper } from '../mappers/spot-mapper';
 
 
 /**
@@ -47,22 +47,34 @@ export class SpotRepositoryImpl implements ISpotRepository {
         media: [] // Inicialmente vacío
       };
 
-      // Convertir a formato de Firebase
-      const firestoreData = spotMapper.toFirestore(spotDataWithoutMedia, userId, username);
-
       // Generar geohash para la ubicación
       const geohash = await this.createGeohash(spotData.location);
 
-      // Agregar timestamps y geohash
-      const spotWithTimestamps = {
-        ...firestoreData,
+      // Convertir a formato de Firebase
+      const firestoreData = {
+        name: spotDataWithoutMedia.name,
+        description: spotDataWithoutMedia.description,
+        availableSports: spotDataWithoutMedia.availableSports || [],
+        location: new FirebaseGeoPoint(
+          spotDataWithoutMedia.location.latitude,
+          spotDataWithoutMedia.location.longitude
+        ),
         geohash: geohash,
+        overallRating: spotDataWithoutMedia.overallRating || 0,
+        contactPhone: spotDataWithoutMedia.contactInfo?.phone || "",
+        contactEmail: spotDataWithoutMedia.contactInfo?.email || "",
+        contactWebsite: spotDataWithoutMedia.contactInfo?.website || "",
+        isVerified: false,
+        isActive: true,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
+        createdBy: username,
+        reviewsCount: 0,
+        visitsCount: 0,
       };
 
       // Limpiar campos undefined (Firebase no los acepta)
-      const cleanedData = this.removeUndefinedFields(spotWithTimestamps);
+      const cleanedData = this.removeUndefinedFields(firestoreData);
 
       // Obtener referencia a la colección
       const spotsCollection = collection(firestore, this.COLLECTION_NAME);
@@ -123,20 +135,16 @@ export class SpotRepositoryImpl implements ISpotRepository {
       }
 
       // Obtener datos y convertir a modelo de dominio
-      const spotData = docSnap.data() as SpotFirebase;
+      const spotData = docSnap.data() as any;
       
       // Cargar las URLs de media desde Storage
       const mediaUrls = await this.getSpotMediaUrls(id);
       
       // Agregar las URLs al objeto antes de convertir
-      const spotWithId = { 
-        ...spotData, 
-        id: docSnap.id,
-        media: mediaUrls 
-      };
+      spotData.media = mediaUrls;
 
       // Convertir usando el mapper
-      return spotMapper.toDomain(spotWithId);
+      return SpotMapper.fromFirebase(id, spotData);
 
     } catch (error) {
       console.error('Error getting spot by ID:', error);
@@ -264,11 +272,26 @@ export class SpotRepositoryImpl implements ISpotRepository {
     
     for (const key in obj) {
       if (obj[key] !== undefined) {
-        if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
-          // Recursivamente limpiar objetos anidados
-          cleaned[key] = this.removeUndefinedFields(obj[key]);
+        const value = obj[key];
+        
+        // No procesar recursivamente objetos especiales de Firebase (Timestamp, GeoPoint, etc.)
+        // Verificamos si tiene métodos específicos de estos objetos o si es una instancia de Date
+        const isFirebaseTimestamp = value && typeof value === 'object' && ('toDate' in value || 'toMillis' in value);
+        const isFirebaseGeoPoint = value && typeof value === 'object' && ('latitude' in value && 'longitude' in value && value.constructor?.name === 'GeoPoint');
+        const isDate = value && typeof value === 'object' && (value.constructor?.name === 'Date' || Object.prototype.toString.call(value) === '[object Date]');
+        const isArray = Array.isArray(value);
+        
+        if (typeof value === 'object' && 
+            value !== null && 
+            !isArray &&
+            !isFirebaseTimestamp &&
+            !isFirebaseGeoPoint &&
+            !isDate) {
+          // Recursivamente limpiar objetos anidados normales
+          cleaned[key] = this.removeUndefinedFields(value);
         } else {
-          cleaned[key] = obj[key];
+          // Mantener el valor tal cual (incluyendo Timestamp, GeoPoint, Date, arrays, primitivos)
+          cleaned[key] = value;
         }
       }
     }

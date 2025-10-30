@@ -1,14 +1,14 @@
-import DifficultyRating from "@/src/components/commons/rating-difficulty/rating-difficulty";
+import { DifficultyRating } from "@/src/components/commons/rating-difficulty/rating-difficulty";
 import { RatingStar } from "@/src/components/commons/rating-start/rating-star";
 import { HStack } from "@/src/components/ui/hstack";
 import { Popover, PopoverArrow, PopoverBody, PopoverContent, PopoverHeader } from "@/src/components/ui/popover";
 import {
-    Table,
-    TableBody,
-    TableData,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableData,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/src/components/ui/table";
 import { SportSpotRating } from "@/src/entities/spot/model/spot";
 

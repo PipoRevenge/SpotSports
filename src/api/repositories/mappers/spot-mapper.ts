@@ -1,5 +1,5 @@
 import { Spot, SpotActivity, SpotDetails, SpotMetadata } from "@/src/entities/spot/model/spot";
-import { GeoPoint } from "firebase/firestore";
+import { GeoPoint as FirebaseGeoPoint } from "firebase/firestore";
 
 /**
  * Interface que representa el modelo de spot tal como se almacena en Firebase
@@ -9,10 +9,10 @@ export interface SpotFirebase {
   name: string;
   description: string;
   availableSports: string[];
-  // media NO se almacena en Firestore, solo en Storage
+  // media NO se almacena en Firestore, solo en Storage (se gestiona por URLs)
   media?: string[];
   // GeoPoint de Firebase
-  location: GeoPoint;
+  location: FirebaseGeoPoint;
   geohash: string;
   overallRating: number;
   
@@ -24,9 +24,8 @@ export interface SpotFirebase {
   // SpotMetadata (campos planos en Firebase)
   isVerified: boolean;
   isActive: boolean;
-  // Pueden venir como Timestamp de Firebase u otros formatos
-  createdAt: any;
-  updatedAt: any;
+  createdAt?: any; // Timestamp de Firebase u otros formatos
+  updatedAt?: any; // Timestamp de Firebase u otros formatos
   createdBy: string;
 
   // SpotActivity (campos planos en Firebase)
@@ -35,98 +34,183 @@ export interface SpotFirebase {
 }
 
 /**
- * Mapper para convertir entre modelos de dominio y Firebase
+ * Mapper para convertir datos entre el modelo de la aplicación (Spot) 
+ * y el modelo de Firebase (SpotFirebase)
+ * 
+ * Responsabilidad: SOLO transformación de datos
+ * - De Firebase a Modelo de dominio
+ * - De Modelo de dominio a Firebase
  */
-export const spotMapper = {
+export class SpotMapper {
+  
   /**
-   * Convierte datos de Firebase a modelo de dominio
+   * Convierte datos de Firebase a modelo de dominio Spot
+   * @param id - ID del spot
+   * @param firebaseData - Datos en formato Firebase
+   * @returns Spot - Spot en formato de dominio
    */
-  toDomain(raw: SpotFirebase & { id: string }): Spot {
-    if (!raw) {
-      throw new Error('Invalid raw spot data');
-    }
-
-    // Construir SpotDetails
+  static fromFirebase(id: string, firebaseData: SpotFirebase): Spot {
     const details: SpotDetails = {
-      name: raw.name || '',
-      description: raw.description || '',
-      availableSports: raw.availableSports || [],
-      media: raw.media || [],
+      name: firebaseData.name || '',
+      description: firebaseData.description || '',
+      availableSports: firebaseData.availableSports || [],
+      media: firebaseData.media || [],
       location: {
-        latitude: raw.location?.latitude || 0,
-        longitude: raw.location?.longitude || 0,
+        latitude: firebaseData.location?.latitude || 0,
+        longitude: firebaseData.location?.longitude || 0,
       },
-      overallRating: raw.overallRating || 0,
+      overallRating: firebaseData.overallRating || 0,
       contactInfo: {
-        phone: raw.contactPhone || "",
-        email: raw.contactEmail || "",
-        website: raw.contactWebsite || "",
+        phone: firebaseData.contactPhone || "",
+        email: firebaseData.contactEmail || "",
+        website: firebaseData.contactWebsite || "",
       }
     };
 
-    // Construir SpotMetadata
     const metadata: SpotMetadata = {
-      isVerified: raw.isVerified || false,
-      isActive: raw.isActive !== false, // Por defecto true
-      createdAt: raw.createdAt ? new Date(raw.createdAt.seconds * 1000) : new Date(),
-      updatedAt: raw.updatedAt ? new Date(raw.updatedAt.seconds * 1000) : new Date(),
-      createdBy: raw.createdBy,
+      isVerified: firebaseData.isVerified || false,
+      isActive: firebaseData.isActive !== false,
+      createdAt: parseTimestamp(firebaseData.createdAt) || new Date(),
+      updatedAt: parseTimestamp(firebaseData.updatedAt) || new Date(),
+      createdBy: firebaseData.createdBy,
     };
 
-    // Construir SpotActivity
     const activity: SpotActivity = {
-      reviewsCount: raw.reviewsCount || 0,
-      visitsCount: raw.visitsCount || 0,
+      reviewsCount: firebaseData.reviewsCount || 0,
+      visitsCount: firebaseData.visitsCount || 0,
     };
 
     return {
-      id: raw.id,
+      id,
       details,
       metadata,
       activity,
     };
-  },
+  }
 
   /**
-   * Convierte modelo de dominio a formato de Firebase
-   * Nota: media NO se guarda en Firestore, solo en Storage
+   * Convierte modelo de dominio Spot a formato Firebase
+   * @param spot - Spot en formato de dominio
+   * @param geohash - Geohash de la ubicación (calculado externamente)
+   * @returns SpotFirebase - Spot en formato Firebase
    */
-  toFirestore(spotDetails: SpotDetails, userId: string, username: string): Omit<SpotFirebase, 'createdAt' | 'updatedAt' | 'geohash' | 'media'> {
+  static toFirebase(spot: Spot, geohash: string): SpotFirebase {
     return {
-      name: spotDetails.name,
-      description: spotDetails.description,
-      availableSports: spotDetails.availableSports || [],
-      // media NO se incluye - solo se almacena en Storage
-      location: new GeoPoint(spotDetails.location.latitude, spotDetails.location.longitude),
-      overallRating: spotDetails.overallRating || 0,
-      contactPhone: spotDetails.contactInfo?.phone || "",
-      contactEmail: spotDetails.contactInfo?.email || "",
-      contactWebsite: spotDetails.contactInfo?.website || "",
-      isVerified: false, // Por defecto false hasta verificación
-      isActive: true, // Por defecto activo
-      reviewsCount: 0, // Inicia en 0
-      visitsCount: 0, // Inicia en 0
-      createdBy: username, // Usar username en lugar de userId
-    };
-  },
-
-  /**
-   * Convierte modelo completo de dominio a formato de Firebase (para actualizaciones)
-   * Nota: media NO se incluye, se maneja directamente en Storage
-   */
-  toFirestoreComplete(spot: Spot, geohash: string, username: string): Omit<SpotFirebase, 'media'> {
-    const baseData = this.toFirestore(spot.details, spot.metadata.createdBy, username);
-    
-    return {
-      ...baseData,
+      name: spot.details.name,
+      description: spot.details.description,
+      availableSports: spot.details.availableSports || [],
+      media: spot.details.media || [],
+      location: new FirebaseGeoPoint(
+        spot.details.location.latitude,
+        spot.details.location.longitude
+      ),
       geohash: geohash,
+      overallRating: spot.details.overallRating || 0,
+      contactPhone: spot.details.contactInfo?.phone || "",
+      contactEmail: spot.details.contactInfo?.email || "",
+      contactWebsite: spot.details.contactInfo?.website || "",
       isVerified: spot.metadata.isVerified || false,
       isActive: spot.metadata.isActive !== false,
-      createdBy: spot.metadata.createdBy || "", 
-      reviewsCount: spot.activity?.reviewsCount || 0,
-      visitsCount: spot.activity?.visitsCount || 0,
       createdAt: spot.metadata.createdAt,
       updatedAt: spot.metadata.updatedAt,
+      createdBy: spot.metadata.createdBy || "",
+      reviewsCount: spot.activity?.reviewsCount || 0,
+      visitsCount: spot.activity?.visitsCount || 0,
     };
   }
-};
+
+  /**
+   * Convierte datos parciales de Spot a formato Firebase (para actualizaciones)
+   * @param spotData - Datos parciales para actualizar
+   * @param geohash - Geohash opcional (solo si se actualiza la ubicación)
+   * @returns Partial<SpotFirebase> - Datos en formato Firebase
+   */
+  static partialToFirebase(spotData: Partial<Spot>, geohash?: string): Partial<SpotFirebase> {
+    const firebaseUpdate: Partial<SpotFirebase> = {};
+
+    // Mapear SpotDetails si existe
+    if (spotData.details) {
+      const details = spotData.details;
+      if (details.name !== undefined) firebaseUpdate.name = details.name;
+      if (details.description !== undefined) firebaseUpdate.description = details.description;
+      if (details.availableSports !== undefined) firebaseUpdate.availableSports = details.availableSports;
+      if (details.media !== undefined) firebaseUpdate.media = details.media;
+      if (details.location !== undefined) {
+        firebaseUpdate.location = new FirebaseGeoPoint(
+          details.location.latitude,
+          details.location.longitude
+        );
+        if (geohash) {
+          firebaseUpdate.geohash = geohash;
+        }
+      }
+      if (details.overallRating !== undefined) firebaseUpdate.overallRating = details.overallRating;
+      if (details.contactInfo) {
+        if (details.contactInfo.phone !== undefined) firebaseUpdate.contactPhone = details.contactInfo.phone;
+        if (details.contactInfo.email !== undefined) firebaseUpdate.contactEmail = details.contactInfo.email;
+        if (details.contactInfo.website !== undefined) firebaseUpdate.contactWebsite = details.contactInfo.website;
+      }
+    }
+
+    // Mapear metadata si existe
+    if (spotData.metadata) {
+      if (spotData.metadata.isVerified !== undefined) {
+        firebaseUpdate.isVerified = spotData.metadata.isVerified;
+      }
+      if (spotData.metadata.isActive !== undefined) {
+        firebaseUpdate.isActive = spotData.metadata.isActive;
+      }
+      if (spotData.metadata.createdAt !== undefined) {
+        firebaseUpdate.createdAt = spotData.metadata.createdAt;
+      }
+      if (spotData.metadata.updatedAt !== undefined) {
+        firebaseUpdate.updatedAt = spotData.metadata.updatedAt;
+      }
+      if (spotData.metadata.createdBy !== undefined) {
+        firebaseUpdate.createdBy = spotData.metadata.createdBy;
+      }
+    }
+
+    // Mapear activity si existe
+    if (spotData.activity) {
+      const activity = spotData.activity;
+      if (activity.reviewsCount !== undefined) {
+        firebaseUpdate.reviewsCount = activity.reviewsCount;
+      }
+      if (activity.visitsCount !== undefined) {
+        firebaseUpdate.visitsCount = activity.visitsCount;
+      }
+    }
+
+    return firebaseUpdate;
+  }
+}
+
+/**
+ * Convierte varios formatos de timestamp a Date
+ * Soporta: Date, number (ms), string, Firestore Timestamp, objeto {seconds, nanoseconds}
+ */
+function parseTimestamp(value: any): Date | undefined {
+  if (value == null) return undefined;
+  if (value instanceof Date) return value;
+  if (typeof value === 'number') return new Date(value);
+  if (typeof value === 'string') {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? undefined : d;
+  }
+  // Firestore Timestamp has toDate()
+  if (typeof value.toDate === 'function') {
+    try {
+      return value.toDate();
+    } catch {
+      return undefined;
+    }
+  }
+  // Raw object like { seconds, nanos } or { seconds, nanoseconds }
+  if (typeof value === 'object' && (value.seconds !== undefined || value.nanoseconds !== undefined || value.nanos !== undefined)) {
+    const secs = Number(value.seconds || 0);
+    const nanos = Number(value.nanoseconds ?? value.nanos ?? 0);
+    return new Date(secs * 1000 + Math.floor(nanos / 1e6));
+  }
+  return undefined;
+}

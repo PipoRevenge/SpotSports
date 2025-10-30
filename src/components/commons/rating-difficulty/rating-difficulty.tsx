@@ -7,7 +7,7 @@ interface DifficultyRatingProps {
   value: number; // valor del 1 al 10
 }
 
-const DifficultyRating: React.FC<DifficultyRatingProps> = ({ value }) => {
+export const DifficultyRating: React.FC<DifficultyRatingProps> = ({ value }) => {
   const getLevel = (value: number) => {
     if (value <= 3) return 'Beginner';
     if (value <= 6) return 'Intermediate';

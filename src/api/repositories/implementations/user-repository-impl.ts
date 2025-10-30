@@ -31,12 +31,35 @@ export class UserRepositoryImpl implements IUserRepository {
             }
 
             // Validar datos requeridos
-            if (!UserMapper.validateUserData(userData)) {
+            if (!userData.email || !userData.userName) {
                 throw new Error('El email y nombre de usuario son requeridos');
             }
 
-            // Convertir a formato Firebase usando el mapper
-            const newUser: UserFirebase = UserMapper.createUserToFirebase(userData);
+            const now = Timestamp.now();
+            
+            // Crear objeto User completo con valores por defecto
+            const newUser: UserFirebase = {
+                // UserDetails con valores por defecto
+                email: userData.email,
+                userName: userData.userName,
+                photoURL: userData.photoURL || "",
+                fullName: userData.fullName || "",
+                bio: userData.bio || "",
+                birthDate: userData.birthDate || now.toDate(),
+                phoneNumber: userData.phoneNumber || "",
+
+                // Metadata inicial
+                createdAt: now,
+                updatedAt: now,
+                isVerified: false,
+
+                // Activity inicial
+                reviewsCount: 0,
+                commentsCount: 0,
+                favoriteSpotsCount: 0,
+                followersCount: 0,
+                followingCount: 0,
+            };
 
             const userRef = doc(firestore, this.USERS_COLLECTION, userId);
 
@@ -145,7 +168,10 @@ export class UserRepositoryImpl implements IUserRepository {
             }
 
             // Convertir los cambios a formato Firebase usando el mapper
-            const firebaseUpdates = UserMapper.updateDataToFirebase(userData);
+            const firebaseUpdates = UserMapper.partialToFirebase(userData);
+            
+            // Agregar timestamp de actualización
+            firebaseUpdates.updatedAt = Timestamp.now();
 
             await updateDoc(userRef, firebaseUpdates);
 

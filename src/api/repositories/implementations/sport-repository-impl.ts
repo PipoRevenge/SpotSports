@@ -1,20 +1,20 @@
 import { Sport, SportDetails } from '@/src/entities/sport/model/sport';
 import { firestore } from '@/src/lib/firebase-config';
 import {
-    addDoc,
-    collection,
-    doc,
-    query as firestoreQuery,
-    getDoc,
-    getDocs,
-    limit,
-    orderBy,
-    Timestamp,
-    updateDoc,
-    where
+  addDoc,
+  collection,
+  doc,
+  query as firestoreQuery,
+  getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  Timestamp,
+  updateDoc,
+  where
 } from 'firebase/firestore';
 import { ISportRepository } from '../interfaces/i-sport-repository';
-import * as SportMapper from '../mappers/sport-mapper';
+import { SportMapper } from '../mappers/sport-mapper';
 
 export class SportRepositoryImpl implements ISportRepository {
   private readonly SPORTS_COLLECTION = 'sports';
@@ -39,9 +39,24 @@ export class SportRepositoryImpl implements ISportRepository {
         throw new Error('La descripción del deporte es requerida');
       }
 
-      const sportsRef = collection(firestore, this.SPORTS_COLLECTION);
-      const firestoreData = SportMapper.detailsToFirestore(sportData, createdBy);
+      const now = Timestamp.now();
       
+      // Crear objeto Sport completo con valores por defecto para el mapper
+      const firestoreData = {
+        name: sportData.name.trim(),
+        description: sportData.description.trim(),
+        icon: sportData.icon?.trim(),
+        image: sportData.image?.trim(),
+        category: sportData.category?.trim(),
+        createdAt: now,
+        updatedAt: now,
+        createdBy: createdBy,
+        spotsCount: 0,
+        usersCount: 0,
+        popularity: 0,
+      };
+      
+      const sportsRef = collection(firestore, this.SPORTS_COLLECTION);
       const docRef = await addDoc(sportsRef, firestoreData);
       return docRef.id;
       
@@ -67,7 +82,7 @@ export class SportRepositoryImpl implements ISportRepository {
         return null;
       }
 
-      return SportMapper.toDomain(sportDoc.id, sportDoc.data() as SportMapper.SportFirebase);
+      return SportMapper.fromFirebase(sportDoc.id, sportDoc.data() as any);
       
     } catch (error: any) {
       console.error('Error getting sport by ID:', error);
@@ -85,7 +100,7 @@ export class SportRepositoryImpl implements ISportRepository {
       const querySnapshot = await getDocs(q);
 
       return querySnapshot.docs.map(doc => 
-        SportMapper.toDomain(doc.id, doc.data() as SportMapper.SportFirebase)
+        SportMapper.fromFirebase(doc.id, doc.data() as any)
       );
       
     } catch (error: any) {
@@ -116,7 +131,7 @@ export class SportRepositoryImpl implements ISportRepository {
       
       const querySnapshot = await getDocs(q);
       const allSports = querySnapshot.docs.map(doc => 
-        SportMapper.toDomain(doc.id, doc.data() as SportMapper.SportFirebase)
+        SportMapper.fromFirebase(doc.id, doc.data() as any)
       );
 
       // Filtrar en el cliente por nombre (incluye substring)
@@ -149,7 +164,7 @@ export class SportRepositoryImpl implements ISportRepository {
       
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => 
-        SportMapper.toDomain(doc.id, doc.data() as SportMapper.SportFirebase)
+        SportMapper.fromFirebase(doc.id, doc.data() as any)
       );
       
     } catch (error: any) {
@@ -200,7 +215,7 @@ export class SportRepositoryImpl implements ISportRepository {
 
       const querySnapshot = await getDocs(q);
       let results = querySnapshot.docs.map(doc => 
-        SportMapper.toDomain(doc.id, doc.data() as SportMapper.SportFirebase)
+        SportMapper.fromFirebase(doc.id, doc.data() as any)
       );
 
       // Filtrar por nombre en el cliente si hay query
@@ -237,7 +252,7 @@ export class SportRepositoryImpl implements ISportRepository {
       
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => 
-        SportMapper.toDomain(doc.id, doc.data() as SportMapper.SportFirebase)
+        SportMapper.fromFirebase(doc.id, doc.data() as any)
       );
       
     } catch (error: any) {
@@ -346,7 +361,7 @@ export class SportRepositoryImpl implements ISportRepository {
       
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => 
-        SportMapper.toDomain(doc.id, doc.data() as SportMapper.SportFirebase)
+        SportMapper.fromFirebase(doc.id, doc.data() as any)
       );
       
     } catch (error: any) {

@@ -1,5 +1,4 @@
 import { User, UserActivity, UserDetails, UserMetadata } from '@/src/entities/user/model/user';
-import { Timestamp } from 'firebase/firestore';
 
 /**
  * Interface que representa el modelo de usuario tal como se almacena en Firebase
@@ -11,14 +10,12 @@ export interface UserFirebase {
   photoURL?: string;
   fullName?: string;
   bio?: string;
-  // Puede venir como Timestamp de Firebase, Date, número (ms) o string
-  birthDate?: any;
+  birthDate?: any; // Timestamp de Firebase, Date, número (ms) o string
   phoneNumber?: string;
 
   // Metadata (campos planos en Firebase)
-  // Pueden venir como Timestamp de Firebase u otros formatos
-  createdAt?: any;
-  updatedAt?: any;
+  createdAt?: any; // Timestamp de Firebase u otros formatos
+  updatedAt?: any; // Timestamp de Firebase u otros formatos
   isVerified: boolean;
 
   // Activity (campos planos en Firebase)
@@ -27,56 +24,23 @@ export interface UserFirebase {
   favoriteSpotsCount?: number;
   followersCount?: number;
   followingCount?: number;
-  
-  // Arrays complejos se almacenan como subcolecciones en Firebase,
-  // no como campos directos del documento principal
-  // reviews?: Review[]; // Se maneja en subcolección
-  // comments?: CommentReview[]; // Se maneja en subcolección
 }
 
 /**
  * Mapper para convertir datos entre el modelo de la aplicación (User) 
  * y el modelo de Firebase (UserFirebase)
+ * 
+ * Responsabilidad: SOLO transformación de datos
+ * - De Firebase a Modelo de dominio
+ * - De Modelo de dominio a Firebase
  */
 export class UserMapper {
   
   /**
-   * Convierte un modelo User de la aplicación a UserFirebase para almacenar en Firebase
-   * @param user - Usuario en formato de la aplicación
-   * @param userId - ID del usuario (se usa como document ID en Firebase)
-   * @returns UserFirebase - Usuario en formato Firebase
-   */
-  static toFirebase(user: User, userId?: string): UserFirebase {
-    return {
-      // UserDetails -> campos planos
-      email: user.userDetails.email,
-      userName: user.userDetails.userName,
-      photoURL: user.userDetails.photoURL,
-      fullName: user.userDetails.fullName,
-      bio: user.userDetails.bio,
-      birthDate: user.userDetails.birthDate,
-      phoneNumber: user.userDetails.phoneNumber,
-
-      // UserMetadata -> campos planos
-      createdAt: user.metadata.createdAt,
-      updatedAt: user.metadata.updatedAt,
-      isVerified: user.metadata.isVerified,
-
-      // UserActivity -> campos planos (arrays simples)
-      reviewsCount: user.activity.reviewsCount,
-      commentsCount: user.activity.commentsCount,
-      favoriteSpotsCount: user.activity.favoriteSpotsCount,
-      followersCount: user.activity.followersCount,
-      followingCount: user.activity.followingCount,
-
-    };
-  }
-
-  /**
-   * Convierte un modelo UserFirebase a User de la aplicación
+   * Convierte datos de Firebase a modelo de dominio User
    * @param firebaseUser - Usuario en formato Firebase
    * @param userId - ID del usuario
-   * @returns User - Usuario en formato de la aplicación
+   * @returns User - Usuario en formato de dominio
    */
   static fromFirebase(firebaseUser: UserFirebase, userId: string): User {
     const userDetails: UserDetails = {
@@ -112,43 +76,41 @@ export class UserMapper {
   }
 
   /**
-   * Convierte datos parciales de UserDetails para crear un nuevo usuario en Firebase
-   * @param userData - Datos parciales del usuario
-   * @returns UserFirebase - Usuario completo para Firebase con valores por defecto
+   * Convierte modelo de dominio User a formato Firebase
+   * @param user - Usuario en formato de dominio
+   * @returns UserFirebase - Usuario en formato Firebase
    */
-  static createUserToFirebase(userData: Partial<UserDetails>): UserFirebase {
-    const now = Timestamp.now();
-    
+  static toFirebase(user: User): UserFirebase {
     return {
-      // UserDetails con valores por defecto
-      email: userData.email || "",
-      userName: userData.userName || "",
-      photoURL: userData.photoURL || "",
-      fullName: userData.fullName || "",
-      bio: userData.bio || "",
-      birthDate: userData.birthDate ? (userData.birthDate instanceof Date ? userData.birthDate : parseTimestamp(userData.birthDate)) : now.toDate(),
-      phoneNumber: userData.phoneNumber || "",
+      // UserDetails -> campos planos
+      email: user.userDetails.email,
+      userName: user.userDetails.userName,
+      photoURL: user.userDetails.photoURL,
+      fullName: user.userDetails.fullName,
+      bio: user.userDetails.bio,
+      birthDate: user.userDetails.birthDate,
+      phoneNumber: user.userDetails.phoneNumber,
 
-      // Metadata inicial
-      createdAt: now,
-      updatedAt: now,
-      isVerified: false,
+      // UserMetadata -> campos planos
+      createdAt: user.metadata.createdAt,
+      updatedAt: user.metadata.updatedAt,
+      isVerified: user.metadata.isVerified,
 
-      // Activity inicial
-      reviewsCount: 0,
-      commentsCount: 0,
-      favoriteSpotsCount: 0,
-      followersCount: 0,
-      followingCount: 0,
+      // UserActivity -> campos planos
+      reviewsCount: user.activity.reviewsCount,
+      commentsCount: user.activity.commentsCount,
+      favoriteSpotsCount: user.activity.favoriteSpotsCount,
+      followersCount: user.activity.followersCount,
+      followingCount: user.activity.followingCount,
     };
   }
 
   /**
-   * Convierte datos de actualización parciales a formato Firebase
+   * Convierte datos parciales de User a formato Firebase (para actualizaciones)
    * @param userData - Datos parciales para actualizar
-   * @returns Partial<UserFirebase> - Datos en formato Firebase para actualización
+   * @returns Partial<UserFirebase> - Datos en formato Firebase
    */
-  static updateDataToFirebase(userData: Partial<User>): Partial<UserFirebase> {
+  static partialToFirebase(userData: Partial<User>): Partial<UserFirebase> {
     const firebaseUpdate: Partial<UserFirebase> = {};
 
     // Mapear UserDetails si existe
@@ -196,69 +158,13 @@ export class UserMapper {
       }
     }
 
-    // Siempre actualizar updatedAt
-    firebaseUpdate.updatedAt = Timestamp.now();
-
     return firebaseUpdate;
-  }
-
-  /**
-   * Valida que los datos requeridos estén presentes para crear un usuario
-   * @param userData - Datos del usuario a validar
-   * @returns boolean - true si los datos son válidos
-   */
-  static validateUserData(userData: Partial<UserDetails>): boolean {
-    return !!(userData.email && userData.userName);
-  }
-
-  /**
-   * Obtiene los campos que deben actualizarse en Firebase cuando se actualiza el perfil
-   * @param currentUser - Usuario actual
-   * @param updates - Actualizaciones a aplicar
-   * @returns Partial<UserFirebase> - Solo los campos que han cambiado
-   */
-  static getChangedFields(currentUser: User, updates: Partial<User>): Partial<UserFirebase> {
-    const changes: Partial<UserFirebase> = {};
-
-    // Comparar userDetails
-    if (updates.userDetails) {
-      const current = currentUser.userDetails;
-      const updated = updates.userDetails;
-
-      if (updated.email && updated.email !== current.email) {
-        changes.email = updated.email;
-      }
-      if (updated.userName && updated.userName !== current.userName) {
-        changes.userName = updated.userName;
-      }
-      if (updated.photoURL !== current.photoURL) {
-        changes.photoURL = updated.photoURL;
-      }
-      if (updated.fullName !== current.fullName) {
-        changes.fullName = updated.fullName;
-      }
-      if (updated.bio !== current.bio) {
-        changes.bio = updated.bio;
-      }
-      if (updated.birthDate !== current.birthDate) {
-        changes.birthDate = updated.birthDate;
-      }
-      if (updated.phoneNumber !== current.phoneNumber) {
-        changes.phoneNumber = updated.phoneNumber;
-      }
-    }
-
-    // Siempre actualizar updatedAt si hay cambios
-    if (Object.keys(changes).length > 0) {
-      changes.updatedAt = new Date();
-    }
-
-    return changes;
   }
 }
 
 /**
  * Convierte varios formatos de timestamp a Date
+ * Soporta: Date, number (ms), string, Firestore Timestamp, objeto {seconds, nanoseconds}
  */
 function parseTimestamp(value: any): Date | undefined {
   if (value == null) return undefined;
@@ -273,7 +179,7 @@ function parseTimestamp(value: any): Date | undefined {
     try {
       return value.toDate();
     } catch {
-      // fallthrough
+      return undefined;
     }
   }
   // Raw object like { seconds, nanos } or { seconds, nanoseconds }
