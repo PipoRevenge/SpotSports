@@ -52,7 +52,8 @@
           "locationWhenInUsePermission": "Permitir que $(PRODUCT_NAME) use tu ubicación para mostrar spots deportivos cercanos."
         }
       ],
-      "expo-video"
+      "expo-video",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

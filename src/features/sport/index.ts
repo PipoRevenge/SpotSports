@@ -1,9 +1,9 @@
 // Components
+export { SpotSportsTable } from "../spot/components/spot-view/spot-sports-table";
 export { CreateSportForm } from "./components/sport-create/sport-create-form";
 export { CategoryFilter } from "./components/sport-search/category-filter";
 export { SportSearch } from "./components/sport-search/sport-search";
 export { SportsSelectorModal as SportsSelector, SportsSelectorModal } from "./components/sport-spot-relation/sports-selector-modal";
-export { SpotSportsTable } from "./components/sport-spot-relation/spot-sports-table";
 
 // Hooks
 export { useCreateSport } from "./hooks/use-create-sport";

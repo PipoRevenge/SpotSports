@@ -102,6 +102,10 @@ export const SportSearch: React.FC<SportSearchProps> = ({
    * Maneja la selección de un deporte
    */
   const handleSportSelect = (sport: SportSimple) => {
+    console.log("[SportSearch] handleSportSelect called with sport:", JSON.stringify(sport));
+    console.log("[SportSearch] sport type:", typeof sport);
+    console.log("[SportSearch] sport.id:", sport?.id);
+    console.log("[SportSearch] sport.name:", sport?.name);
     onSportSelect(sport);
     // No limpiar la búsqueda para que los resultados permanezcan visibles
   };

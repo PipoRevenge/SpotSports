@@ -1,10 +1,10 @@
 import { Spot, SpotDetails } from '@/src/entities/spot/model/spot';
 import { firestore, storage } from '@/src/lib/firebase-config';
 import { GeoPoint } from '@/src/types/geopoint';
-import { addDoc, collection, doc, GeoPoint as FirebaseGeoPoint, getDoc, Timestamp } from 'firebase/firestore';
+import { addDoc, collection, doc, GeoPoint as FirebaseGeoPoint, limit as firestoreLimit, getDoc, getDocs, orderBy, query, Timestamp, where } from 'firebase/firestore';
 import { getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
-import { geohashForLocation } from 'geofire-common';
-import { ISpotRepository } from '../interfaces/i-spot-repository';
+import { distanceBetween, geohashForLocation, geohashQueryBounds } from 'geofire-common';
+import { ISpotRepository, SpotSearchFilters } from '../interfaces/i-spot-repository';
 import { SpotMapper } from '../mappers/spot-mapper';
 
 
@@ -320,6 +320,230 @@ export class SpotRepositoryImpl implements ISpotRepository {
       // Si hay error (por ejemplo, carpeta no existe), retornar array vacío
       return [];
     }
+  }
+
+  /**
+   * Buscar spots con filtros
+   */
+  async searchSpots(filters: SpotSearchFilters): Promise<Spot[]> {
+    try {
+      console.log('[SpotRepository] Iniciando búsqueda con filtros:', filters);
+
+      let spots: Spot[] = [];
+
+      // Si hay filtro de ubicación y distancia, usar geohash para búsqueda eficiente
+      if (filters.location && filters.maxDistance) {
+        spots = await this.searchSpotsByLocation(filters);
+      } else {
+        // Búsqueda sin filtro de ubicación
+        spots = await this.searchSpotsWithoutLocation(filters);
+      }
+
+      // Aplicar filtros adicionales en memoria (más flexible)
+      spots = this.applyInMemoryFilters(spots, filters);
+
+      // Ordenar resultados
+      spots = this.sortSpots(spots, filters);
+
+      // Aplicar límite si existe
+      if (filters.limit && filters.limit > 0) {
+        const offset = filters.offset || 0;
+        spots = spots.slice(offset, offset + filters.limit);
+      }
+
+      console.log(`[SpotRepository] Búsqueda completada. ${spots.length} spots encontrados`);
+      return spots;
+
+    } catch (error) {
+      console.error('Error searching spots:', error);
+      if (error instanceof Error) {
+        throw new Error(`Failed to search spots: ${error.message}`);
+      } else {
+        throw new Error('Failed to search spots: Unknown error');
+      }
+    }
+  }
+
+  /**
+   * Buscar spots por ubicación usando geohash
+   */
+  private async searchSpotsByLocation(filters: SpotSearchFilters): Promise<Spot[]> {
+    if (!filters.location || !filters.maxDistance) {
+      return [];
+    }
+
+    const center = [filters.location.latitude, filters.location.longitude] as [number, number];
+    const radiusInM = filters.maxDistance * 1000; // Convertir km a metros
+
+    // Generar los bounds de geohash para la búsqueda
+    const bounds = geohashQueryBounds(center, radiusInM);
+    const spotsCollection = collection(firestore, this.COLLECTION_NAME);
+    
+    // Ejecutar queries para cada bound en paralelo
+    const queryPromises = bounds.map(async (b) => {
+      const q = query(
+        spotsCollection,
+        orderBy('geohash'),
+        where('geohash', '>=', b[0]),
+        where('geohash', '<=', b[1])
+      );
+      
+      const snapshot = await getDocs(q);
+      return snapshot.docs;
+    });
+
+    const snapshots = await Promise.all(queryPromises);
+    const allDocs = snapshots.flat();
+
+    // Convertir documentos a spots y filtrar por distancia exacta
+    const spots: Spot[] = [];
+    
+    for (const docSnap of allDocs) {
+      try {
+        const spotData = docSnap.data() as any;
+        const spotLocation = spotData.location as FirebaseGeoPoint;
+        
+        // Calcular distancia exacta
+        const distanceInKm = distanceBetween(
+          [spotLocation.latitude, spotLocation.longitude],
+          center
+        );
+        
+        // Solo incluir si está dentro del radio
+        if (distanceInKm <= filters.maxDistance) {
+          // Cargar las URLs de media
+          const mediaUrls = await this.getSpotMediaUrls(docSnap.id);
+          spotData.media = mediaUrls;
+          
+          const spot = SpotMapper.fromFirebase(docSnap.id, spotData);
+          spots.push(spot);
+        }
+      } catch (error) {
+        console.error(`Error processing spot ${docSnap.id}:`, error);
+        // Continuar con el siguiente spot
+      }
+    }
+
+    return spots;
+  }
+
+  /**
+   * Buscar spots sin filtro de ubicación
+   */
+  private async searchSpotsWithoutLocation(filters: SpotSearchFilters): Promise<Spot[]> {
+    const spotsCollection = collection(firestore, this.COLLECTION_NAME);
+    
+    // Construir query base
+    let q = query(spotsCollection);
+
+    // Aplicar filtro de deportes si existe
+    if (filters.sportIds && filters.sportIds.length > 0) {
+      // Firebase permite 'array-contains' para un solo valor
+      // Para múltiples valores, necesitamos hacer queries separados
+      q = query(q, where('availableSports', 'array-contains', filters.sportIds[0]));
+    }
+
+    // Aplicar filtro de verificación
+    if (filters.onlyVerified === true) {
+      q = query(q, where('isVerified', '==', true));
+    }
+
+    // Aplicar límite inicial (antes de filtros en memoria)
+    const initialLimit = filters.limit ? Math.max(filters.limit * 2, 50) : 50;
+    q = query(q, firestoreLimit(initialLimit));
+
+    const snapshot = await getDocs(q);
+    const spots: Spot[] = [];
+
+    for (const docSnap of snapshot.docs) {
+      try {
+        const spotData = docSnap.data() as any;
+        
+        // Cargar las URLs de media
+        const mediaUrls = await this.getSpotMediaUrls(docSnap.id);
+        spotData.media = mediaUrls;
+        
+        const spot = SpotMapper.fromFirebase(docSnap.id, spotData);
+        spots.push(spot);
+      } catch (error) {
+        console.error(`Error processing spot ${docSnap.id}:`, error);
+      }
+    }
+
+    return spots;
+  }
+
+  /**
+   * Aplicar filtros en memoria (más flexible para condiciones complejas)
+   */
+  private applyInMemoryFilters(spots: Spot[], filters: SpotSearchFilters): Spot[] {
+    let filtered = [...spots];
+
+    // Filtro por búsqueda de texto
+    if (filters.searchQuery && filters.searchQuery.trim().length > 0) {
+      const query = filters.searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(spot => 
+        spot.details.name.toLowerCase().includes(query) ||
+        spot.details.description.toLowerCase().includes(query)
+      );
+    }
+
+    // Filtro por rating mínimo
+    if (filters.minRating !== undefined && filters.minRating > 0) {
+      filtered = filtered.filter(spot => 
+        spot.details.overallRating >= filters.minRating!
+      );
+    }
+
+    // Filtro por múltiples deportes (si no se aplicó en query)
+    if (filters.sportIds && filters.sportIds.length > 1) {
+      filtered = filtered.filter(spot =>
+        filters.sportIds!.some(sportId =>
+          spot.details.availableSports.includes(sportId)
+        )
+      );
+    }
+
+    // Filtro por criterios de deportes específicos
+    if (filters.sportCriteria && filters.sportCriteria.length > 0) {
+      // Este filtro requiere consultar sport_metrics
+      // Por simplicidad, dejamos que se implemente cuando sea necesario
+      console.log('[SpotRepository] Sport criteria filtering not yet implemented');
+    }
+
+    return filtered;
+  }
+
+  /**
+   * Ordenar spots según los criterios
+   */
+  private sortSpots(spots: Spot[], filters: SpotSearchFilters): Spot[] {
+    const sortBy = filters.sortBy || 'name';
+    const sortOrder = filters.sortOrder || 'asc';
+    const multiplier = sortOrder === 'asc' ? 1 : -1;
+
+    const sorted = [...spots].sort((a, b) => {
+      switch (sortBy) {
+        case 'rating':
+          return (a.details.overallRating - b.details.overallRating) * multiplier;
+        
+        case 'name':
+          return a.details.name.localeCompare(b.details.name) * multiplier;
+        
+        case 'recent':
+          return (a.metadata.createdAt.getTime() - b.metadata.createdAt.getTime()) * multiplier;
+        
+        case 'distance':
+          // El ordenamiento por distancia se hace en searchSpotsByLocation
+          // Aquí solo mantenemos el orden si ya está ordenado por distancia
+          return 0;
+        
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
   }
 
 }

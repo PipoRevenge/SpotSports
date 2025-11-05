@@ -1,6 +1,10 @@
+import { SpotRepositoryImpl } from "@/src/api/repositories/implementations/spot-repository-impl";
 import { Spot } from "@/src/entities/spot/model/spot";
 import { useCallback, useEffect, useState } from "react";
 import { SpotSearchFilters } from "../components/spot-search/spot-search-filter-modal";
+
+// Crear instancia del repositorio
+const spotRepository = new SpotRepositoryImpl();
 
 interface UseSpotSearchProps {
   initialFilters?: Partial<SpotSearchFilters>;
@@ -8,6 +12,12 @@ interface UseSpotSearchProps {
     latitude: number;
     longitude: number;
   };
+  searchLocation?: {
+    latitude: number;
+    longitude: number;
+  };
+  searchRadius?: number; // Radio de búsqueda en km (para búsqueda en área visible)
+  autoSearch?: boolean; // Si debe buscar automáticamente al montar
 }
 
 interface UseSpotSearchReturn {
@@ -26,18 +36,22 @@ interface UseSpotSearchReturn {
 
 const DEFAULT_FILTERS: SpotSearchFilters = {
   sports: [],
-  maxDistance: 10,
+  sportCriteria: [],
+  maxDistance: undefined, // Sin filtro de distancia por defecto
   minRating: 0,
   onlyVerified: false,
 };
 
 /**
  * Hook para búsqueda de spots
- * Maneja la lógica de búsqueda, filtrado y cálculo de distancias
+ * Maneja la lógica de búsqueda usando el repositorio de Firebase
  */
 export const useSpotSearch = ({
   initialFilters,
   userLocation,
+  searchLocation,
+  searchRadius,
+  autoSearch = true,
 }: UseSpotSearchProps = {}): UseSpotSearchReturn => {
   const [spots, setSpots] = useState<Spot[]>([]);
   const [filteredSpots, setFilteredSpots] = useState<Spot[]>([]);
@@ -74,103 +88,71 @@ export const useSpotSearch = ({
     return distance;
   }, [userLocation]);
 
-  // Filtrar spots según los criterios
-  const applyFilters = useCallback((spotsToFilter: Spot[]): Spot[] => {
-    let result = [...spotsToFilter];
-
-    // Filtro por texto de búsqueda
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        (spot) =>
-          spot.details.name.toLowerCase().includes(query) ||
-          spot.details.description.toLowerCase().includes(query)
-      );
-    }
-
-    // Filtro por deportes
-    if (filters.sports.length > 0) {
-      const sportIds = filters.sports.map((s) => s.id);
-      result = result.filter((spot) =>
-        spot.details.availableSports.some((sportId) =>
-          sportIds.includes(sportId)
-        )
-      );
-    }
-
-    // Filtro por rating
-    if (filters.minRating > 0) {
-      result = result.filter(
-        (spot) => spot.details.overallRating >= filters.minRating
-      );
-    }
-
-    // Filtro por verificación
-    if (filters.onlyVerified) {
-      result = result.filter((spot) => spot.metadata.isVerified);
-    }
-
-    // Filtro por distancia
-    if (userLocation && filters.maxDistance > 0) {
-      result = result.filter((spot) => {
-        const distance = calculateDistance(spot);
-        return distance !== undefined && distance <= filters.maxDistance;
-      });
-    }
-
-    // Ordenar por distancia si hay ubicación del usuario
-    if (userLocation) {
-      result.sort((a, b) => {
-        const distA = calculateDistance(a) || Infinity;
-        const distB = calculateDistance(b) || Infinity;
-        return distA - distB;
-      });
-    }
-
-    return result;
-  }, [searchQuery, filters, userLocation, calculateDistance]);
-
-  // Buscar spots (simulado - aquí iría la llamada a la API)
-  const searchSpots = async () => {
+  // Buscar spots usando el repositorio
+  const searchSpots = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // TODO: Reemplazar con llamada real a la API
-      // const response = await spotRepository.searchSpots({ query: searchQuery, filters });
-      
-      // Simulación de datos
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      // Aquí deberías obtener los datos de Firebase/API
-      const mockSpots: Spot[] = [
-        // Datos de ejemplo - reemplazar con datos reales
-      ];
+      console.log('[useSpotSearch] Iniciando búsqueda...');
+      console.log('[useSpotSearch] Filtros:', filters);
+      console.log('[useSpotSearch] Ubicación del usuario:', userLocation);
+      console.log('[useSpotSearch] Ubicación de búsqueda:', searchLocation);
+      console.log('[useSpotSearch] Radio de búsqueda:', searchRadius);
+      console.log('[useSpotSearch] Query de búsqueda:', searchQuery);
 
-      setSpots(mockSpots);
+      // Determinar la ubicación y distancia a usar
+      // Si hay searchLocation y searchRadius, usarlos (búsqueda en área visible)
+      // Si no, usar userLocation y maxDistance del filtro (búsqueda normal)
+      const effectiveLocation = searchLocation || userLocation;
+      const effectiveDistance = searchRadius || filters.maxDistance;
+
+      console.log('[useSpotSearch] Ubicación efectiva:', effectiveLocation);
+      console.log('[useSpotSearch] Distancia efectiva:', effectiveDistance);
+
+      // Construir filtros para el repositorio
+      const repoFilters = {
+        searchQuery: searchQuery.trim() || undefined,
+        location: effectiveLocation,
+        maxDistance: effectiveDistance,
+        sportIds: filters.sports.map(s => s.id),
+        sportCriteria: filters.sportCriteria,
+        minRating: filters.minRating,
+        onlyVerified: filters.onlyVerified,
+        sortBy: 'distance' as const,
+        sortOrder: 'asc' as const,
+        limit: 100, // Límite inicial
+      };
+
+      // Llamar al repositorio
+      const results = await spotRepository.searchSpots(repoFilters);
+      
+      console.log(`[useSpotSearch] Búsqueda completada: ${results.length} spots encontrados`);
+      
+      setSpots(results);
+      setFilteredSpots(results);
     } catch (err) {
+      console.error('[useSpotSearch] Error en búsqueda:', err);
       setError(err instanceof Error ? err.message : "Error al buscar spots");
       setSpots([]);
+      setFilteredSpots([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchQuery, filters, userLocation, searchLocation, searchRadius]);
 
   // Resetear filtros
-  const resetFilters = () => {
+  const resetFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
-  };
-
-  // Aplicar filtros cuando cambien los spots o los criterios de filtrado
-  useEffect(() => {
-    const filtered = applyFilters(spots);
-    setFilteredSpots(filtered);
-  }, [spots, searchQuery, filters, userLocation, applyFilters]);
-
-  // Buscar spots al montar el componente
-  useEffect(() => {
-    searchSpots();
+    setSearchQuery("");
   }, []);
+
+  // Buscar spots cuando cambian los filtros o el query
+  useEffect(() => {
+    if (autoSearch) {
+      searchSpots();
+    }
+  }, [searchQuery, filters, userLocation, searchLocation, searchRadius, autoSearch, searchSpots]);
 
   return {
     spots,

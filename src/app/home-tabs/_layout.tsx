@@ -15,7 +15,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="search-spots"
+        name="search-map"
         options={{
           title: 'Search',
           tabBarIcon: ({ color, size }) => <Map size={size} color={color} />,
