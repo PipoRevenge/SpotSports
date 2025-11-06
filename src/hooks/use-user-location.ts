@@ -26,28 +26,33 @@ export const useUserLocation = (autoRequest: boolean = false): UseUserLocationRe
     try {
       setIsLoading(true);
       setError(null);
+      console.log('[useUserLocation] Requesting location permissions...');
 
       // Solicitar permisos
       const { status } = await Location.requestForegroundPermissionsAsync();
       
       if (status !== 'granted') {
+        console.log('[useUserLocation] Permission denied');
         setError('Permiso de ubicación denegado');
         setIsLoading(false);
         return;
       }
+
+      console.log('[useUserLocation] Permission granted, getting current position...');
 
       // Obtener ubicación actual
       const currentLocation = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
 
+      console.log('[useUserLocation] Got current position:', currentLocation.coords);
       setLocation({
         latitude: currentLocation.coords.latitude,
         longitude: currentLocation.coords.longitude,
       });
     } catch (err) {
+      console.error('[useUserLocation] Error getting user location:', err);
       setError(err instanceof Error ? err.message : 'Error al obtener ubicación');
-      console.error('Error getting user location:', err);
     } finally {
       setIsLoading(false);
     }

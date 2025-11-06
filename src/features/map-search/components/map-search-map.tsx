@@ -3,7 +3,8 @@ import UserLocationMarker from "@/src/components/commons/map/user-location-marke
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import React, { useEffect, useMemo, useRef } from "react";
-import MapView, { Circle, Marker } from "react-native-maps";
+import { View } from "react-native";
+import MapView, { Callout, Circle, Marker } from "react-native-maps";
 import { DEFAULT_MAP_CONFIG, MapSearchMapProps } from "../types/map-types";
 import {
     calculateRegionForDistance,
@@ -225,13 +226,16 @@ export const MapSearchMap = <T,>({
                 latitude: location.latitude,
                 longitude: location.longitude,
               }}
-              title={getItemTitle(item)}
-              description={getItemDescription?.(item)}
               onPress={() => handleMarkerPress(item)}
               pinColor={
                 isSelected ? config.marker.selectedColor : config.marker.color
               }
-            />
+            >
+              {/* Callout vacío para evitar que se muestre el callout por defecto */}
+              <Callout tooltip>
+                <View />
+              </Callout>
+            </Marker>
           );
         })}
       </CustomMapView>

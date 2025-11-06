@@ -33,11 +33,15 @@ export {
 } from "./types/map-types";
 
 // ==================== COMPONENTES ====================
+export { MapAreaSearchIndicator } from "./components/map-area-search-indicator";
 export { MapSearchBar } from "./components/map-search-bar";
 export { MapSearchFilterModal } from "./components/map-search-filter-modal";
 export { MapSearchMap } from "./components/map-search-map";
 export { MapSearchResultItem } from "./components/map-search-result-item";
 export { MapSearchResultList } from "./components/map-search-result-list";
+
+// Componentes específicos de spots
+export { SpotCardModal, SpotMapCallout } from "./components/spot-map-components";
 
 // ==================== HOOKS ====================
 export {
@@ -45,6 +49,10 @@ export {
     type UseMapSearchConfig,
     type UseMapSearchResult
 } from "./hooks/use-map-search";
+
+export {
+    useMapAreaSearch
+} from "./hooks/use-map-area-search";
 
 // ==================== UTILIDADES ====================
 export {

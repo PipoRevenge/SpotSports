@@ -147,12 +147,13 @@ export const useSpotSearch = ({
     setSearchQuery("");
   }, []);
 
-  // Buscar spots cuando cambian los filtros o el query
+  // Buscar spots cuando cambian ciertos parámetros (pero NO el searchQuery ni filters)
   useEffect(() => {
     if (autoSearch) {
       searchSpots();
     }
-  }, [searchQuery, filters, userLocation, searchLocation, searchRadius, autoSearch, searchSpots]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userLocation, searchLocation, searchRadius, autoSearch]);
 
   return {
     spots,

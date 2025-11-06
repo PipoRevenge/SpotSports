@@ -4,86 +4,97 @@ import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { Spot } from "@/src/entities/spot/model/spot";
 import {
-  formatDistance,
-  MapSearchBar,
-  MapSearchFilterModal,
-  MapSearchMap,
-  MapSearchResult,
-  MapSearchResultItem,
-  MapSearchResultList,
+    formatDistance,
+    MapAreaSearchIndicator,
+    MapSearchBar,
+    MapSearchMap,
+    MapSearchResult,
+    MapSearchResultItem,
+    MapSearchResultList,
+    SpotCardModal,
+    useMapAreaSearch,
 } from "@/src/features/map-search";
 import {
-  DistanceFilter,
-  RatingFilter,
-  SportFilter,
-  SportFilterCriteria,
-  SportSelectedFilter,
-  useSpotMapSearch,
-  VerifiedFilter
+    SpotSearchFilterModal,
+    useSpotFilters,
+    useSpotMapSearch,
 } from "@/src/features/spot";
 import { useUserLocation } from "@/src/hooks/use-user-location";
 import { router } from "expo-router";
-import { List as ListIcon, Map as MapIcon, X } from "lucide-react-native";
+import { List as ListIcon, Map as MapIcon } from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Image, Modal, Pressable, ScrollView, View } from "react-native";
-import { Region } from "react-native-maps";
+import { Image, Pressable, View } from "react-native";
 
 /**
  * Página de búsqueda de spots en mapa
- * Usa los componentes genéricos de map-search con lógica específica de spots
+ * 
+ * Responsabilidades:
+ * - Orquestar los hooks de búsqueda, filtros y área de mapa
+ * - Coordinar la UI entre vista de mapa y lista
+ * - Gestionar la selección y navegación de spots
+ * 
+ * Las features son independientes:
+ * - map-search: Búsqueda genérica en mapa (reutilizable)
+ * - spot: Lógica específica de spots y filtros
  */
 export default function SearchMapScreen() {
-  // Estado de ubicación del usuario
-  const { location: userLocation } = useUserLocation(true);
-
-  // Estado de vista (mapa o lista)
+  // ==================== ESTADO LOCAL ====================
   const [viewMode, setViewMode] = useState<"map" | "list">("map");
-
-  // Estado del modal de filtros
   const [showFilters, setShowFilters] = useState(false);
-
-  // Estado del spot seleccionado
   const [selectedSpotId, setSelectedSpotId] = useState<string | undefined>();
-
-  // Estado para el modal del spot (card inferior)
   const [selectedSpot, setSelectedSpot] = useState<Spot | undefined>();
   const [showSpotCard, setShowSpotCard] = useState(false);
-
-  // Referencia para evitar búsquedas duplicadas
   const hasSearchedRef = useRef(false);
 
-  // Estado para guardar la región visible del mapa
-  const [mapRegion, setMapRegion] = useState<Region | undefined>(undefined);
+  // ==================== HOOKS DE FEATURES ====================
+  // Ubicación del usuario
+  const { location: userLocation, isLoading: isLoadingLocation } = useUserLocation(true);
 
-  // Estado para controlar si debemos centrar en el usuario (solo la primera vez)
-  const [shouldCenterOnUser, setShouldCenterOnUser] = useState(true);
+  // Gestión del área visible del mapa y búsqueda automática
+  const {
+    mapRegion,
+    searchLocation,
+    searchRadius,
+    shouldCenterOnUser,
+    setMapRegion,
+    clearAreaSearch,
+  } = useMapAreaSearch({
+    autoSearch: !isLoadingLocation, // Solo buscar automáticamente cuando ya tengamos (o no) la ubicación
+    debounceMs: 1000,
+  });
 
-  // Estado para la búsqueda en área visible (independiente del filtro de distancia)
-  const [searchLocation, setSearchLocation] = useState<{
-    latitude: number;
-    longitude: number;
-  } | undefined>(undefined);
-  
-  const [searchRadius, setSearchRadius] = useState<number | undefined>(undefined);
+  // Gestión de filtros de spots
+  const { filters, updateFilters, resetFilters, activeFiltersCount } =
+    useSpotFilters({
+      onFiltersChange: () => {
+        // Limpiar búsqueda en área visible al cambiar filtros
+        clearAreaSearch();
+      },
+    });
 
-  /**
-   * Hook de búsqueda de spots con mapeo de nombres de deportes
-   */
+  // Búsqueda de spots con mapeo de nombres de deportes
   const {
     filteredSpots,
     loading: isSearching,
     searchQuery,
-    filters,
     setSearchQuery,
-    setFilters,
-    resetFilters,
     getSportName,
+    searchSpots,
   } = useSpotMapSearch({
     userLocation: userLocation || undefined,
     searchLocation: searchLocation,
     searchRadius: searchRadius,
-    autoSearch: true, // Buscar automáticamente cuando cambian los filtros
+    autoSearch: true, // Búsqueda automática solo para cambios de ubicación/área
   });
+
+  // ==================== FUNCIONES AUXILIARES ====================
+
+  /**
+   * Maneja la búsqueda cuando el usuario presiona Enter
+   */
+  const handleSearch = useCallback(() => {
+    searchSpots();
+  }, [searchSpots]);
 
   /**
    * Función auxiliar para convertir los spots del hook al formato de MapSearchResult
@@ -126,114 +137,16 @@ export default function SearchMapScreen() {
   const mapResults = spotsToMapResults(filteredSpots);
 
   /**
-   * Función para actualizar filtros
-   * Actualiza los filtros del hook que automáticamente disparará una búsqueda
-   * Al cambiar filtros, limpia la búsqueda en área visible
-   */
-  const updateFilters = useCallback((newFilters: Partial<typeof filters>) => {
-    console.log("[SearchMapScreen] Updating filters:", newFilters);
-    const updatedFilters = { ...filters, ...newFilters };
-    setFilters(updatedFilters);
-    
-    // Limpiar búsqueda en área visible al cambiar filtros
-    setSearchLocation(undefined);
-    setSearchRadius(undefined);
-  }, [filters, setFilters]);
-
-  /**
    * Efecto para ejecutar búsqueda inicial cuando se obtiene la ubicación del usuario
-   * El hook ya tiene autoSearch activado, así que esto es solo para el log inicial
    */
   useEffect(() => {
     if (userLocation && !hasSearchedRef.current && filteredSpots.length === 0 && !isSearching) {
-      console.log("[SearchMapScreen] User location available, initial search will be triggered by hook");
       hasSearchedRef.current = true;
     }
   }, [userLocation, filteredSpots.length, isSearching]);
 
   /**
-   * Maneja el cambio de región del mapa
-   */
-  const handleRegionChange = useCallback((region: Region) => {
-    console.log("[SearchMapScreen] Map region changed:", region);
-    setMapRegion(region);
-    
-    // Después de la primera vez, no centramos más en el usuario automáticamente
-    if (shouldCenterOnUser) {
-      setShouldCenterOnUser(false);
-    }
-  }, [shouldCenterOnUser]);
-
-  /**
-   * Ejecuta la búsqueda en el área visible del mapa
-   * Calcula el centro y radio de la región visible, independiente del filtro de distancia
-   */
-  const searchInVisibleArea = useCallback(() => {
-    if (!mapRegion) {
-      console.log("[SearchMapScreen] No map region available");
-      return;
-    }
-
-    console.log("[SearchMapScreen] Searching in visible area");
-    console.log("[SearchMapScreen] Current map region:", mapRegion);
-    
-    // Calcular el centro de la región visible (donde está mirando el usuario)
-    const centerLocation = {
-      latitude: mapRegion.latitude,
-      longitude: mapRegion.longitude,
-    };
-    
-    // Calcular un radio aproximado basado en los deltas de la región
-    // latitudeDelta ~ 111 km por grado de latitud
-    // longitudeDelta varía con la latitud: ~ 111 * cos(latitude) km por grado
-    const latDistance = mapRegion.latitudeDelta * 111;
-    const lonDistance = mapRegion.longitudeDelta * 111 * Math.cos(mapRegion.latitude * Math.PI / 180);
-    
-    // Usar el radio que cubra la diagonal de la región visible + 20% de margen
-    const diagonalDistance = Math.sqrt(latDistance * latDistance + lonDistance * lonDistance);
-    const calculatedRadius = (diagonalDistance / 2) * 1.2; // Radio + 20% de margen
-    
-    console.log("[SearchMapScreen] Center location:", centerLocation);
-    console.log("[SearchMapScreen] Calculated radius:", calculatedRadius, "km");
-    console.log("[SearchMapScreen] Lat distance:", latDistance, "km");
-    console.log("[SearchMapScreen] Lon distance:", lonDistance, "km");
-    
-    // Establecer la ubicación y radio de búsqueda
-    // Esto disparará una nueva búsqueda automáticamente
-    setSearchLocation(centerLocation);
-    setSearchRadius(calculatedRadius);
-  }, [mapRegion]);
-
-  /**
-   * Efecto para búsqueda automática cuando el usuario explora el mapa
-   * Usa debounce para evitar búsquedas mientras el usuario está arrastrando
-   */
-  useEffect(() => {
-    if (!mapRegion) return;
-
-    // Debounce de 1 segundo después de que el usuario deje de mover el mapa
-    const timeoutId = setTimeout(() => {
-      console.log("[SearchMapScreen] Auto-searching after map exploration");
-      searchInVisibleArea();
-    }, 1000);
-
-    return () => clearTimeout(timeoutId);
-  }, [mapRegion, searchInVisibleArea]); // Se ejecuta cada vez que cambia la región del mapa
-
-  /**
-   * Calcula la cantidad de filtros activos
-   */
-  const activeFiltersCount = [
-    filters.maxDistance !== undefined, // Filtro de distancia activo
-    filters.minRating && filters.minRating > 0,
-    filters.sports && filters.sports.length > 0,
-    filters.onlyVerified === true,
-    filters.sportCriteria && filters.sportCriteria.length > 0,
-  ].filter(Boolean).length;
-
-  /**
    * Maneja el press en un marcador del mapa
-   * Muestra el card inferior con la información del spot
    */
   const handleMarkerPress = useCallback((spot: Spot) => {
     setSelectedSpot(spot);
@@ -311,7 +224,7 @@ export default function SearchMapScreen() {
           {/* Deportes disponibles (primeros 3) */}
           {spot.details.availableSports.length > 0 && (
             <HStack className="flex-wrap gap-1 mt-1">
-              {spot.details.availableSports.slice(0, 3).map((sportId) => (
+              {spot.details.availableSports.slice(0, 3).map((sportId: string) => (
                 <View
                   key={sportId}
                   className="bg-blue-100 px-2 py-1 rounded-full"
@@ -348,147 +261,6 @@ export default function SearchMapScreen() {
     [selectedSpotId, handleSpotPress, renderSpotContent]
   );
 
-  /**
-   * Renderiza el card del spot seleccionado (modal inferior)
-   */
-  const renderSpotCard = useCallback(() => {
-    if (!selectedSpot) return null;
-
-    const result = mapResults.find((r: MapSearchResult<Spot>) => r.item.id === selectedSpot.id);
-    const distance = result?.location.distance;
-
-    return (
-      <Modal
-        visible={showSpotCard}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={handleCloseSpotCard}
-      >
-        <Pressable 
-          className="flex-1 justify-end bg-black/50"
-          onPress={handleCloseSpotCard}
-        >
-          <Pressable 
-            className="bg-white rounded-t-3xl"
-            onPress={(e) => e.stopPropagation()}
-          >
-            <ScrollView className="max-h-[70vh]">
-              <VStack className="p-4 gap-4">
-                {/* Header con botón cerrar */}
-                <HStack className="justify-between items-center">
-                  <Text className="text-lg font-bold text-typography-900 flex-1">
-                    Información del Spot
-                  </Text>
-                  <Pressable
-                    onPress={handleCloseSpotCard}
-                    className="p-2 rounded-full bg-gray-100"
-                  >
-                    <X size={20} color="#6b7280" />
-                  </Pressable>
-                </HStack>
-
-                {/* Imagen del spot */}
-                {selectedSpot.details.media && selectedSpot.details.media.length > 0 ? (
-                  <Image
-                    source={{ uri: selectedSpot.details.media[0] }}
-                    className="w-full h-48 rounded-xl bg-black"
-                    resizeMode="contain"
-                  />
-                ) : (
-                  <View className="w-full h-48 rounded-xl bg-gray-200 items-center justify-center">
-                    <Text className="text-gray-400 text-5xl">📍</Text>
-                  </View>
-                )}
-
-                {/* Nombre del spot */}
-                <VStack className="gap-2">
-                  <Text className="text-2xl font-bold text-typography-900">
-                    {selectedSpot.details.name}
-                  </Text>
-
-                  {/* Rating y Verificado */}
-                  <HStack className="items-center gap-3">
-                    <HStack className="items-center gap-1">
-                      <Text className="text-base font-semibold text-typography-700">
-                        {selectedSpot.details.overallRating.toFixed(1)}
-                      </Text>
-                      <Text className="text-yellow-500 text-base">⭐</Text>
-                    </HStack>
-                    
-                    {selectedSpot.metadata.isVerified && (
-                      <View className="flex-row items-center gap-1 bg-blue-100 px-3 py-1 rounded-full">
-                        <Text className="text-sm text-blue-600 font-semibold">✓</Text>
-                        <Text className="text-sm text-blue-600 font-semibold">
-                          Verificado
-                        </Text>
-                      </View>
-                    )}
-                  </HStack>
-
-                  {/* Distancia */}
-                  {distance !== undefined && (
-                    <HStack className="items-center gap-1">
-                      <Text className="text-gray-500">📍</Text>
-                      <Text className="text-base text-gray-600">
-                        {formatDistance(distance)}
-                      </Text>
-                    </HStack>
-                  )}
-                </VStack>
-
-                {/* Deportes disponibles */}
-                {selectedSpot.details.availableSports.length > 0 && (
-                  <VStack className="gap-2">
-                    <Text className="text-sm font-semibold text-typography-800">
-                      Deportes disponibles:
-                    </Text>
-                    <HStack className="flex-wrap gap-2">
-                      {selectedSpot.details.availableSports.map((sportId) => (
-                        <View
-                          key={sportId}
-                          className="bg-blue-100 px-3 py-2 rounded-full"
-                        >
-                          <Text className="text-sm text-blue-700 font-medium">
-                            {getSportName(sportId)}
-                          </Text>
-                        </View>
-                      ))}
-                    </HStack>
-                  </VStack>
-                )}
-
-                {/* Descripción si existe */}
-                {selectedSpot.details.description && (
-                  <VStack className="gap-2">
-                    <Text className="text-sm font-semibold text-typography-800">
-                      Descripción:
-                    </Text>
-                    <Text className="text-base text-gray-600">
-                      {selectedSpot.details.description}
-                    </Text>
-                  </VStack>
-                )}
-
-                {/* Botón para ver detalles completos */}
-                <Pressable
-                  onPress={() => {
-                    handleCloseSpotCard();
-                    handleSpotPress(selectedSpot);
-                  }}
-                  className="bg-blue-600 py-4 rounded-xl items-center active:bg-blue-700"
-                >
-                  <Text className="text-white font-bold text-base">
-                    Ver detalles completos →
-                  </Text>
-                </Pressable>
-              </VStack>
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
-    );
-  }, [selectedSpot, showSpotCard, mapResults, handleCloseSpotCard, handleSpotPress, getSportName]);
-
   return (
     <SafeAreaView className="flex-1 bg-white">
       <VStack className="flex-1">
@@ -497,15 +269,12 @@ export default function SearchMapScreen() {
           <MapSearchBar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            onSearchPress={() => {
-              console.log("[SearchMapScreen] Search button pressed - search will trigger automatically");
-              // La búsqueda se dispara automáticamente por el cambio de searchQuery
-            }}
+            onSearchPress={handleSearch}
             onFilterPress={() => setShowFilters(true)}
             placeholder="Buscar spots deportivos..."
             showFilterButton={true}
             filterCount={activeFiltersCount}
-            disabled={isSearching}
+            disabled={isSearching || isLoadingLocation}
           />
 
           {/* Toggle de vista */}
@@ -561,12 +330,24 @@ export default function SearchMapScreen() {
         {/* Contenido: Mapa o Lista */}
         {viewMode === "map" ? (
           <View className="w-full h-full pb-24">
+            {/* Indicador de carga de ubicación */}
+            {isLoadingLocation && (
+              <View className="absolute top-4 left-1/2 -ml-32 z-10 bg-blue-500 rounded-lg px-4 py-3 shadow-lg">
+                <HStack className="items-center gap-2">
+                  <View className="w-3 h-3 bg-white rounded-full animate-pulse" />
+                  <Text className="text-white font-semibold">
+                    Obteniendo tu ubicación...
+                  </Text>
+                </HStack>
+              </View>
+            )}
+            
             <MapSearchMap
               results={mapResults}
               userLocation={userLocation || undefined}
               selectedItemId={selectedSpotId}
               onMarkerPress={handleMarkerPress}
-              onRegionChangeComplete={handleRegionChange}
+              onRegionChangeComplete={setMapRegion}
               initialRegion={mapRegion}
               getItemId={(spot) => spot.id}
               getItemLocation={(spot) => spot.details.location}
@@ -580,35 +361,31 @@ export default function SearchMapScreen() {
                   selectedColor: "#22c55e",
                 },
                 distanceCircle: {
-                  enabled: filters.maxDistance !== undefined, // Solo mostrar si hay filtro de distancia
+                  enabled: filters.maxDistance !== undefined,
                   maxDistance: filters.maxDistance,
                 },
                 region: {
-                  autoCenter: shouldCenterOnUser, // Solo centrar en usuario la primera vez
+                  autoCenter: shouldCenterOnUser,
                   autoCenterOnResults: false,
                 },
               }}
             />
             
             {/* Card modal del spot seleccionado */}
-            {renderSpotCard()}
+            <SpotCardModal
+              spot={selectedSpot}
+              visible={showSpotCard}
+              distance={mapResults.find((r) => r.item.id === selectedSpot?.id)?.location.distance}
+              onClose={handleCloseSpotCard}
+              onPress={handleSpotPress}
+              getSportName={getSportName}
+            />
             
             {/* Indicador de búsqueda en área visible (automática) */}
-            {searchLocation && searchRadius && (
-              <View className="absolute top-4 left-4 bg-white rounded-lg px-3 py-2 shadow-md">
-                <HStack className="items-center gap-2">
-                  <View className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  <VStack>
-                    <Text className="text-xs font-semibold text-gray-700">
-                      Buscando en esta área
-                    </Text>
-                    <Text className="text-xs text-gray-500">
-                      Radio: {searchRadius.toFixed(1)} km
-                    </Text>
-                  </VStack>
-                </HStack>
-              </View>
-            )}
+            <MapAreaSearchIndicator
+              searchLocation={searchLocation}
+              searchRadius={searchRadius}
+            />
           </View>
         ) : (
           <MapSearchResultList
@@ -633,168 +410,23 @@ export default function SearchMapScreen() {
         )}
 
         {/* Modal de filtros */}
-        <MapSearchFilterModal
+        <SpotSearchFilterModal
           visible={showFilters}
           onClose={() => setShowFilters(false)}
-          onApply={() => {
-            console.log("[SearchMapScreen] Filters applied - search will trigger automatically");
+          filters={filters}
+          onApplyFilters={(newFilters) => {
+            updateFilters(newFilters);
             setShowFilters(false);
-            // La búsqueda se dispara automáticamente por el cambio de filtros
+            // Usar setTimeout para asegurar que los filtros se actualicen antes de buscar
+            setTimeout(() => {
+              searchSpots();
+            }, 0);
           }}
-          onReset={() => {
+          onResetFilters={() => {
             resetFilters();
-            // También limpiar búsqueda en área visible
-            setSearchLocation(undefined);
-            setSearchRadius(undefined);
+            clearAreaSearch();
           }}
-          title="Filtros de búsqueda"
-        >
-          {/* Filtro de distancia con toggle */}
-          <VStack space="md">
-            <HStack className="justify-between items-center">
-              <VStack className="flex-1">
-                <Text className="font-semibold text-typography-900">
-                  Filtrar por distancia
-                </Text>
-                <Text className="text-sm text-gray-500">
-                  {filters.maxDistance
-                    ? `Mostrar spots dentro de ${filters.maxDistance} km`
-                    : "Mostrar todos los spots en el área visible del mapa"}
-                </Text>
-              </VStack>
-              <Pressable
-                onPress={() =>
-                  updateFilters({
-                    maxDistance: filters.maxDistance ? undefined : 10, // DISTANCE_CONFIG.DEFAULT cuando esté disponible
-                  })
-                }
-                className={`w-12 h-6 rounded-full ${
-                  filters.maxDistance ? "bg-blue-500" : "bg-gray-300"
-                }`}
-              >
-                <View
-                  className={`w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform ${
-                    filters.maxDistance ? "translate-x-6" : "translate-x-1"
-                  } mt-0.5`}
-                />
-              </Pressable>
-            </HStack>
-
-            {/* Slider de distancia (solo si está activo) */}
-            {filters.maxDistance && (
-              <DistanceFilter
-                maxDistance={filters.maxDistance}
-                onDistanceChange={(distance) =>
-                  updateFilters({ maxDistance: distance })
-                }
-              />
-            )}
-          </VStack>
-
-          {/* Filtro de rating mínimo */}
-          <RatingFilter
-            minRating={filters.minRating || 0}
-            onRatingChange={(rating) => updateFilters({ minRating: rating })}
-          />
-
-          {/* Filtro de deportes */}
-          <SportFilter
-            selectedSports={filters.sports || []}
-            onSportSelect={(sport) => {
-              console.log("[SearchMapScreen] SportFilter onSportSelect called");
-              console.log("[SearchMapScreen] Selected sport:", JSON.stringify(sport));
-              console.log("[SearchMapScreen] Sport type:", typeof sport);
-              const currentSports = filters.sports || [];
-              console.log("[SearchMapScreen] Current sports:", JSON.stringify(currentSports));
-              const newSports = [...currentSports, sport];
-              console.log("[SearchMapScreen] New sports array:", JSON.stringify(newSports));
-              updateFilters({ sports: newSports });
-            }}
-            onSportRemove={(sportId) => {
-              console.log(`[SearchMapScreen] SportFilter onSportRemove called for sportId: ${sportId}`);
-              const currentSports = filters.sports || [];
-              const newSports = currentSports.filter((s) => s.id !== sportId);
-              updateFilters({
-                sports: newSports,
-                // Remover también los criterios del deporte eliminado
-                sportCriteria: (filters.sportCriteria || []).filter(
-                  (c) => c.sportId !== sportId
-                ),
-              });
-            }}
-          />
-
-          {/* Deportes seleccionados con criterios desplegables */}
-          {(() => {
-            console.log("[SearchMapScreen] About to render SportSelectedFilter");
-            console.log("[SearchMapScreen] filters.sports:", JSON.stringify(filters.sports));
-            console.log("[SearchMapScreen] filters.sportCriteria:", JSON.stringify(filters.sportCriteria));
-            
-            const sportsArray = filters.sports || [];
-            const criteriaArray = filters.sportCriteria || [];
-            
-            console.log("[SearchMapScreen] sportsArray type:", typeof sportsArray);
-            console.log("[SearchMapScreen] sportsArray.length:", sportsArray.length);
-            console.log("[SearchMapScreen] criteriaArray type:", typeof criteriaArray);
-            
-            return (
-              <SportSelectedFilter
-                selectedSports={sportsArray}
-                sportCriteria={criteriaArray}
-                onSportRemove={(sportId) => {
-                  console.log(`[SearchMapScreen] onSportRemove called for sportId: ${sportId}`);
-                  const currentSports = filters.sports || [];
-                  const newSports = currentSports.filter((s) => s.id !== sportId);
-                  console.log(`[SearchMapScreen] New sports after removal:`, JSON.stringify(newSports));
-                  updateFilters({
-                    sports: newSports,
-                    // Remover también los criterios del deporte eliminado
-                    sportCriteria: (filters.sportCriteria || []).filter(
-                      (c) => c.sportId !== sportId
-                    ),
-                  });
-                }}
-                onCriteriaChange={(sportId, criteria) => {
-                  console.log(`[SearchMapScreen] onCriteriaChange called for sportId: ${sportId}`);
-                  console.log(`[SearchMapScreen] New criteria:`, JSON.stringify(criteria));
-                  const currentCriteria = filters.sportCriteria || [];
-                  const existingIndex = currentCriteria.findIndex(
-                    (c) => c.sportId === sportId
-                  );
-
-                  let newCriteria: SportFilterCriteria[];
-                  if (existingIndex >= 0) {
-                    // Actualizar criterio existente
-                    newCriteria = [...currentCriteria];
-                    newCriteria[existingIndex] = {
-                      ...newCriteria[existingIndex],
-                      ...criteria,
-                    };
-                    console.log(`[SearchMapScreen] Updated existing criteria at index ${existingIndex}`);
-                  } else {
-                    // Agregar nuevo criterio
-                    newCriteria = [
-                      ...currentCriteria,
-                      { sportId, ...criteria },
-                    ];
-                    console.log(`[SearchMapScreen] Added new criteria`);
-                  }
-                  console.log(`[SearchMapScreen] Final newCriteria:`, JSON.stringify(newCriteria));
-
-                  updateFilters({ sportCriteria: newCriteria });
-                }}
-              />
-            );
-          })()}
-
-          {/* Filtro de spots verificados */}
-          <VerifiedFilter
-            onlyVerified={filters.onlyVerified || false}
-            onToggle={() =>
-              updateFilters({ onlyVerified: !filters.onlyVerified })
-            }
-          />
-        </MapSearchFilterModal>
+        />
       </VStack>
     </SafeAreaView>
   );

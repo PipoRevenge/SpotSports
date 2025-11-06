@@ -33,6 +33,7 @@ export type {
 // Hooks
 export { useCreateSpot } from './hooks/use-create-spot';
 export { useSpotDetails } from './hooks/use-spot-details';
+export { useSpotFilters } from './hooks/use-spot-filters';
 export { useSpotMapSearch } from './hooks/use-spot-map-search';
 export { useSpotSearch } from './hooks/use-spot-search';
 

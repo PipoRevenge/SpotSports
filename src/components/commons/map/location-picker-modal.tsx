@@ -43,27 +43,29 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   cancelText = 'Cancelar',
 }) => {
   const mapRef = useRef<MapView>(null);
+  // No usar autoRequest, lo haremos manualmente cuando se abra el modal
   const { location: userLocation, isLoading, error, requestLocation } = useUserLocation();
   const [selectedLocation, setSelectedLocation] = useState<{
     latitude: number;
     longitude: number;
-  } | null>(initialLocation || null);
+  } | null>(null);
 
-  // Solicitar ubicación cuando se abre el modal
+  // Solicitar ubicación cuando se abre el modal (solo si no hay initialLocation)
   useEffect(() => {
-    if (isOpen && !userLocation && !initialLocation) {
+    if (isOpen && !initialLocation && !userLocation) {
       requestLocation();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [isOpen, initialLocation, userLocation, requestLocation]);
 
-  // Actualizar ubicación seleccionada cuando se obtiene la del usuario
+  // Inicializar selectedLocation con initialLocation o userLocation
   useEffect(() => {
-    if (userLocation && !selectedLocation && !initialLocation) {
+    if (initialLocation && !selectedLocation) {
+      setSelectedLocation(initialLocation);
+    } else if (userLocation && !selectedLocation) {
+      // Si no hay initialLocation, usar la ubicación del usuario
       setSelectedLocation(userLocation);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userLocation]);
+  }, [initialLocation, userLocation, selectedLocation]);
 
   /**
    * Maneja el clic en el mapa para seleccionar una ubicación
@@ -104,7 +106,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   };
 
   // Determinar región inicial
-  const getInitialRegion = (): Region | undefined => {
+  const getInitialRegion = (): Region => {
+    // Prioridad 1: ubicación inicial proporcionada
     if (initialLocation) {
       return {
         latitude: initialLocation.latitude,
@@ -114,6 +117,17 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       };
     }
     
+    // Prioridad 2: ubicación seleccionada actual
+    if (selectedLocation) {
+      return {
+        latitude: selectedLocation.latitude,
+        longitude: selectedLocation.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+    }
+    
+    // Prioridad 3: ubicación del usuario
     if (userLocation) {
       return {
         latitude: userLocation.latitude,
@@ -123,7 +137,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       };
     }
 
-    // Ubicación por defecto (Madrid, España)
+    // Ubicación por defecto (Madrid, España) - solo si no hay nada más
     return {
       latitude: 40.4168,
       longitude: -3.7038,
@@ -131,6 +145,9 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       longitudeDelta: 0.0421,
     };
   };
+
+  // Determinar si debe mostrar el loader
+  const showLoader = isLoading && !initialLocation && !userLocation;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="full">
@@ -144,7 +161,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
           <VStack space="md" className="flex-1">
             {/* Instrucciones */}
             <Text className="text-sm text-gray-600">
-              {isLoading
+              {showLoader
                 ? 'Obteniendo tu ubicación...'
                 : 'Toca en el mapa para seleccionar una ubicación'}
             </Text>
@@ -154,16 +171,17 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               <View className="bg-yellow-50 p-3 rounded-md">
                 <Text className="text-yellow-800 text-sm">{error}</Text>
                 <Text className="text-yellow-700 text-xs mt-1">
-                  Se usará una ubicación por defecto
+                  Puedes seleccionar una ubicación manualmente en el mapa
                 </Text>
               </View>
             )}
 
-            {/* Mapa */}
-            {isLoading && !selectedLocation && !initialLocation ? (
+            {/* Mapa o Loader */}
+            {showLoader ? (
               <View className="h-96 items-center justify-center bg-gray-100 rounded-lg">
                 <ActivityIndicator size="large" color="#007AFF" />
-                <Text className="mt-4 text-gray-600">Cargando mapa...</Text>
+                <Text className="mt-4 text-gray-600">Obteniendo tu ubicación...</Text>
+                <Text className="mt-2 text-xs text-gray-500">Esto puede tardar unos segundos</Text>
               </View>
             ) : (
               <View className="h-96 rounded-lg overflow-hidden">
