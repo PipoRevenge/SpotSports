@@ -4,7 +4,7 @@ import { CheckIcon } from "@/src/components/ui/icon";
 import { Slider, SliderFilledTrack, SliderThumb, SliderTrack } from "@/src/components/ui/slider";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
-import React from "react";
+import React, { useState } from "react";
 import { DISTANCE_CONFIG } from "./types";
 
 interface DistanceFilterProps {
@@ -28,6 +28,14 @@ export const DistanceFilter: React.FC<DistanceFilterProps> = ({
 }) => {
   const isEnabled = maxDistance !== undefined;
   const currentDistance = maxDistance ?? DISTANCE_CONFIG.DEFAULT;
+  
+  // Estado local para mostrar el valor mientras se arrastra
+  const [localDistance, setLocalDistance] = useState(currentDistance);
+
+  // Actualizar el estado local cuando cambie el prop
+  React.useEffect(() => {
+    setLocalDistance(currentDistance);
+  }, [currentDistance]);
 
   const handleToggle = (checked: boolean) => {
     if (checked) {
@@ -35,10 +43,6 @@ export const DistanceFilter: React.FC<DistanceFilterProps> = ({
     } else {
       onDistanceChange(undefined);
     }
-  };
-
-  const handleSliderChange = (value: number) => {
-    onDistanceChange(value);
   };
 
   return (
@@ -61,7 +65,7 @@ export const DistanceFilter: React.FC<DistanceFilterProps> = ({
         </Checkbox>
         {isEnabled && (
           <Text className="text-primary-600 font-medium">
-            {currentDistance} km
+            {localDistance} km
           </Text>
         )}
       </HStack>
@@ -69,8 +73,15 @@ export const DistanceFilter: React.FC<DistanceFilterProps> = ({
       {isEnabled && (
         <>
           <Slider
-            value={currentDistance}
-            onChange={handleSliderChange}
+            value={localDistance}
+            onChange={(value) => {
+              // Solo actualizar el estado local mientras se arrastra
+              setLocalDistance(value);
+            }}
+            onChangeEnd={(value) => {
+              // Aplicar el cambio cuando el usuario suelta el slider
+              onDistanceChange(value);
+            }}
             minValue={minValue}
             maxValue={maxValue}
             step={step}

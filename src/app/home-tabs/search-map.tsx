@@ -4,20 +4,18 @@ import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { Spot } from "@/src/entities/spot/model/spot";
 import {
-    formatDistance,
-    MapAreaSearchIndicator,
-    MapSearchBar,
-    MapSearchMap,
-    MapSearchResult,
-    MapSearchResultItem,
-    MapSearchResultList,
-    SpotCardModal,
-    useMapAreaSearch,
+  formatDistance,
+  MapSearchBar,
+  MapSearchMap,
+  MapSearchResult,
+  MapSearchResultItem,
+  MapSearchResultList,
+  SpotCardModal,
+  spotsToMapResults,
+  useMapSpotSearch,
 } from "@/src/features/map-search";
 import {
-    SpotSearchFilterModal,
-    useSpotFilters,
-    useSpotMapSearch,
+  SpotSearchFilterModal,
 } from "@/src/features/spot";
 import { useUserLocation } from "@/src/hooks/use-user-location";
 import { router } from "expo-router";
@@ -45,34 +43,13 @@ export default function SearchMapScreen() {
   const [selectedSpot, setSelectedSpot] = useState<Spot | undefined>();
   const [showSpotCard, setShowSpotCard] = useState(false);
   const hasSearchedRef = useRef(false);
+  const shouldSearchAfterFiltersRef = useRef(false);
 
   // ==================== HOOKS DE FEATURES ====================
   // Ubicación del usuario
   const { location: userLocation, isLoading: isLoadingLocation } = useUserLocation(true);
 
-  // Gestión del área visible del mapa y búsqueda automática
-  const {
-    mapRegion,
-    searchLocation,
-    searchRadius,
-    shouldCenterOnUser,
-    setMapRegion,
-    clearAreaSearch,
-  } = useMapAreaSearch({
-    autoSearch: !isLoadingLocation, // Solo buscar automáticamente cuando ya tengamos (o no) la ubicación
-    debounceMs: 1000,
-  });
-
-  // Gestión de filtros de spots
-  const { filters, updateFilters, resetFilters, activeFiltersCount } =
-    useSpotFilters({
-      onFiltersChange: () => {
-        // Limpiar búsqueda en área visible al cambiar filtros
-        clearAreaSearch();
-      },
-    });
-
-  // Búsqueda de spots con mapeo de nombres de deportes
+  // Búsqueda de spots con gestión integrada de mapa
   const {
     filteredSpots,
     loading: isSearching,
@@ -80,12 +57,38 @@ export default function SearchMapScreen() {
     setSearchQuery,
     getSportName,
     searchSpots,
-  } = useSpotMapSearch({
+    sortBy,
+    setSortBy,
+    setFilters: setSearchFilters,
+    filters: searchFilters,
+    mapRegion,
+    setMapRegion,
+    shouldCenterOnUser,
+  } = useMapSpotSearch({
     userLocation: userLocation || undefined,
-    searchLocation: searchLocation,
-    searchRadius: searchRadius,
-    autoSearch: true, // Búsqueda automática solo para cambios de ubicación/área
+    autoSearch: true,
   });
+
+  // Calcular filtros activos para mostrar en UI
+  const activeFiltersCount = 
+    (searchFilters.maxDistance !== undefined ? 1 : 0) +
+    (searchFilters.minRating && searchFilters.minRating > 0 ? 1 : 0) +
+    (searchFilters.sports && searchFilters.sports.length > 0 ? 1 : 0) +
+    (searchFilters.onlyVerified === true ? 1 : 0) +
+    (searchFilters.sportCriteria && searchFilters.sportCriteria.length > 0 ? 1 : 0);
+
+  // ==================== EFECTOS ====================
+
+  /**
+   * Maneja cambios en filtros - busca si se aplicaron filtros desde el modal
+   */
+  useEffect(() => {
+    // Si el flag está activo, buscar con los nuevos filtros
+    if (shouldSearchAfterFiltersRef.current) {
+      shouldSearchAfterFiltersRef.current = false;
+      searchSpots();
+    }
+  }, [searchFilters, searchSpots]);
 
   // ==================== FUNCIONES AUXILIARES ====================
 
@@ -96,45 +99,8 @@ export default function SearchMapScreen() {
     searchSpots();
   }, [searchSpots]);
 
-  /**
-   * Función auxiliar para convertir los spots del hook al formato de MapSearchResult
-   */
-  const spotsToMapResults = useCallback(
-    (spots: Spot[]): MapSearchResult<Spot>[] => {
-      return spots.map((spot) => {
-        // Calcular distancia si hay ubicación del usuario
-        let distance: number | undefined = undefined;
-        if (userLocation) {
-          const R = 6371; // Radio de la Tierra en km
-          const dLat = ((spot.details.location.latitude - userLocation.latitude) * Math.PI) / 180;
-          const dLon = ((spot.details.location.longitude - userLocation.longitude) * Math.PI) / 180;
-          
-          const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos((userLocation.latitude * Math.PI) / 180) *
-              Math.cos((spot.details.location.latitude * Math.PI) / 180) *
-              Math.sin(dLon / 2) *
-              Math.sin(dLon / 2);
-          
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          distance = R * c;
-        }
-
-        return {
-          item: spot,
-          location: {
-            latitude: spot.details.location.latitude,
-            longitude: spot.details.location.longitude,
-            distance,
-          },
-        };
-      });
-    },
-    [userLocation]
-  );
-
-  // Convertir spots a resultados de mapa
-  const mapResults = spotsToMapResults(filteredSpots);
+  // Convertir spots a resultados de mapa usando la función de map-helpers
+  const mapResults = spotsToMapResults(filteredSpots, userLocation || undefined);
 
   /**
    * Efecto para ejecutar búsqueda inicial cuando se obtiene la ubicación del usuario
@@ -361,8 +327,8 @@ export default function SearchMapScreen() {
                   selectedColor: "#22c55e",
                 },
                 distanceCircle: {
-                  enabled: filters.maxDistance !== undefined,
-                  maxDistance: filters.maxDistance,
+                  enabled: searchFilters.maxDistance !== undefined,
+                  maxDistance: searchFilters.maxDistance,
                 },
                 region: {
                   autoCenter: shouldCenterOnUser,
@@ -380,12 +346,6 @@ export default function SearchMapScreen() {
               onPress={handleSpotPress}
               getSportName={getSportName}
             />
-            
-            {/* Indicador de búsqueda en área visible (automática) */}
-            <MapAreaSearchIndicator
-              searchLocation={searchLocation}
-              searchRadius={searchRadius}
-            />
           </View>
         ) : (
           <MapSearchResultList
@@ -399,10 +359,41 @@ export default function SearchMapScreen() {
             listHeaderComponent={
               filteredSpots.length > 0 && !isSearching ? (
                 <View className="px-4 py-2 bg-gray-50">
-                  <Text className="text-sm text-gray-600">
-                    {filteredSpots.length}{" "}
-                    {filteredSpots.length === 1 ? "spot encontrado" : "spots encontrados"}
-                  </Text>
+                  <HStack className="justify-between items-center">
+                    <Text className="text-sm text-gray-600">
+                      {filteredSpots.length}{" "}
+                      {filteredSpots.length === 1 ? "spot encontrado" : "spots encontrados"}
+                    </Text>
+                    
+                    {/* Selector de ordenamiento */}
+                    <HStack className="gap-2">
+                      <Pressable
+                        onPress={() => setSortBy('distance')}
+                        className={`px-3 py-1.5 rounded-lg ${
+                          sortBy === 'distance' ? 'bg-blue-500' : 'bg-gray-200'
+                        }`}
+                      >
+                        <Text className={`text-xs font-medium ${
+                          sortBy === 'distance' ? 'text-white' : 'text-gray-700'
+                        }`}>
+                          Cercanía
+                        </Text>
+                      </Pressable>
+                      
+                      <Pressable
+                        onPress={() => setSortBy('rating')}
+                        className={`px-3 py-1.5 rounded-lg ${
+                          sortBy === 'rating' ? 'bg-blue-500' : 'bg-gray-200'
+                        }`}
+                      >
+                        <Text className={`text-xs font-medium ${
+                          sortBy === 'rating' ? 'text-white' : 'text-gray-700'
+                        }`}>
+                          Rating
+                        </Text>
+                      </Pressable>
+                    </HStack>
+                  </HStack>
                 </View>
               ) : null
             }
@@ -413,18 +404,23 @@ export default function SearchMapScreen() {
         <SpotSearchFilterModal
           visible={showFilters}
           onClose={() => setShowFilters(false)}
-          filters={filters}
+          filters={searchFilters}
           onApplyFilters={(newFilters) => {
-            updateFilters(newFilters);
+            console.log('[search-map] onApplyFilters called with:', JSON.stringify(newFilters, null, 2));
+            // Activar flag para buscar después de que se actualicen los filtros
+            shouldSearchAfterFiltersRef.current = true;
+            // Actualizar filtros en el hook de búsqueda (el useEffect se encargará de buscar)
+            setSearchFilters(newFilters);
             setShowFilters(false);
-            // Usar setTimeout para asegurar que los filtros se actualicen antes de buscar
-            setTimeout(() => {
-              searchSpots();
-            }, 0);
           }}
           onResetFilters={() => {
-            resetFilters();
-            clearAreaSearch();
+            setSearchFilters({
+              sports: [],
+              sportCriteria: [],
+              maxDistance: undefined,
+              minRating: 0,
+              onlyVerified: false,
+            });
           }}
         />
       </VStack>

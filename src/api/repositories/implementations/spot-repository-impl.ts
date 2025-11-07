@@ -340,7 +340,7 @@ export class SpotRepositoryImpl implements ISpotRepository {
       }
 
       // Aplicar filtros adicionales en memoria (más flexible)
-      spots = this.applyInMemoryFilters(spots, filters);
+      spots = await this.applyInMemoryFilters(spots, filters);
 
       // Ordenar resultados
       spots = this.sortSpots(spots, filters);
@@ -476,8 +476,16 @@ export class SpotRepositoryImpl implements ISpotRepository {
   /**
    * Aplicar filtros en memoria (más flexible para condiciones complejas)
    */
-  private applyInMemoryFilters(spots: Spot[], filters: SpotSearchFilters): Spot[] {
+  private async applyInMemoryFilters(spots: Spot[], filters: SpotSearchFilters): Promise<Spot[]> {
     let filtered = [...spots];
+    console.log(`[SpotRepository] Aplicando filtros en memoria. Spots iniciales: ${spots.length}`);
+    console.log(`[SpotRepository] Filtros recibidos:`, JSON.stringify({
+      searchQuery: filters.searchQuery,
+      sportIds: filters.sportIds,
+      minRating: filters.minRating,
+      onlyVerified: filters.onlyVerified,
+      sportCriteria: filters.sportCriteria,
+    }, null, 2));
 
     // Filtro por búsqueda de texto
     if (filters.searchQuery && filters.searchQuery.trim().length > 0) {
@@ -486,32 +494,127 @@ export class SpotRepositoryImpl implements ISpotRepository {
         spot.details.name.toLowerCase().includes(query) ||
         spot.details.description.toLowerCase().includes(query)
       );
+      console.log(`[SpotRepository] Después de filtro de texto: ${filtered.length} spots`);
     }
 
-    // Filtro por rating mínimo
+    // Filtro por rating mínimo general del spot
     if (filters.minRating !== undefined && filters.minRating > 0) {
       filtered = filtered.filter(spot => 
         spot.details.overallRating >= filters.minRating!
       );
+      console.log(`[SpotRepository] Después de filtro de rating (>=${filters.minRating}): ${filtered.length} spots`);
     }
 
-    // Filtro por múltiples deportes (si no se aplicó en query)
-    if (filters.sportIds && filters.sportIds.length > 1) {
-      filtered = filtered.filter(spot =>
-        filters.sportIds!.some(sportId =>
+    // Filtro por deportes (AND: el spot debe tener TODOS los deportes seleccionados)
+    if (filters.sportIds && filters.sportIds.length > 0) {
+      console.log(`[SpotRepository] Filtrando por deportes (AND):`, filters.sportIds);
+      filtered = filtered.filter(spot => {
+        const hasAllSports = filters.sportIds!.every(sportId =>
           spot.details.availableSports.includes(sportId)
-        )
-      );
+        );
+        if (hasAllSports) {
+          console.log(`[SpotRepository] Spot "${spot.details.name}" tiene TODOS los deportes requeridos:`, spot.details.availableSports);
+        }
+        return hasAllSports;
+      });
+      console.log(`[SpotRepository] Después de filtro de deportes (AND): ${filtered.length} spots`);
     }
 
-    // Filtro por criterios de deportes específicos
+    // Filtro por verificación
+    if (filters.onlyVerified === true) {
+      filtered = filtered.filter(spot => spot.metadata.isVerified === true);
+      console.log(`[SpotRepository] Después de filtro de verificación: ${filtered.length} spots`);
+    }
+
+    // Filtro por criterios de deportes específicos (dificultad y rating por deporte)
     if (filters.sportCriteria && filters.sportCriteria.length > 0) {
-      // Este filtro requiere consultar sport_metrics
-      // Por simplicidad, dejamos que se implemente cuando sea necesario
-      console.log('[SpotRepository] Sport criteria filtering not yet implemented');
+      console.log(`[SpotRepository] Aplicando filtro de criterios de deportes: ${filters.sportCriteria.length} criterios`);
+      
+      // Filtrar spots que cumplan con los criterios de al menos un deporte
+      const spotsWithCriteria = await Promise.all(
+        filtered.map(async (spot) => {
+          // Obtener métricas de deportes para este spot
+          const spotRef = doc(firestore, this.COLLECTION_NAME, spot.id);
+          const metricsQuery = query(
+            collection(firestore, this.SPOT_SPORT_METRICS_COLLECTION),
+            where('spot_ref', '==', spotRef)
+          );
+          
+          const metricsSnap = await getDocs(metricsQuery);
+          const spotMetrics = new Map<string, { difficulty: number; quality: number }>();
+          
+          // Construir mapa de métricas por deporte
+          for (const metricDoc of metricsSnap.docs) {
+            const metricData = metricDoc.data();
+            const sportRef = metricData.sport_ref;
+            
+            if (sportRef) {
+              spotMetrics.set(sportRef.id, {
+                difficulty: metricData.avg_difficulty || 0,
+                quality: metricData.avg_quality || 0,
+              });
+            }
+          }
+          
+          // Verificar si el spot cumple con al menos un criterio
+          const matchesAnyCriteria = filters.sportCriteria!.some(criteria => {
+            const metrics = spotMetrics.get(criteria.sportId);
+            
+            if (!metrics) {
+              console.log(`[SpotRepository] Spot ${spot.details.name} no tiene métricas para deporte ${criteria.sportId}`);
+              return false; // El spot no tiene este deporte
+            }
+            
+            // Verificar dificultad si está especificada
+            if (criteria.difficulty) {
+              const difficultyMatch = this.matchesDifficulty(metrics.difficulty, criteria.difficulty);
+              if (!difficultyMatch) {
+                console.log(`[SpotRepository] Spot ${spot.details.name} no cumple dificultad ${criteria.difficulty} (tiene ${metrics.difficulty})`);
+                return false;
+              }
+            }
+            
+            // Verificar rating mínimo si está especificado
+            if (criteria.minRating !== undefined && criteria.minRating > 0) {
+              if (metrics.quality < criteria.minRating) {
+                console.log(`[SpotRepository] Spot ${spot.details.name} no cumple rating mínimo ${criteria.minRating} para deporte ${criteria.sportId} (tiene ${metrics.quality})`);
+                return false;
+              }
+            }
+            
+            console.log(`[SpotRepository] Spot ${spot.details.name} cumple criterios para deporte ${criteria.sportId}`);
+            return true;
+          });
+          
+          return matchesAnyCriteria ? spot : null;
+        })
+      );
+      
+      // Filtrar nulls
+      filtered = spotsWithCriteria.filter((spot): spot is Spot => spot !== null);
+      console.log(`[SpotRepository] Después de filtro de criterios de deportes: ${filtered.length} spots`);
     }
 
+    console.log(`[SpotRepository] Filtros aplicados: ${spots.length} -> ${filtered.length} spots`);
     return filtered;
+  }
+  
+  /**
+   * Verifica si una dificultad numérica coincide con el rango especificado
+   * @param difficulty - Dificultad numérica (0-10)
+   * @param targetDifficulty - Dificultad objetivo ('easy', 'intermediate', 'hard')
+   */
+  private matchesDifficulty(difficulty: number, targetDifficulty: 'easy' | 'intermediate' | 'hard'): boolean {
+    switch (targetDifficulty) {
+      case 'easy':
+        return difficulty >= 0 && difficulty < 3.33;
+      case 'intermediate':
+        return difficulty >= 3.33 && difficulty < 6.66;
+      case 'hard':
+        return difficulty >= 6.66 && difficulty <= 10;
+      default:
+        return true;
+    }
   }
 
   /**

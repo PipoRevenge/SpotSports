@@ -7,8 +7,8 @@ import { View } from "react-native";
 import MapView, { Callout, Circle, Marker } from "react-native-maps";
 import { DEFAULT_MAP_CONFIG, MapSearchMapProps } from "../types/map-types";
 import {
-    calculateRegionForDistance,
-    calculateRegionForLocations,
+  calculateRegionForDistance,
+  calculateRegionForLocations,
 } from "../utils/map-helpers";
 
 /**

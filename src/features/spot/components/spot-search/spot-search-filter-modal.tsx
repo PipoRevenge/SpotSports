@@ -7,12 +7,12 @@ import { SportSimple } from "@/src/features/sport/types/sport-types";
 import React, { useState } from "react";
 import { ScrollView } from "react-native";
 import {
-  DistanceFilter,
-  RatingFilter,
-  SportFilter,
-  SportFilterCriteria,
-  SportSelectedFilter,
-  VerifiedFilter,
+    DistanceFilter,
+    RatingFilter,
+    SportFilter,
+    SportFilterCriteria,
+    SportSelectedFilter,
+    VerifiedFilter,
 } from "../spot-filter-components";
 
 export interface SpotSearchFilters {
@@ -43,6 +43,11 @@ export const SpotSearchFilterModal: React.FC<SpotSearchFilterModalProps> = ({
   onResetFilters,
 }) => {
   const [localFilters, setLocalFilters] = useState<SpotSearchFilters>(filters);
+
+  // Actualizar localFilters cuando cambien los filters externos
+  React.useEffect(() => {
+    setLocalFilters(filters);
+  }, [filters]);
 
   const handleApply = () => {
     onApplyFilters(localFilters);

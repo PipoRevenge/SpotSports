@@ -14,6 +14,7 @@ export interface SpotSearchFilters {
   
   // Filtros de deportes
   sportIds?: string[];
+  categoryId?: string; // Filtro por categoría de deporte
   sportCriteria?: {
     sportId: string;
     difficulty?: 'easy' | 'intermediate' | 'hard';

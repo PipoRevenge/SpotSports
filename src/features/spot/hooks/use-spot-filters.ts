@@ -47,25 +47,31 @@ export const useSpotFilters = ({
   });
 
   /**
-   * Actualiza los filtros y notifica al callback
+   * Actualiza los filtros (sin notificar al callback para evitar race conditions)
    */
   const setFilters = useCallback(
     (newFilters: SpotSearchFilters) => {
+      console.log('[useSpotFilters] setFilters called with:', JSON.stringify(newFilters, null, 2));
       setFiltersState(newFilters);
-      onFiltersChange?.(newFilters);
+      // No llamar onFiltersChange aquí - dejar que el componente controle cuándo buscar
     },
-    [onFiltersChange]
+    []
   );
 
   /**
-   * Actualiza filtros parcialmente
+   * Actualiza filtros parcialmente (sin notificar al callback para evitar race conditions)
    */
   const updateFilters = useCallback(
     (newFilters: Partial<SpotSearchFilters>) => {
-      const updatedFilters = { ...filters, ...newFilters };
-      setFilters(updatedFilters);
+      console.log('[useSpotFilters] updateFilters called with:', JSON.stringify(newFilters, null, 2));
+      setFiltersState((prevFilters) => {
+        const updatedFilters = { ...prevFilters, ...newFilters };
+        console.log('[useSpotFilters] Updated filters:', JSON.stringify(updatedFilters, null, 2));
+        // No llamar onFiltersChange aquí - dejar que el componente controle cuándo buscar
+        return updatedFilters;
+      });
     },
-    [filters, setFilters]
+    []
   );
 
   /**

@@ -45,20 +45,23 @@ export { SpotCardModal, SpotMapCallout } from "./components/spot-map-components"
 
 // ==================== HOOKS ====================
 export {
+    useMapSpotSearch
+} from "./hooks/use-map-spot-search";
+
+// Hook genérico - deprecado en favor de useMapSpotSearch
+// Mantener solo si se planea usar para otras entidades
+export {
     useMapSearch,
     type UseMapSearchConfig,
     type UseMapSearchResult
 } from "./hooks/use-map-search";
-
-export {
-    useMapAreaSearch
-} from "./hooks/use-map-area-search";
 
 // ==================== UTILIDADES ====================
 export {
     calculateDistance,
     calculateRegionForDistance,
     calculateRegionForLocations,
+    calculateSearchArea,
     calculateStatistics,
     filterByDistance,
     filterByQuery,
@@ -68,6 +71,7 @@ export {
     isValidMaxDistance,
     isWithinDistance,
     sortResults,
+    spotsToMapResults,
     transformToSearchResults,
     type SearchStatistics
 } from "./utils/map-helpers";

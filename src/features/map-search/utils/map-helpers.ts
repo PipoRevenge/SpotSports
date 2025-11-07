@@ -1,8 +1,9 @@
+import { Spot } from "@/src/entities/spot/model/spot";
 import { GeoPoint } from "@/src/types/geopoint";
 import { Region } from "react-native-maps";
 import {
-    LocationWithDistance,
-    MapSearchResult,
+  LocationWithDistance,
+  MapSearchResult,
 } from "../types/map-types";
 
 /**
@@ -14,7 +15,7 @@ import {
 /**
  * Convierte grados a radianes
  */
-const toRad = (value: number): number => {
+export const toRad = (value: number): number => {
   return (value * Math.PI) / 180;
 };
 
@@ -424,4 +425,52 @@ export const calculateStatistics = <T,>(
     farthestDistance,
     withinRange,
   };
+};
+
+// ==================== CONVERSIÓN DE SPOTS ====================
+
+/**
+ * Convierte un array de Spots a MapSearchResult
+ * Calcula la distancia desde la ubicación del usuario si está disponible
+ */
+export const spotsToMapResults = (
+  spots: Spot[],
+  userLocation?: GeoPoint
+): MapSearchResult<Spot>[] => {
+  return spots.map((spot) => {
+    // Calcular distancia si hay ubicación del usuario
+    let distance: number | undefined = undefined;
+    if (userLocation) {
+      distance = calculateDistance(userLocation, spot.details.location);
+    }
+
+    return {
+      item: spot,
+      location: {
+        latitude: spot.details.location.latitude,
+        longitude: spot.details.location.longitude,
+        distance,
+      },
+    };
+  });
+};
+
+/**
+ * Calcula el centro y radio de búsqueda basado en la región visible del mapa
+ */
+export const calculateSearchArea = (region: Region) => {
+  const centerLocation = {
+    latitude: region.latitude,
+    longitude: region.longitude,
+  };
+
+  // Calcular radio aproximado basado en los deltas de la región
+  const latDistance = region.latitudeDelta * 111;
+  const lonDistance = region.longitudeDelta * 111 * Math.cos((region.latitude * Math.PI) / 180);
+
+  // Usar el radio que cubra la diagonal de la región visible + 20% margen
+  const diagonalDistance = Math.sqrt(latDistance * latDistance + lonDistance * lonDistance);
+  const calculatedRadius = (diagonalDistance / 2) * 1.2;
+
+  return { centerLocation, calculatedRadius };
 };

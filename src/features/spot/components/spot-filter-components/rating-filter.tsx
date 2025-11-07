@@ -2,7 +2,7 @@ import { HStack } from "@/src/components/ui/hstack";
 import { Slider, SliderFilledTrack, SliderThumb, SliderTrack } from "@/src/components/ui/slider";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
-import React from "react";
+import React, { useState } from "react";
 import { RATING_CONFIG } from "./types";
 
 interface RatingFilterProps {
@@ -24,6 +24,14 @@ export const RatingFilter: React.FC<RatingFilterProps> = ({
   maxValue = RATING_CONFIG.MAX,
   step = RATING_CONFIG.STEP,
 }) => {
+  // Estado local para mostrar el valor mientras se arrastra
+  const [localRating, setLocalRating] = useState(minRating);
+
+  // Actualizar el estado local cuando cambie el prop
+  React.useEffect(() => {
+    setLocalRating(minRating);
+  }, [minRating]);
+
   return (
     <VStack space="sm">
       <HStack className="justify-between items-center">
@@ -32,15 +40,22 @@ export const RatingFilter: React.FC<RatingFilterProps> = ({
         </Text>
         <HStack className="items-center gap-1">
           <Text className="text-primary-600 font-medium">
-            {minRating.toFixed(1)}
+            {localRating.toFixed(1)}
           </Text>
           <Text className="text-yellow-500">⭐</Text>
         </HStack>
       </HStack>
 
       <Slider
-        value={minRating}
-        onChange={onRatingChange}
+        value={localRating}
+        onChange={(value) => {
+          // Solo actualizar el estado local mientras se arrastra
+          setLocalRating(value);
+        }}
+        onChangeEnd={(value) => {
+          // Aplicar el cambio cuando el usuario suelta el slider
+          onRatingChange(value);
+        }}
         minValue={minValue}
         maxValue={maxValue}
         step={step}

@@ -26,7 +26,7 @@ export const SportFilter: React.FC<SportFilterProps> = ({
     <VStack space="sm">
       <Text className="font-semibold text-typography-900">Deportes</Text>
       <Text className="text-sm text-typography-500">
-        Selecciona los deportes que te interesan
+        Selecciona los deportes que te interesan o filtra por categoría
       </Text>
 
       {/* Buscador de deportes */}

@@ -187,7 +187,12 @@ export const SportSelectedFilter: React.FC<SportSelectedFilterProps> = ({
                   <Slider
                     value={criteria.minRating || RATING_CONFIG.DEFAULT}
                     onChange={(value) => {
-                      console.log(`[SportSelectedFilter] Rating changed for ${sport.id}: ${value}`);
+                      // Solo actualizar visualmente mientras se arrastra
+                      console.log(`[SportSelectedFilter] Rating onChange for ${sport.id}: ${value}`);
+                    }}
+                    onChangeEnd={(value) => {
+                      // Aplicar cambio cuando se suelta el slider
+                      console.log(`[SportSelectedFilter] Rating onChangeEnd for ${sport.id}: ${value}`);
                       onCriteriaChange(sport.id, { minRating: value });
                     }}
                     minValue={RATING_CONFIG.MIN}
