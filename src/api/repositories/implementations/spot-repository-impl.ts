@@ -20,7 +20,6 @@ export class SpotRepositoryImpl implements ISpotRepository {
    */
   async createSpot(spotData: SpotDetails, userId: string, username: string): Promise<string> {
     try {
-      // Validar datos de entrada
       if (!spotData) {
         throw new Error('Spot data is required');
       }
@@ -41,16 +40,13 @@ export class SpotRepositoryImpl implements ISpotRepository {
         throw new Error('Username is required');
       }
 
-      // Crear el spot sin media primero (solo con array vacío)
       const spotDataWithoutMedia = {
         ...spotData,
-        media: [] // Inicialmente vacío
+        media: []
       };
 
-      // Generar geohash para la ubicación
       const geohash = await this.createGeohash(spotData.location);
 
-      // Convertir a formato de Firebase
       const firestoreData = {
         name: spotDataWithoutMedia.name,
         description: spotDataWithoutMedia.description,
@@ -73,30 +69,17 @@ export class SpotRepositoryImpl implements ISpotRepository {
         visitsCount: 0,
       };
 
-      // Limpiar campos undefined (Firebase no los acepta)
       const cleanedData = this.removeUndefinedFields(firestoreData);
-
-      // Obtener referencia a la colección
       const spotsCollection = collection(firestore, this.COLLECTION_NAME);
-
-      // Crear documento en Firestore
       const docRef = await addDoc(spotsCollection, cleanedData);
       const spotId = docRef.id;
 
-      console.log('Spot created successfully with ID:', spotId);
-
-      // Crear documentos en spot_sport_metrics para cada deporte
       if (spotData.availableSports && spotData.availableSports.length > 0) {
-        console.log('Creating spot_sport_metrics documents...');
         await this.createSpotSportMetrics(spotId, spotData.availableSports);
-        console.log('Spot sport metrics created successfully');
       }
 
-      // Si hay media, subirla a Storage
       if (spotData.media && spotData.media.length > 0) {
-        console.log('Uploading media files...');
         await this.uploadSpotMedia(spotId, userId, spotData.media);
-        console.log('Media uploaded successfully');
       }
 
       return spotId;
@@ -104,7 +87,6 @@ export class SpotRepositoryImpl implements ISpotRepository {
     } catch (error) {
       console.error('Error creating spot:', error);
       
-      // Re-lanzar el error con un mensaje más descriptivo
       if (error instanceof Error) {
         throw new Error(`Failed to create spot: ${error.message}`);
       } else {
@@ -118,38 +100,26 @@ export class SpotRepositoryImpl implements ISpotRepository {
    */
   async getSpotById(id: string): Promise<Spot | null> {
     try {
-      // Validar ID
       if (!id || typeof id !== 'string' || id.trim().length === 0) {
         throw new Error('Valid spot ID is required');
       }
 
-      // Obtener referencia al documento
       const spotDoc = doc(firestore, this.COLLECTION_NAME, id);
-
-      // Obtener documento
       const docSnap = await getDoc(spotDoc);
 
-      // Verificar si existe
       if (!docSnap.exists()) {
         return null;
       }
 
-      // Obtener datos y convertir a modelo de dominio
       const spotData = docSnap.data() as any;
-      
-      // Cargar las URLs de media desde Storage
       const mediaUrls = await this.getSpotMediaUrls(id);
-      
-      // Agregar las URLs al objeto antes de convertir
       spotData.media = mediaUrls;
 
-      // Convertir usando el mapper
       return SpotMapper.fromFirebase(id, spotData);
 
     } catch (error) {
       console.error('Error getting spot by ID:', error);
       
-      // Re-lanzar el error con un mensaje más descriptivo
       if (error instanceof Error) {
         throw new Error(`Failed to get spot: ${error.message}`);
       } else {
@@ -159,12 +129,10 @@ export class SpotRepositoryImpl implements ISpotRepository {
   }
 
   private async createGeohash(location: GeoPoint): Promise<string> {
-    // Validar ubicación
     if (!location || !location.latitude || !location.longitude) {
       throw new Error('Valid location is required');
     }
 
-    // Convertir coordenadas a geohash
     const geohash = geohashForLocation([location.latitude, location.longitude]);
     return geohash;
   }
@@ -502,38 +470,23 @@ export class SpotRepositoryImpl implements ISpotRepository {
       filtered = filtered.filter(spot => 
         spot.details.overallRating >= filters.minRating!
       );
-      console.log(`[SpotRepository] Después de filtro de rating (>=${filters.minRating}): ${filtered.length} spots`);
     }
 
-    // Filtro por deportes (AND: el spot debe tener TODOS los deportes seleccionados)
     if (filters.sportIds && filters.sportIds.length > 0) {
-      console.log(`[SpotRepository] Filtrando por deportes (AND):`, filters.sportIds);
       filtered = filtered.filter(spot => {
-        const hasAllSports = filters.sportIds!.every(sportId =>
+        return filters.sportIds!.every(sportId =>
           spot.details.availableSports.includes(sportId)
         );
-        if (hasAllSports) {
-          console.log(`[SpotRepository] Spot "${spot.details.name}" tiene TODOS los deportes requeridos:`, spot.details.availableSports);
-        }
-        return hasAllSports;
       });
-      console.log(`[SpotRepository] Después de filtro de deportes (AND): ${filtered.length} spots`);
     }
 
-    // Filtro por verificación
     if (filters.onlyVerified === true) {
       filtered = filtered.filter(spot => spot.metadata.isVerified === true);
-      console.log(`[SpotRepository] Después de filtro de verificación: ${filtered.length} spots`);
     }
 
-    // Filtro por criterios de deportes específicos (dificultad y rating por deporte)
     if (filters.sportCriteria && filters.sportCriteria.length > 0) {
-      console.log(`[SpotRepository] Aplicando filtro de criterios de deportes: ${filters.sportCriteria.length} criterios`);
-      
-      // Filtrar spots que cumplan con los criterios de al menos un deporte
       const spotsWithCriteria = await Promise.all(
         filtered.map(async (spot) => {
-          // Obtener métricas de deportes para este spot
           const spotRef = doc(firestore, this.COLLECTION_NAME, spot.id);
           const metricsQuery = query(
             collection(firestore, this.SPOT_SPORT_METRICS_COLLECTION),
@@ -543,7 +496,6 @@ export class SpotRepositoryImpl implements ISpotRepository {
           const metricsSnap = await getDocs(metricsQuery);
           const spotMetrics = new Map<string, { difficulty: number; quality: number }>();
           
-          // Construir mapa de métricas por deporte
           for (const metricDoc of metricsSnap.docs) {
             const metricData = metricDoc.data();
             const sportRef = metricData.sport_ref;
@@ -556,33 +508,26 @@ export class SpotRepositoryImpl implements ISpotRepository {
             }
           }
           
-          // Verificar si el spot cumple con al menos un criterio
           const matchesAnyCriteria = filters.sportCriteria!.some(criteria => {
             const metrics = spotMetrics.get(criteria.sportId);
             
             if (!metrics) {
-              console.log(`[SpotRepository] Spot ${spot.details.name} no tiene métricas para deporte ${criteria.sportId}`);
-              return false; // El spot no tiene este deporte
+              return false;
             }
             
-            // Verificar dificultad si está especificada
             if (criteria.difficulty) {
               const difficultyMatch = this.matchesDifficulty(metrics.difficulty, criteria.difficulty);
               if (!difficultyMatch) {
-                console.log(`[SpotRepository] Spot ${spot.details.name} no cumple dificultad ${criteria.difficulty} (tiene ${metrics.difficulty})`);
                 return false;
               }
             }
             
-            // Verificar rating mínimo si está especificado
             if (criteria.minRating !== undefined && criteria.minRating > 0) {
               if (metrics.quality < criteria.minRating) {
-                console.log(`[SpotRepository] Spot ${spot.details.name} no cumple rating mínimo ${criteria.minRating} para deporte ${criteria.sportId} (tiene ${metrics.quality})`);
                 return false;
               }
             }
             
-            console.log(`[SpotRepository] Spot ${spot.details.name} cumple criterios para deporte ${criteria.sportId}`);
             return true;
           });
           
@@ -590,12 +535,9 @@ export class SpotRepositoryImpl implements ISpotRepository {
         })
       );
       
-      // Filtrar nulls
       filtered = spotsWithCriteria.filter((spot): spot is Spot => spot !== null);
-      console.log(`[SpotRepository] Después de filtro de criterios de deportes: ${filtered.length} spots`);
     }
 
-    console.log(`[SpotRepository] Filtros aplicados: ${spots.length} -> ${filtered.length} spots`);
     return filtered;
   }
   

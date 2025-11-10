@@ -1,10 +1,13 @@
-import CustomMapView from "@/src/components/commons/map/map-view";
-import UserLocationMarker from "@/src/components/commons/map/user-location-marker";
-import { Text } from "@/src/components/ui/text";
+import {
+  MapCircle,
+  MapMarker,
+  MapView,
+  UserLocationMarker,
+} from "@/src/components/commons/map";
+
 import { VStack } from "@/src/components/ui/vstack";
 import React, { useEffect, useMemo, useRef } from "react";
-import { View } from "react-native";
-import MapView, { Callout, Circle, Marker } from "react-native-maps";
+import MapViewRef from "react-native-maps";
 import { DEFAULT_MAP_CONFIG, MapSearchMapProps } from "../types/map-types";
 import {
   calculateRegionForDistance,
@@ -44,6 +47,7 @@ export const MapSearchMap = <T,>({
   userLocation,
   selectedItemId,
   onMarkerPress,
+  onCalloutPress,
   onRegionChangeComplete,
   initialRegion: providedInitialRegion,
   config: userConfig = {},
@@ -52,8 +56,10 @@ export const MapSearchMap = <T,>({
   getItemTitle,
   getItemDescription,
   renderCustomMarker,
+  renderCustomCallout,
+  renderCompleteMarker,
 }: MapSearchMapProps<T>): React.ReactElement => {
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<MapViewRef>(null);
 
   // Merge de configuración con defaults (memoizado para evitar re-renders)
   const config = useMemo(
@@ -80,13 +86,10 @@ export const MapSearchMap = <T,>({
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // Si hay una región inicial proporcionada, no hacer auto-centrado
     if (providedInitialRegion) {
-      console.log("[MapSearchMap] Using provided initial region, skipping auto-center");
       return;
     }
 
-    // Prioridad 1: Centrar en ubicación del usuario con distancia
     if (
       userLocation &&
       config.region.autoCenter &&
@@ -101,7 +104,6 @@ export const MapSearchMap = <T,>({
       return;
     }
 
-    // Prioridad 2: Centrar en resultados
     if (
       config.region.autoCenterOnResults &&
       results.length > 0
@@ -114,7 +116,6 @@ export const MapSearchMap = <T,>({
       return;
     }
 
-    // Prioridad 3: Centrar en ubicación del usuario sin distancia
     if (userLocation && config.region.autoCenter) {
       mapRef.current.animateToRegion(
         {
@@ -159,7 +160,7 @@ export const MapSearchMap = <T,>({
 
   return (
     <VStack className="flex-1">
-      <CustomMapView
+      <MapView
         ref={mapRef}
         initialRegion={initialRegion}
         onRegionChangeComplete={onRegionChangeComplete}
@@ -183,7 +184,7 @@ export const MapSearchMap = <T,>({
           config.distanceCircle.enabled &&
           config.distanceCircle.maxDistance &&
           config.distanceCircle.maxDistance > 0 && (
-            <Circle
+            <MapCircle
               center={{
                 latitude: userLocation.latitude,
                 longitude: userLocation.longitude,
@@ -202,52 +203,45 @@ export const MapSearchMap = <T,>({
           const location = getItemLocation(item);
           const isSelected = selectedItemId === itemId;
 
-          // Marcador personalizado
-          if (renderCustomMarker) {
+          // Si se proporciona un renderCompleteMarker, usarlo directamente
+          if (renderCompleteMarker) {
             return (
-              <Marker
-                key={itemId}
-                coordinate={{
-                  latitude: location.latitude,
-                  longitude: location.longitude,
-                }}
-                onPress={() => handleMarkerPress(item)}
-              >
-                {renderCustomMarker(item, isSelected)}
-              </Marker>
+              <React.Fragment key={itemId}>
+                {renderCompleteMarker(
+                  item,
+                  isSelected,
+                  () => handleMarkerPress(item),
+                  () => onCalloutPress && onCalloutPress(item)
+                )}
+              </React.Fragment>
             );
           }
 
-          // Marcador por defecto
+          // Caso por defecto: usar MapMarker genérico
           return (
-            <Marker
+            <MapMarker
               key={itemId}
               coordinate={{
                 latitude: location.latitude,
                 longitude: location.longitude,
               }}
+              data={item}
+              isSelected={isSelected}
+              color={config.marker.color}
+              size={config.marker.size}
               onPress={() => handleMarkerPress(item)}
-              pinColor={
-                isSelected ? config.marker.selectedColor : config.marker.color
-              }
-            >
-              {/* Callout vacío para evitar que se muestre el callout por defecto */}
-              <Callout tooltip>
-                <View />
-              </Callout>
-            </Marker>
+              renderMarkerContent={renderCustomMarker}
+              renderCallout={renderCustomCallout}
+              calloutConfig={{
+                showDefault: false,
+                tooltip: true,
+              }}
+            />
           );
         })}
-      </CustomMapView>
+      </MapView>
 
-      {/* Contador de resultados */}
-      {results.length > 0 && (
-        <VStack className="absolute bottom-4 right-4 bg-white rounded-lg p-3 shadow-md">
-          <Text className="font-semibold text-typography-900">
-            {results.length} {results.length === 1 ? "resultado" : "resultados"}
-          </Text>
-        </VStack>
-      )}
+      
     </VStack>
   );
 };

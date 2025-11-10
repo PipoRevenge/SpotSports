@@ -1,4 +1,3 @@
-
 import { SpotSportsTable } from "@/src/features/sport";
 import { SpotDataDetails, useSpotDetails } from "@/src/features/spot";
 import { HStack } from "@components/ui/hstack";

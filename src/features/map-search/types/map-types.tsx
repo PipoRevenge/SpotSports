@@ -187,7 +187,9 @@ export interface MapSearchMapProps<T> {
   getItemTitle: (item: T) => string; // Función para obtener el título de un item
   getItemDescription?: (item: T) => string; // Función para obtener la descripción de un item
   renderCustomMarker?: (item: T, isSelected: boolean) => ReactNode; // Render prop para marcador personalizado
-  renderCallout?: (item: T, distance?: number) => ReactNode; // Render prop para callout personalizado
+  renderCustomCallout?: (item: T) => ReactNode; // Render prop para callout personalizado (nuevo nombre más claro)
+  renderCallout?: (item: T, distance?: number) => ReactNode; // Render prop para callout personalizado (deprecated, usar renderCustomCallout)
+  renderCompleteMarker?: (item: T, isSelected: boolean, onPress: () => void, onCalloutPress: () => void) => ReactNode; // Render completo del Marker con Callout incluido
 }
 
 // ==================== TIPOS DE VISTA ====================

@@ -131,35 +131,24 @@ export const useMapSpotSearch = ({
     setError(null);
 
     try {
-      console.log('[useMapSpotSearch] Iniciando búsqueda...');
-      console.log('[useMapSpotSearch] Filtros:', filters);
-      console.log('[useMapSpotSearch] Ubicación del usuario:', userLocation);
-      console.log('[useMapSpotSearch] Región del mapa:', mapRegion);
-
       let searchLocation: { latitude: number; longitude: number } | undefined;
       let searchRadius: number | undefined;
 
       // Determinar ubicación y radio de búsqueda
       if (filters.maxDistance !== undefined) {
         // CASO 1: Usuario especificó distancia máxima -> buscar desde su ubicación
-        console.log('[useMapSpotSearch] Modo: Búsqueda con maxDistance desde ubicación usuario');
         searchLocation = userLocation;
         searchRadius = filters.maxDistance;
       } else if (mapRegion) {
         // CASO 2: No hay maxDistance -> buscar en área visible del mapa
-        console.log('[useMapSpotSearch] Modo: Búsqueda en área visible del mapa');
         const area = calculateSearchArea(mapRegion);
         searchLocation = area.centerLocation;
         searchRadius = area.calculatedRadius;
       } else {
         // CASO 3: No hay ni maxDistance ni región -> usar ubicación del usuario sin radio
-        console.log('[useMapSpotSearch] Modo: Búsqueda desde ubicación usuario sin radio');
         searchLocation = userLocation;
         searchRadius = undefined;
       }
-
-      console.log('[useMapSpotSearch] Ubicación efectiva:', searchLocation);
-      console.log('[useMapSpotSearch] Radio efectivo:', searchRadius);
 
       // Construir filtros para el repositorio
       const repoFilters = {
@@ -175,17 +164,12 @@ export const useMapSpotSearch = ({
         limit: 100,
       };
 
-      console.log('[useMapSpotSearch] Filtros para repositorio:', JSON.stringify(repoFilters, null, 2));
-
       // Llamar al repositorio
       const results = await spotRepository.searchSpots(repoFilters);
-      
-      console.log(`[useMapSpotSearch] Búsqueda completada: ${results.length} spots encontrados`);
       
       setSpots(results);
       setFilteredSpots(results);
     } catch (err) {
-      console.error('[useMapSpotSearch] Error en búsqueda:', err);
       setError(err instanceof Error ? err.message : "Error al buscar spots");
       setSpots([]);
       setFilteredSpots([]);
@@ -207,7 +191,6 @@ export const useMapSpotSearch = ({
    * Actualiza la región del mapa
    */
   const setMapRegion = useCallback((region: Region) => {
-    console.log('[useMapSpotSearch] setMapRegion called:', region);
     setMapRegionState(region);
 
     // Después de la primera vez, no centramos más en el usuario
@@ -231,9 +214,8 @@ export const useMapSpotSearch = ({
           map.set(sport.id, sport.details.name);
         });
         setSportsMap(map);
-        console.log(`[useMapSpotSearch] Cargados ${map.size} deportes`);
-      } catch (error) {
-        console.error("[useMapSpotSearch] Error cargando deportes:", error);
+      } catch {
+        // Error silencioso - los deportes se cargarán en el próximo intento
       } finally {
         setLoadingSports(false);
       }
@@ -279,16 +261,12 @@ export const useMapSpotSearch = ({
 
     // Solo buscar automáticamente si NO hay maxDistance
     if (filters.maxDistance === undefined) {
-      console.log('[useMapSpotSearch] Región cambió y NO hay maxDistance -> búsqueda automática en área visible');
-      
       // Debounce de 1 segundo
       const timeout = setTimeout(() => {
         searchSpots();
       }, 1000);
 
       return () => clearTimeout(timeout);
-    } else {
-      console.log('[useMapSpotSearch] Región cambió pero HAY maxDistance -> no buscar automáticamente');
     }
   }, [mapRegion, autoSearch, filters.maxDistance, searchSpots]);
 
@@ -297,7 +275,6 @@ export const useMapSpotSearch = ({
    */
   useEffect(() => {
     if (autoSearch && userLocation && !mapRegion) {
-      console.log('[useMapSpotSearch] Búsqueda inicial con ubicación del usuario');
       searchSpots();
     }
   }, [autoSearch, userLocation, mapRegion, searchSpots]);

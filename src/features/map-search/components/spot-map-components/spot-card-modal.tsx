@@ -72,8 +72,8 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
                 {spot.details.media && spot.details.media.length > 0 ? (
                   <Image
                     source={{ uri: spot.details.media[0] }}
-                    className="w-full h-48 rounded-lg"
-                    resizeMode="cover"
+                    className="w-full h-48 rounded-lg bg-black"
+                    resizeMode="contain"
                   />
                 ) : (
                   <View className="w-full h-48 rounded-lg bg-gray-200 items-center justify-center">

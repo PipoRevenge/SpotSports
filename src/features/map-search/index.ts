@@ -41,7 +41,9 @@ export { MapSearchResultItem } from "./components/map-search-result-item";
 export { MapSearchResultList } from "./components/map-search-result-list";
 
 // Componentes específicos de spots
-export { SpotCardModal, SpotMapCallout } from "./components/spot-map-components";
+export { SpotCardModal, SpotMarker } from "./components/spot-map-components";
+
+// Componentes legacy (deprecated - usar SpotMarker en su lugar)
 
 // ==================== HOOKS ====================
 export {

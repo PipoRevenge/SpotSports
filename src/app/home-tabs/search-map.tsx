@@ -4,18 +4,19 @@ import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { Spot } from "@/src/entities/spot/model/spot";
 import {
-  formatDistance,
-  MapSearchBar,
-  MapSearchMap,
-  MapSearchResult,
-  MapSearchResultItem,
-  MapSearchResultList,
-  SpotCardModal,
-  spotsToMapResults,
-  useMapSpotSearch,
+    formatDistance,
+    MapSearchBar,
+    MapSearchMap,
+    MapSearchResult,
+    MapSearchResultItem,
+    MapSearchResultList,
+    SpotCardModal,
+    SpotMarker,
+    spotsToMapResults,
+    useMapSpotSearch,
 } from "@/src/features/map-search";
 import {
-  SpotSearchFilterModal,
+    SpotSearchFilterModal,
 } from "@/src/features/spot";
 import { useUserLocation } from "@/src/hooks/use-user-location";
 import { router } from "expo-router";
@@ -113,10 +114,18 @@ export default function SearchMapScreen() {
 
   /**
    * Maneja el press en un marcador del mapa
+   * Selecciona el spot y muestra el callout automáticamente
    */
   const handleMarkerPress = useCallback((spot: Spot) => {
     setSelectedSpot(spot);
     setSelectedSpotId(spot.id);
+  }, []);
+
+  /**
+   * Maneja el press en el callout
+   * Muestra el card modal con toda la información
+   */
+  const handleCalloutPress = useCallback((spot: Spot) => {
     setShowSpotCard(true);
   }, []);
 
@@ -125,7 +134,10 @@ export default function SearchMapScreen() {
    * Navega a la página del spot
    */
   const handleSpotPress = useCallback((spot: Spot) => {
-    router.push(`/spot/spot-page?spotId=${spot.id}`);
+    router.push({
+      pathname: '/spot/[spotId]',
+      params: { spotId: spot.id }
+    });
   }, []);
 
   /**
@@ -313,6 +325,7 @@ export default function SearchMapScreen() {
               userLocation={userLocation || undefined}
               selectedItemId={selectedSpotId}
               onMarkerPress={handleMarkerPress}
+              onCalloutPress={handleCalloutPress}
               onRegionChangeComplete={setMapRegion}
               initialRegion={mapRegion}
               getItemId={(spot) => spot.id}
@@ -321,6 +334,17 @@ export default function SearchMapScreen() {
               getItemDescription={(spot) =>
                 `⭐ ${spot.details.overallRating.toFixed(1)}`
               }
+              // Renderiza el marcador completo con callout incluido
+              renderCompleteMarker={(spot, isSelected, onPress, onCalloutPress) => (
+                <SpotMarker
+                  key={spot.id}
+                  spot={spot}
+                  isSelected={isSelected}
+                  onPress={onPress}
+                  onCalloutPress={onCalloutPress}
+                  getSportName={getSportName}
+                />
+              )}
               config={{
                 marker: {
                   color: "#ef4444",
@@ -406,10 +430,7 @@ export default function SearchMapScreen() {
           onClose={() => setShowFilters(false)}
           filters={searchFilters}
           onApplyFilters={(newFilters) => {
-            console.log('[search-map] onApplyFilters called with:', JSON.stringify(newFilters, null, 2));
-            // Activar flag para buscar después de que se actualicen los filtros
             shouldSearchAfterFiltersRef.current = true;
-            // Actualizar filtros en el hook de búsqueda (el useEffect se encargará de buscar)
             setSearchFilters(newFilters);
             setShowFilters(false);
           }}

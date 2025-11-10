@@ -15,7 +15,7 @@ export default function MyFeedScreen() {
         variant="solid" 
         onPress={() => {
           router.push({
-            pathname: '../spot/spot-page',
+            pathname: '../spot/[spotId]',
             params: { spotId: 'RRX1RyWdp7AHCHXOvokh' }
           });
         }}

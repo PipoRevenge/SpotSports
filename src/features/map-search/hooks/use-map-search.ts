@@ -1,13 +1,13 @@
 import { GeoPoint } from "@/src/types/geopoint";
 import { useCallback, useEffect, useState } from "react";
 import {
-  BaseMapSearchFilters,
-  MapSearchState,
-  SearchFunction,
+    BaseMapSearchFilters,
+    MapSearchState,
+    SearchFunction,
 } from "../types/map-types";
 import {
-  sortResults,
-  transformToSearchResults,
+    sortResults,
+    transformToSearchResults,
 } from "../utils/map-helpers";
 
 /**
@@ -122,32 +122,23 @@ export const useMapSearch = <T, F extends BaseMapSearchFilters>(
    * Ejecuta la búsqueda
    */
   const search = useCallback(async () => {
-    console.log("[useMapSearch] search() called");
-    console.log("[useMapSearch] filters:", JSON.stringify(filters));
-    console.log("[useMapSearch] userLocation:", JSON.stringify(userLocation));
-    
     try {
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
       // Ejecutar función de búsqueda
-      console.log("[useMapSearch] Calling searchFunction...");
       const items = await searchFunction(filters, userLocation);
-      console.log("[useMapSearch] searchFunction returned", items.length, "items");
 
       // Transformar items a resultados con ubicación y distancia
       let results = transformToSearchResults(items, getLocation, userLocation);
-      console.log("[useMapSearch] Transformed to", results.length, "results");
 
       // El filtro de distancia ya fue aplicado en el backend/repositorio
       // NO aplicar filtros adicionales aquí para evitar duplicación
 
       // Ordenar resultados
       if (filters.sortBy) {
-        console.log("[useMapSearch] Sorting by:", filters.sortBy, filters.sortOrder);
         results = sortResults(results, filters.sortBy, filters.sortOrder, getters);
       }
 
-      console.log("[useMapSearch] Final results count:", results.length);
       setState({
         results,
         isLoading: false,
@@ -156,7 +147,6 @@ export const useMapSearch = <T, F extends BaseMapSearchFilters>(
         hasMore: false, // Por ahora no soportamos paginación
       });
     } catch (error) {
-      console.error("[useMapSearch] Error en búsqueda:", error);
       setState((prev) => ({
         ...prev,
         isLoading: false,
@@ -170,26 +160,20 @@ export const useMapSearch = <T, F extends BaseMapSearchFilters>(
    */
   const updateFilters = useCallback(
     (newFilters: Partial<F>) => {
-      console.log("[useMapSearch] updateFilters() called");
-      console.log("[useMapSearch] newFilters:", JSON.stringify(newFilters));
-      
       setFilters((prev) => {
         const updated = { ...prev, ...newFilters };
-        console.log("[useMapSearch] Updated filters:", JSON.stringify(updated));
         return updated;
       });
 
       // Cancelar timeout anterior
       if (searchTimeout) {
-        console.log("[useMapSearch] Clearing previous timeout");
         clearTimeout(searchTimeout);
       }
 
       // Ejecutar búsqueda con debounce solo para cambios en searchQuery
       if ("searchQuery" in newFilters) {
-        console.log("[useMapSearch] searchQuery changed, applying debounce");
         const timeout = setTimeout(() => {
-          console.log("[useMapSearch] Debounce timeout expired, will trigger search via effect");
+          // Timeout expirado - la búsqueda se ejecutará vía efecto
         }, debounceMs);
         setSearchTimeout(timeout);
       }

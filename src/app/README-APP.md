@@ -32,7 +32,7 @@ app/
 │   ├── [userId].tsx       # Perfil dinámico por ID
 │   └── profile-edit.tsx   # Edición de perfil
 ├── spot/                  # Detalles de spots
-│   └── spot-page.tsx     # Página individual de spot
+│   └── [spotId].tsx      # Página individual de spot (dinámica)
 └── test/                  # Componentes de testing
     └── test-component.tsx # Componente de prueba
 ```
