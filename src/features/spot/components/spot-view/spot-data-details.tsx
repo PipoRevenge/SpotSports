@@ -1,4 +1,4 @@
-import { RatingStar } from "@/src/components/commons/rating-start/rating-star";
+import { RatingStars } from "@/src/components/commons/rating/rating-stars";
 import { HStack } from "@/src/components/ui/hstack";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
@@ -20,7 +20,7 @@ export const SpotDataDetails: React.FC<SpotDataDetailsProps> = ({ spot }) => {
             {/* Nombre y rating */}
             <HStack className="w-full flex-row justify-between items-center mt-4">
                 <Text size="2xl" className="font-bold">{spot.details.name}</Text>
-                <RatingStar rating={spot.details.overallRating} />
+                <RatingStars rating={spot.details.overallRating} size="md" showValue={true} />
             </HStack>
             
             {/* Descripción */}

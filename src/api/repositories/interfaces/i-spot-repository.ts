@@ -1,4 +1,4 @@
-import { Spot, SpotDetails } from '@/src/entities/spot/model/spot';
+import { SportSpotRating, Spot, SpotDetails } from '@/src/entities/spot/model/spot';
 import { GeoPoint } from '@/src/types/geopoint';
 
 /**
@@ -40,6 +40,12 @@ export interface ISpotRepository {
   // Obtener spot por ID
   getSpotById(id: string): Promise<Spot | null>;
   
+  // Obtener calificaciones de deportes para un spot
+  getSportRatings(spotId: string): Promise<SportSpotRating[]>;
+  
   // Buscar spots con filtros
   searchSpots(filters: SpotSearchFilters): Promise<Spot[]>;
+
+  
+
 }

@@ -1,4 +1,4 @@
-import RatingStar from '@/src/components/commons/rating-start/rating-star';
+import { RatingStars } from '@/src/components/commons/rating/rating-stars';
 import { Card } from '@/src/components/ui/card';
 import { HStack } from '@/src/components/ui/hstack';
 import { Image } from '@/src/components/ui/image';
@@ -40,7 +40,7 @@ export const SpotCard: React.FC<SpotCardProps> = ({ name, number, imageUrl, onPr
           />
           <HStack className="p-3 justify-between items-center">
             <Text className="font-medium text-lg w-1/2">{name}</Text>
-            <RatingStar rating={number} />
+            <RatingStars rating={number} size="sm" showValue={true} />
           </HStack>
         </VStack>
       </Card>

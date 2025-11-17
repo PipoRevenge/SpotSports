@@ -8,7 +8,7 @@ import {
 import { VStack } from "@/src/components/ui/vstack";
 import React, { useEffect, useMemo, useRef } from "react";
 import MapViewRef from "react-native-maps";
-import { DEFAULT_MAP_CONFIG, MapSearchMapProps } from "../types/map-types";
+import { DEFAULT_MAP_CONFIG, MapSearchMapProps, MapSearchResult } from "../types/map-types";
 import {
   calculateRegionForDistance,
   calculateRegionForLocations,
@@ -75,7 +75,6 @@ export const MapSearchMap = <T,>({
         userConfig.showMyLocationButton ?? DEFAULT_MAP_CONFIG.showMyLocationButton,
       followsUserLocation:
         userConfig.followsUserLocation ?? DEFAULT_MAP_CONFIG.followsUserLocation,
-      roundedCorners: userConfig.roundedCorners ?? DEFAULT_MAP_CONFIG.roundedCorners,
     }),
     [userConfig]
   );
@@ -108,7 +107,7 @@ export const MapSearchMap = <T,>({
       config.region.autoCenterOnResults &&
       results.length > 0
     ) {
-      const locations = results.map((r) => r.location);
+      const locations = results.map((r: MapSearchResult<T>) => r.location);
       const region = calculateRegionForLocations(locations);
       if (region) {
         mapRef.current.animateToRegion(region, 1000);
@@ -197,7 +196,7 @@ export const MapSearchMap = <T,>({
           )}
 
         {/* Marcadores de resultados */}
-        {results.map((result) => {
+        {results.map((result: MapSearchResult<T>) => {
           const item = result.item;
           const itemId = getItemId(item);
           const location = getItemLocation(item);

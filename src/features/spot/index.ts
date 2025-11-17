@@ -2,7 +2,8 @@
 
 // Types
 export type { SpotSearchFilters } from './components/spot-search/spot-search-filter-modal';
-export type { MediaItem, SpotCreateFormData, SpotCreateFormProps, SpotFormErrors, SpotFormState } from './types/spot-types';
+export { DISTANCE_CONFIG, RATING_CONFIG } from './types/spot-types';
+export type { MediaItem, SportFilterCriteria, SpotCreateFormData, SpotCreateFormProps, SpotFormErrors, SpotFormState } from './types/spot-types';
 
 // Components - Create
 export { SpotCreateForm } from './components/spot-create/spot-create-form';
@@ -20,14 +21,11 @@ export { SpotSearchFilterModal } from './components/spot-search/spot-search-filt
 
 // Components - Filter Components  
 export {
-    DIFFICULTY_OPTIONS, DISTANCE_CONFIG, DistanceFilter, RATING_CONFIG, RatingFilter,
+    DistanceFilter,
+    RatingFilter,
     SportFilter,
     SportSelectedFilter,
     VerifiedFilter
-} from './components/spot-filter-components';
-
-export type {
-    DifficultyLevel, SportFilterCriteria
 } from './components/spot-filter-components';
 
 // Hooks

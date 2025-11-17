@@ -1,3 +1,8 @@
+import {
+    ReviewList,
+    useReviewDelete,
+    useSpotReviews
+} from "@/src/features/review";
 import { SpotSportsTable } from "@/src/features/sport";
 import { SpotDataDetails, useSpotDetails } from "@/src/features/spot";
 import { HStack } from "@components/ui/hstack";
@@ -5,7 +10,7 @@ import { Icon } from "@components/ui/icon";
 import { SafeAreaView } from "@components/ui/safe-area-view";
 import { Text } from "@components/ui/text";
 import { VStack } from "@components/ui/vstack";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { ChevronDown, ChevronUp } from "lucide-react-native";
 import React, { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
@@ -15,10 +20,73 @@ export const SpotPage = () => {
     const spotId = params.spotId as string | undefined;
     
     const [isSportsTableVisible, setIsSportsTableVisible] = useState(true);
-    const { spot, sportRatings, loading, error } = useSpotDetails(spotId);
+    const { spot, sportRatings, loading, error: spotError, refetch } = useSpotDetails(spotId);
+    
+    // Hook para gestionar reviews
+    const {
+        reviews,
+        totalReviews,
+        usersData,
+        loading: reviewsLoading,
+        error: reviewsError,
+        filters,
+        sortBy,
+        updateFilters,
+        setSortBy,
+        refetch: refetchReviews,
+    } = useSpotReviews(spotId);
+    
+    // Hook de eliminación
+    const {
+        deleteReview,
+    } = useReviewDelete(() => {
+        refetch();
+        refetchReviews();
+    });
+
+    /**
+     * Función helper para obtener el nombre de un deporte por su ID
+     */
+    const getSportName = (sportId: string): string => {
+        const sport = sportRatings.find(sr => sr.sportId === sportId);
+        return sport?.sportName || "Deporte desconocido";
+    };
 
     const toggleSportsTableVisibility = () => {
         setIsSportsTableVisible(!isSportsTableVisible);
+    };
+
+    /**
+     * Navegar a la página de edición de review
+     */
+    const handleEditReview = (reviewId: string) => {
+        if (!spotId) return;
+        
+        const sports = sportRatings.map(sr => ({
+            id: sr.sportId,
+            name: sr.sportName,
+        }));
+        
+        router.push({
+            pathname: `/spot/review/[spotId]/edit-review`,
+            params: {
+                spotId,
+                spotSports: JSON.stringify(sports),
+            },
+        });
+    };
+
+    /**
+     * Eliminar review
+     */
+    const handleDeleteReview = async (reviewId: string) => {
+        if (!spotId) return;
+        
+        try {
+            await deleteReview(reviewId, spotId);
+        } catch (error) {
+            console.error('Error deleting review:', error);
+        }
     };
 
     if (loading) {
@@ -32,12 +100,12 @@ export const SpotPage = () => {
         );
     }
 
-    if (error) {
+    if (spotError) {
         return (
             <SafeAreaView>
                 <View className="flex-1 justify-center items-center p-6">
                     <Text className="text-red-600 text-lg font-semibold">Error</Text>
-                    <Text className="mt-2 text-gray-600 text-center">{error}</Text>
+                    <Text className="mt-2 text-gray-600 text-center">{spotError}</Text>
                 </View>
             </SafeAreaView>
         );
@@ -57,8 +125,8 @@ export const SpotPage = () => {
     }
 
     return (
-        <SafeAreaView>
-            <ScrollView className="w-full">
+        <SafeAreaView className="flex-1">
+            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 {/* Detalles del spot */}
                 <SpotDataDetails spot={spot} />
 
@@ -99,6 +167,31 @@ export const SpotPage = () => {
                         </Text>
                     </VStack>
                 )}
+
+                {/* Separador antes de reviews */}
+                <View className="h-2 bg-gray-100" />
+
+                {/* Lista de reviews */}
+                <ReviewList
+                    reviews={reviews}
+                    spotId={spotId || ""}
+                    totalReviews={totalReviews}
+                    usersData={usersData}
+                    loading={reviewsLoading}
+                    error={reviewsError}
+                    availableSports={sportRatings.map(sr => ({
+                        id: sr.sportId,
+                        name: sr.sportName,
+                    }))}
+                    selectedSportId={filters.sportId || ""}
+                    onSportFilterChange={(sportId) => updateFilters({ sportId })}
+                    getSportName={getSportName}
+                    sortBy={sortBy}
+                    onSortChange={setSortBy}
+                    emptyMessage="Sé el primero en escribir una review"
+                    onEdit={handleEditReview}
+                    onDelete={handleDeleteReview}
+                />
             </ScrollView>
         </SafeAreaView>
     );

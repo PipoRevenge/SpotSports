@@ -19,6 +19,7 @@ import {
     SpotSearchFilterModal,
 } from "@/src/features/spot";
 import { useUserLocation } from "@/src/hooks/use-user-location";
+import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import { List as ListIcon, Map as MapIcon } from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -43,6 +44,7 @@ export default function SearchMapScreen() {
   const [selectedSpotId, setSelectedSpotId] = useState<string | undefined>();
   const [selectedSpot, setSelectedSpot] = useState<Spot | undefined>();
   const [showSpotCard, setShowSpotCard] = useState(false);
+  const [isLoadingSpotDetails, setIsLoadingSpotDetails] = useState(false);
   const hasSearchedRef = useRef(false);
   const shouldSearchAfterFiltersRef = useRef(false);
 
@@ -65,6 +67,7 @@ export default function SearchMapScreen() {
     mapRegion,
     setMapRegion,
     shouldCenterOnUser,
+    refetchSpot,
   } = useMapSpotSearch({
     userLocation: userLocation || undefined,
     autoSearch: true,
@@ -79,6 +82,21 @@ export default function SearchMapScreen() {
     (searchFilters.sportCriteria && searchFilters.sportCriteria.length > 0 ? 1 : 0);
 
   // ==================== EFECTOS ====================
+
+  /**
+   * Refrescar spot seleccionado cuando la pantalla recibe foco
+   * Útil para actualizar datos después de crear una review
+   */
+  useFocusEffect(
+    useCallback(() => {
+      // Solo refrescar si hay un spot seleccionado Y el modal está visible
+      if (selectedSpotId && showSpotCard && selectedSpot) {
+        refetchSpot(selectedSpotId).catch(err => {
+          console.log('[SearchMapScreen] Error refreshing spot on focus:', err);
+        });
+      }
+    }, [selectedSpotId, showSpotCard, selectedSpot, refetchSpot])
+  );
 
   /**
    * Maneja cambios en filtros - busca si se aplicaron filtros desde el modal
@@ -126,19 +144,28 @@ export default function SearchMapScreen() {
    * Muestra el card modal con toda la información
    */
   const handleCalloutPress = useCallback((spot: Spot) => {
+    // Simplemente mostrar el modal con los datos que ya tenemos
+    // El spot ya está en memoria y en caché
     setShowSpotCard(true);
   }, []);
 
   /**
    * Maneja el press en un spot desde la lista o el card
    * Navega a la página del spot
+   * Prefetch: Actualiza datos del spot antes de navegar
    */
-  const handleSpotPress = useCallback((spot: Spot) => {
+  const handleSpotPress = useCallback(async (spot: Spot) => {
+    // Prefetch spot data antes de navegar
+    refetchSpot(spot.id).catch(err => {
+      console.log('[SearchMapScreen] Error prefetching before navigation:', err);
+    });
+    
+    // Navegar inmediatamente (no esperar prefetch)
     router.push({
       pathname: '/spot/[spotId]',
       params: { spotId: spot.id }
     });
-  }, []);
+  }, [refetchSpot]);
 
   /**
    * Cierra el card del spot

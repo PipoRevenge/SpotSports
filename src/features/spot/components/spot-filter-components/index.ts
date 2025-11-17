@@ -5,12 +5,12 @@
 
 // Tipos compartidos
 export type {
-    DifficultyLevel, SportFilterCriteria
-} from './types';
+    SportFilterCriteria
+} from '../../types/spot-types';
 
 export {
-    DIFFICULTY_OPTIONS, DISTANCE_CONFIG, RATING_CONFIG
-} from './types';
+    DISTANCE_CONFIG, RATING_CONFIG
+} from '../../types/spot-types';
 
 // Componentes principales de filtro
 export { DistanceFilter } from './distance-filter';

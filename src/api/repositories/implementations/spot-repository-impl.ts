@@ -1,4 +1,4 @@
-import { Spot, SpotDetails } from '@/src/entities/spot/model/spot';
+import { SportSpotRating, Spot, SpotDetails } from '@/src/entities/spot/model/spot';
 import { firestore, storage } from '@/src/lib/firebase-config';
 import { GeoPoint } from '@/src/types/geopoint';
 import { addDoc, collection, doc, GeoPoint as FirebaseGeoPoint, limit as firestoreLimit, getDoc, getDocs, orderBy, query, Timestamp, where } from 'firebase/firestore';
@@ -124,6 +124,60 @@ export class SpotRepositoryImpl implements ISpotRepository {
         throw new Error(`Failed to get spot: ${error.message}`);
       } else {
         throw new Error('Failed to get spot: Unknown error');
+      }
+    }
+  }
+
+  /**
+   * Obtener calificaciones de deportes para un spot
+   */
+  async getSportRatings(spotId: string): Promise<SportSpotRating[]> {
+    try {
+      if (!spotId || typeof spotId !== 'string' || spotId.trim().length === 0) {
+        throw new Error('Valid spot ID is required');
+      }
+
+      const spotRef = doc(firestore, this.COLLECTION_NAME, spotId);
+      
+      // Obtener las métricas de deportes
+      const metricsQuery = query(
+        collection(firestore, this.SPOT_SPORT_METRICS_COLLECTION),
+        where('spot_ref', '==', spotRef)
+      );
+
+      const metricsSnap = await getDocs(metricsQuery);
+      const ratings: SportSpotRating[] = [];
+
+      for (const metricDoc of metricsSnap.docs) {
+        const metricData = metricDoc.data();
+        
+        // Obtener información del deporte
+        const sportRef = metricData.sport_ref;
+        if (sportRef) {
+          const sportSnap = await getDoc(sportRef);
+          if (sportSnap.exists()) {
+            const sportData = sportSnap.data() as { name?: string; description?: string };
+            
+            ratings.push({
+              sportId: sportSnap.id,
+              sportName: sportData.name || 'Unknown Sport',
+              sportDescription: sportData.description || 'No description available',
+              rating: metricData.avg_quality || 0,
+              difficulty: metricData.avg_difficulty || 0,
+            });
+          }
+        }
+      }
+
+      return ratings;
+
+    } catch (error) {
+      console.error('Error getting sport ratings:', error);
+      
+      if (error instanceof Error) {
+        throw new Error(`Failed to get sport ratings: ${error.message}`);
+      } else {
+        throw new Error('Failed to get sport ratings: Unknown error');
       }
     }
   }

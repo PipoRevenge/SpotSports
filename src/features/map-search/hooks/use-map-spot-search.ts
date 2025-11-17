@@ -3,9 +3,57 @@ import { sportRepository, spotRepository } from "@/src/api/repositories";
 import { Sport as SportEntity } from "@/src/entities/sport/model/sport";
 import { Spot } from "@/src/entities/spot/model/spot";
 import { SpotSearchFilters } from "@/src/features/spot/components/spot-search/spot-search-filter-modal";
+import { DifficultyLevel } from "@/src/types/difficulty";
 import { useCallback, useEffect, useState } from "react";
 import { Region } from "react-native-maps";
 import { calculateDistance, calculateSearchArea } from "../utils/map-helpers";
+
+// Caché simple en memoria para spots
+const spotCache = new Map<string, { spot: Spot; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
+/**
+ * Obtiene un spot del caché si está disponible y no ha expirado
+ */
+const getCachedSpot = (spotId: string): Spot | null => {
+  const cached = spotCache.get(spotId);
+  if (!cached) return null;
+  
+  const isExpired = Date.now() - cached.timestamp > CACHE_DURATION;
+  if (isExpired) {
+    spotCache.delete(spotId);
+    return null;
+  }
+  
+  return cached.spot;
+};
+
+/**
+ * Guarda un spot en el caché
+ */
+const cacheSpot = (spot: Spot): void => {
+  spotCache.set(spot.id, {
+    spot,
+    timestamp: Date.now()
+  });
+};
+
+/**
+ * Mapea DifficultyLevel del frontend al formato del repositorio
+ */
+const mapDifficultyToRepoFormat = (difficulty: DifficultyLevel): 'easy' | 'intermediate' | 'hard' => {
+  switch (difficulty) {
+    case 'Beginner':
+      return 'easy';
+    case 'Intermediate':
+      return 'intermediate';
+    case 'Advanced':
+    case 'Expert':
+      return 'hard';
+    default:
+      return 'easy';
+  }
+};
 
 
 interface UseMapSpotSearchProps {
@@ -48,6 +96,9 @@ interface UseMapSpotSearchReturn {
   getSportName: (sportId: string) => string;
   sportsMap: Map<string, string>;
   loadingSports: boolean;
+  
+  // Actualización
+  refetchSpot: (spotId: string) => Promise<void>;
 }
 
 const DEFAULT_FILTERS: SpotSearchFilters = {
@@ -156,7 +207,11 @@ export const useMapSpotSearch = ({
         location: searchLocation,
         maxDistance: searchRadius,
         sportIds: filters.sports.map(s => s.id),
-        sportCriteria: filters.sportCriteria,
+        sportCriteria: filters.sportCriteria.map(criteria => ({
+          sportId: criteria.sportId,
+          difficulty: criteria.difficulty ? mapDifficultyToRepoFormat(criteria.difficulty) : undefined,
+          minRating: criteria.minRating,
+        })),
         minRating: filters.minRating,
         onlyVerified: filters.onlyVerified,
         sortBy: 'distance' as const,
@@ -198,6 +253,76 @@ export const useMapSpotSearch = ({
       setShouldCenterOnUser(false);
     }
   }, [shouldCenterOnUser]);
+
+  /**
+   * Actualiza un spot específico en la lista de spots
+   * Útil para refrescar un spot después de crear una review
+   */
+  const refetchSpot = useCallback(async (spotId: string) => {
+    try {
+      // Primero verificar si está en caché y no ha expirado
+      const cachedSpot = getCachedSpot(spotId);
+      if (cachedSpot) {
+        // Actualizar con datos en caché inmediatamente
+        setSpots(prevSpots => {
+          const index = prevSpots.findIndex(s => s.id === spotId);
+          if (index === -1) return prevSpots;
+          
+          const newSpots = [...prevSpots];
+          newSpots[index] = cachedSpot;
+          return newSpots;
+        });
+
+        setFilteredSpots(prevFiltered => {
+          const index = prevFiltered.findIndex(s => s.id === spotId);
+          if (index === -1) return prevFiltered;
+          
+          const newFiltered = [...prevFiltered];
+          newFiltered[index] = cachedSpot;
+          return newFiltered;
+        });
+      }
+      
+      // Buscar el spot actualizado en segundo plano
+      const updatedSpot = await spotRepository.getSpotById(spotId);
+      
+      if (!updatedSpot) {
+        console.log(`[useMapSpotSearch] Spot ${spotId} not found during refetch`);
+        return;
+      }
+
+      // Guardar en caché
+      cacheSpot(updatedSpot);
+
+      // Actualizar en la lista de spots
+      setSpots(prevSpots => {
+        const index = prevSpots.findIndex(s => s.id === spotId);
+        if (index === -1) {
+          // El spot no está en la lista actual, no hacer nada
+          return prevSpots;
+        }
+        
+        const newSpots = [...prevSpots];
+        newSpots[index] = updatedSpot;
+        return newSpots;
+      });
+
+      // También actualizar en filteredSpots
+      setFilteredSpots(prevFiltered => {
+        const index = prevFiltered.findIndex(s => s.id === spotId);
+        if (index === -1) {
+          return prevFiltered;
+        }
+        
+        const newFiltered = [...prevFiltered];
+        newFiltered[index] = updatedSpot;
+        return newFiltered;
+      });
+    } catch (err) {
+      // Error silencioso según requerimientos
+      console.log(`[useMapSpotSearch] Error refetching spot ${spotId}:`, err);
+    }
+  }, []);
 
   // ==================== EFECTOS ====================
 
@@ -299,5 +424,6 @@ export const useMapSpotSearch = ({
     getSportName,
     sportsMap,
     loadingSports,
+    refetchSpot,
   };
 };

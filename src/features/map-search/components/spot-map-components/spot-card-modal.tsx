@@ -1,6 +1,8 @@
+import { MediaCarousel } from "@/src/components/commons/media-carousel";
+import { RatingStars } from "@/src/components/commons/rating/rating-stars";
 import { X } from "lucide-react-native";
 import React from "react";
-import { Image, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { HStack } from "../../../../components/ui/hstack";
 import { VStack } from "../../../../components/ui/vstack";
 import type { Spot } from "../../../../entities/spot/model/spot";
@@ -30,9 +32,28 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
   onPress,
   getSportName,
 }) => {
-  // No renderizar nada si no está visible o no hay spot
-  if (!visible || !spot) {
+  // No renderizar nada si no está visible
+  if (!visible) {
     return null;
+  }
+
+  // Mostrar loading centrado si no hay spot aún
+  if (!spot) {
+    return (
+      <Modal
+        visible={visible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={onClose}
+      >
+        <Pressable className="flex-1 justify-end bg-black/50" onPress={onClose}>
+          <View className="bg-white rounded-t-3xl shadow-2xl h-[500px] justify-center items-center">
+            <ActivityIndicator size="large" color="#3b82f6" />
+            <Text className="mt-4 text-gray-600">Cargando detalles del spot...</Text>
+          </View>
+        </Pressable>
+      </Modal>
+    );
   }
 
   return (
@@ -70,9 +91,10 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
               <VStack className="p-4 gap-4">
                 {/* Imagen del spot */}
                 {spot.details.media && spot.details.media.length > 0 ? (
-                  <Image
-                    source={{ uri: spot.details.media[0] }}
-                    className="w-full h-48 rounded-lg bg-black"
+                  <MediaCarousel
+                    media={spot.details.media}
+                    altText={spot.details.name}
+                    height={192}
                     resizeMode="contain"
                   />
                 ) : (
@@ -93,12 +115,14 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
                     {/* Rating */}
                     {spot.details.overallRating !== undefined && (
                       <HStack className="items-center gap-1">
-                        <Text className="text-yellow-500 text-lg">⭐</Text>
-                        <Text className="text-typography-700 text-base font-semibold">
-                          {spot.details.overallRating.toFixed(1)}
-                        </Text>
+                        <RatingStars 
+                          rating={spot.details.overallRating} 
+                          size="sm" 
+                          showValue={true} 
+                          disabled 
+                        />
                         {spot.activity?.reviewsCount !== undefined && (
-                          <Text className="text-typography-500 text-sm">
+                          <Text className="text-typography-500 text-sm ml-1">
                             ({spot.activity.reviewsCount})
                           </Text>
                         )}

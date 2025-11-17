@@ -5,7 +5,7 @@ import { Slider, SliderFilledTrack, SliderThumb, SliderTrack } from "@/src/compo
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import React, { useState } from "react";
-import { DISTANCE_CONFIG } from "./types";
+import { DISTANCE_CONFIG } from "../../types/spot-types";
 
 interface DistanceFilterProps {
   maxDistance?: number;

@@ -6,9 +6,16 @@ import { Slider, SliderFilledTrack, SliderThumb, SliderTrack } from "@/src/compo
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { SportSimple } from "@/src/features/sport/types/sport-types";
+import { DIFFICULTY_LEVELS, DifficultyLevel } from "@/src/types/difficulty";
 import { ChevronDownIcon, ChevronUpIcon, XIcon } from "lucide-react-native";
 import React, { useState } from "react";
-import { DIFFICULTY_OPTIONS, RATING_CONFIG, SportFilterCriteria } from "./types";
+import { RATING_CONFIG, SportFilterCriteria } from "../../types/spot-types";
+
+// Opciones para el selector de dificultad
+const DIFFICULTY_OPTIONS = [
+  { label: "Cualquiera", value: "" },
+  ...DIFFICULTY_LEVELS.map((level) => ({ label: level, value: level })),
+] as const;
 
 interface SportSelectedFilterProps {
   selectedSports: SportSimple[];
@@ -144,7 +151,7 @@ export const SportSelectedFilter: React.FC<SportSelectedFilterProps> = ({
                     onValueChange={(value) => {
                       console.log(`[SportSelectedFilter] Difficulty changed for ${sport.id}: ${value}`);
                       onCriteriaChange(sport.id, {
-                        difficulty: value === "" ? undefined : (value as "easy" | "intermediate" | "hard"),
+                        difficulty: value === "" ? undefined : (value as DifficultyLevel),
                       });
                     }}
                   >

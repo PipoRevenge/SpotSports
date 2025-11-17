@@ -3,7 +3,7 @@ import { Slider, SliderFilledTrack, SliderThumb, SliderTrack } from "@/src/compo
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import React, { useState } from "react";
-import { RATING_CONFIG } from "./types";
+import { RATING_CONFIG } from "../../types/spot-types";
 
 interface RatingFilterProps {
   minRating: number;

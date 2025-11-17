@@ -1,13 +1,13 @@
-import { User } from "../entities/user/model/user";
+
 
 export interface CommentDetails {
   content: string;
-  rating?: number;
 }
 
 export interface CommentMetadata {
   createdAt: Date;
   updatedAt?: Date;
+  isDeleted?: boolean;
 }
 
 export interface CommentActivity {
@@ -17,11 +17,10 @@ export interface CommentActivity {
 }
 
 // Interfaz principal de Comentario
-export interface CommentReview {
+export interface Comment{
   id: string;
-  author: User;
+  author: string;
   details: CommentDetails;
   metadata: CommentMetadata;
-  isDeleted?: boolean;
   activity?: CommentActivity;
 }

@@ -225,6 +225,11 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
             onMediaChange={handleMediaChange}
             error={formErrors.media}
             maxCount={10}
+            minCount={1}
+            required
+            showTitle={false}
+            helpText="Máximo 10 archivos • Videos hasta 60 segundos"
+            showHelpText
           />
         </FormControl>
 

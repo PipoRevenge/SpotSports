@@ -1,37 +1,42 @@
-import { User } from "../entities/user/model/user";
+
 import { CommentReview } from "./comment";
-import { Spot } from "./spot";
 
 export interface ReviewDetails {
-  title: string;
+  spotId: string;
   content: string;
   rating: number;
+  reviewSports: ReviewSport[];
+  media?: string[];
+}
+
+
+export interface ReviewSport {
   sportId: string;
-  sportDifficulty: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
-  images?: string[];
+  sportRating: number;
+  difficulty: number;
+  comment?: string; // Comentario específico sobre este deporte en este spot
 }
 
 export interface ReviewMetadata {
   createdAt: Date;
   updatedAt?: Date;
+  isDeleted?: boolean;
+  createdBy: string;
 }
+
 
 export interface ReviewActivity {
   likes: number;
   dislikes: number;
   commentsCount: number;
   comments?: CommentReview[];
-  shares: number;
   reports: number;
 }
 
 // Interfaz principal de Reseña
 export interface Review {
   id: string;
-  author: User;
-  spot: Spot;
   details: ReviewDetails;
   metadata: ReviewMetadata;
-  isDeleted?: boolean;
   activity?: ReviewActivity;
 }

@@ -1,4 +1,4 @@
-import { RatingStar } from "@/src/components/commons/rating-start/rating-star";
+import { RatingStars } from "@/src/components/commons/rating/rating-stars";
 import { Badge, BadgeIcon, BadgeText } from "@/src/components/ui/badge";
 import { Card } from "@/src/components/ui/card";
 import { HStack } from "@/src/components/ui/hstack";
@@ -69,7 +69,7 @@ export const SpotListCard: React.FC<SpotListCardProps> = ({
 
             {/* Rating y distancia */}
             <HStack className="items-center justify-between mt-2">
-              <RatingStar rating={spot.details.overallRating} />
+              <RatingStars rating={spot.details.overallRating} size="sm" showValue={true} />
               
               {showDistance && distance !== undefined && (
                 <Text className="text-sm text-typography-500">

@@ -1,21 +1,20 @@
 import { GeoPoint } from "@/src/types/geopoint";
 import { useCallback, useEffect, useState } from "react";
 import {
-    BaseMapSearchFilters,
-    MapSearchState,
-    SearchFunction,
+  BaseMapSearchFilters,
+  MapSearchState,
 } from "../types/map-types";
 import {
-    sortResults,
-    transformToSearchResults,
+  sortResults,
+  transformToSearchResults,
 } from "../utils/map-helpers";
 
 /**
  * Configuración del hook de búsqueda en mapa
  */
-export interface UseMapSearchConfig<T, F extends BaseMapSearchFilters> {
+export interface UseMapSearchConfig<T, F> {
   // Función de búsqueda que se ejecuta para obtener los items
-  searchFunction: SearchFunction<T, F>;
+  searchFunction: (filters: F, userLocation: GeoPoint | undefined) => Promise<T[]>;
   
   // Función para extraer la ubicación de un item
   getLocation: (item: T) => GeoPoint;
@@ -36,7 +35,7 @@ export interface UseMapSearchConfig<T, F extends BaseMapSearchFilters> {
 /**
  * Resultado del hook de búsqueda en mapa
  */
-export interface UseMapSearchResult<T, F extends BaseMapSearchFilters> {
+export interface UseMapSearchResult<T, F> {
   // Estado
   state: MapSearchState<T>;
   filters: F;
@@ -80,7 +79,7 @@ export interface UseMapSearchResult<T, F extends BaseMapSearchFilters> {
  * });
  * ```
  */
-export const useMapSearch = <T, F extends BaseMapSearchFilters>(
+export const useMapSearch = <T, F = BaseMapSearchFilters>(
   config: UseMapSearchConfig<T, F>
 ): UseMapSearchResult<T, F> => {
   const {
@@ -123,7 +122,7 @@ export const useMapSearch = <T, F extends BaseMapSearchFilters>(
    */
   const search = useCallback(async () => {
     try {
-      setState((prev) => ({ ...prev, isLoading: true, error: null }));
+      setState((prev: MapSearchState<T>) => ({ ...prev, isLoading: true, error: null }));
 
       // Ejecutar función de búsqueda
       const items = await searchFunction(filters, userLocation);
@@ -135,8 +134,9 @@ export const useMapSearch = <T, F extends BaseMapSearchFilters>(
       // NO aplicar filtros adicionales aquí para evitar duplicación
 
       // Ordenar resultados
-      if (filters.sortBy) {
-        results = sortResults(results, filters.sortBy, filters.sortOrder, getters);
+      const baseFilters = filters as unknown as BaseMapSearchFilters;
+      if (baseFilters.sortBy) {
+        results = sortResults(results, baseFilters.sortBy, baseFilters.sortOrder, getters);
       }
 
       setState({
@@ -147,7 +147,7 @@ export const useMapSearch = <T, F extends BaseMapSearchFilters>(
         hasMore: false, // Por ahora no soportamos paginación
       });
     } catch (error) {
-      setState((prev) => ({
+      setState((prev: MapSearchState<T>) => ({
         ...prev,
         isLoading: false,
         error: error instanceof Error ? error.message : "Error desconocido",
