@@ -19,7 +19,7 @@ export const SpotDataDetails: React.FC<SpotDataDetailsProps> = ({ spot }) => {
             
             {/* Nombre y rating */}
             <HStack className="w-full flex-row justify-between items-center mt-4">
-                <Text size="2xl" className="font-bold">{spot.details.name}</Text>
+                <Text size="xl" className="w-52 font-bold">{spot.details.name}</Text>
                 <RatingStars rating={spot.details.overallRating} size="md" showValue={true} />
             </HStack>
             

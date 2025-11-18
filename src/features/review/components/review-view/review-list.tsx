@@ -182,9 +182,14 @@ export const ReviewList: React.FC<ReviewListProps> = ({
                     },
                   });
                 } else {
-                  // Navegar a crear (TODO: crear esta página)
-                  // Por ahora, placeholder
-                  console.log('[ReviewList] Navigate to create review page');
+                  // Navegar a crear
+                  router.push({
+                    pathname: `/spot/review/[spotId]/create-review`,
+                    params: {
+                      spotId,
+                      spotSports: JSON.stringify(availableSports || []),
+                    },
+                  });
                 }
               }}
             >
@@ -233,8 +238,14 @@ export const ReviewList: React.FC<ReviewListProps> = ({
                   },
                 });
               } else {
-                // Navegar a crear (TODO: crear esta página)
-                console.log('[ReviewList] Navigate to create review page');
+                // Navegar a crear
+                router.push({
+                  pathname: `/spot/review/[spotId]/create-review`,
+                  params: {
+                    spotId,
+                    spotSports: JSON.stringify(availableSports || []),
+                  },
+                });
               }
             }}
           >

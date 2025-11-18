@@ -1,0 +1,238 @@
+========================================
+Estructura de Datos Firestore (Agrupada)
+========================================
+
+[COLECCIÓN RAÍZ]
+sports/
+  [sportId]
+    // Info Básica
+    name: string
+    descripcion: string
+
+----------------------------------------
+
+[COLECCIÓN RAÍZ]
+spots/
+  [spotId]
+    // Info Básica
+    name: string
+    description: string
+    gallery: string[] // Lista de urls
+
+    // Contacto
+    contactEmail: string
+    contactPhone: string
+    contactWebsite: string
+    
+    // Deportes Disponibles
+    availableSports: array (de strings)
+    
+    // Ubicación
+    location: geopoint
+    geohash: string
+    
+    // Estado y Verificación
+    isActive: boolean
+    isVerified: boolean
+    
+    // Métricas Agregadas (denormalizadas)
+    overallRating: number
+    reviewsCount: number 
+    visitsCount: number
+    
+    // Metadatos
+    createdAt: timestamp
+    updatedAt: timestamp
+    createdBy: reference //referencia al usuario
+    
+    ---
+    
+[COLECCIÓN RAÍZ]
+  reviews/
+    [idReview]
+      // Contenido de la Review (General)
+      content: string
+      rating: number           // Rating Overall del Spot
+      gallery: string[]       // URLs de descarga
+      
+      // Referencias
+      spotId: string          
+      userId: string
+      SportReviews: array (de strings de sports ratings)
+      sportRatings: map    // Mapa donde la key es el 'sportId'
+        [sportId]:
+          sportRating: number  // Rating específico para este deporte
+          difficulty: number // Dificultad para este deporte
+          content?: string   // Comentario opcional *solo* para este deporte
+      
+      // Métricas de Interacción (planas)
+      likesCount: number
+      dislikesCount: number
+      commentsCount: number
+      reports: number
+      
+      // Metadatos y Estado
+      createdAt: timestamp
+      updatedAt?: timestamp
+      isDeleted?: boolean
+      
+      [SUBCOLECCIÓN]
+      /votes
+        [idUser]
+          isLike: boolean //true = like; false= dislike;
+          //metadatos
+          createdAt: timestamp
+
+      [SUBCOLECCIÓN]
+      /comments
+        [idComment]
+          // Identificación
+          createdBy: string // userId
+          
+          // Contenido
+          content: string 
+          
+          // Métricas de interacción
+          likesCount: number
+          dislikesCount: number
+          reports: number
+          
+          // Metadatos
+          createdAt: timestamp
+          updatedAt?: timestamp
+          isDeleted: boolean
+          
+          [SUBCOLECCIÓN]
+          /votes
+            [idUser]
+              isLike: boolean //true = like; false= dislike;
+              //metadatos
+              createdAt: timestamp
+          
+        
+
+        
+    ---
+    
+
+----------------------------------------
+
+[COLECCIÓN RAÍZ]
+spot_sport_metrics/
+  [idSpotMetrics]
+    // (Documento de agregación para queries Spot+Sport busqueda por deportes y medias)
+    
+    // Referencias Principales
+    spot_ref: reference (a spot/[spotId])
+    sport_ref: reference (a sport/[sportId])
+    
+    // Métricas Calculadas
+    avg_difficulty: number  
+    avg_rating: number      // ( sportRating se promedia aquí como avg_quality)
+    
+    review_count: number    // Para llevar la cuenta del total de reviews hechas sobre este deporte en ese sport
+    sum_difficulty: number  // Para llevar la cuenta y en caso de que actualice una review no tenga que recalcularse entero
+    sum_rating: number      //  
+    
+    
+    // Metadatos
+    createdAt: timestamp
+    updatedAt: timestamp
+
+
+----------------------------------------
+
+[COLECCIÓN RAÍZ]
+users/
+  [userId]
+    //detalles del usuario
+    userName: string //(unico)
+    fullName: string
+    bio: string
+    birthDate: timestamp
+    email: string
+    profileUrl: string
+    phoneNumber:string
+
+    //Estado Verificación
+    isVerified:false
+    
+
+    //Metadatos
+    createdAt: timestamp
+    updatedAt: timestamp
+
+    //Contadores
+    favoriteSpotsCount: number
+    reviewsCount: number
+    followersCount: number
+    followingCount: number
+    commentsCount: number
+
+    [SUBCOLECCIÓN]
+      followers/
+        [idUser]
+          createdAt: timestamp
+    [SUBCOLECCIÓN]
+      following/
+        [idUser]
+          createdAt: timestamp
+
+
+
+========================================
+Estructura de Datos Firestorage
+========================================
+
+[Directorio]
+users/
+  [userId] (subdirectorio)
+    profile.jpeg (imagen)
+[Directorio]
+spots/
+  [spotId] (subdirectorio)
+    [gallery] (subdirectorio)
+      (uuid)_0(.jpeg/.mp4)
+reviews
+      [reviewId] (subdirectorio)
+        uuid(.jpeg/.mp4)
+
+
+    
+
+
+    
+
+
+
+
+
+    
+
+
+    
+
+
+
+
+    
+
+  
+
+
+  
+""
+
+
+
+
+
+
+
+
+
+
+
+
+
+

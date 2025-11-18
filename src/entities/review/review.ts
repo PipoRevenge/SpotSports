@@ -26,8 +26,8 @@ export interface ReviewMetadata {
 
 
 export interface ReviewActivity {
-  likes: number;
-  dislikes: number;
+  likesCount: number;
+  dislikesCount: number;
   commentsCount: number;
   comments?: CommentReview[];
   reports: number;

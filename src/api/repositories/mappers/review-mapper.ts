@@ -1,26 +1,38 @@
 import { Review, ReviewActivity, ReviewDetails, ReviewMetadata, ReviewSport } from "@/src/entities/review/review";
-import { firestore } from "@/src/lib/firebase-config";
-import { doc, DocumentReference, Timestamp } from "firebase/firestore";
+import { DocumentReference, Timestamp } from "firebase/firestore";
+
+/**
+ * Estructura de sportRating individual dentro del map
+ */
+export interface FirestoreSportRating {
+  sportRating: number;  // Rating específico para este deporte
+  difficulty: number;   // Dificultad para este deporte
+  content?: string;     // Comentario opcional solo para este deporte
+}
 
 /**
  * Estructura de la review principal en Firestore
- * Ubicación: spots/[spotId]/reviews/[reviewId]
+ * Ubicación: reviews/[reviewId]
  */
 export interface FirestoreReviewData {
   // Contenido de la Review (General)
   content: string;
   rating: number; // Rating Overall del Spot
+  gallery: string[]; // Lista de urls de media
   
   // Referencias
-  refSportReviews: string[]; // IDs de documentos en sport_review
-  createdByRef: DocumentReference; // Referencia al usuario que creó la review
+  spotId: string;  // ID del spot
+  userId: string;  // ID del usuario
   
-  // Media
-  media?: string[];
+  // SportReviews ahora es un array de strings (sportIds)
+  SportReviews: string[]; // Array de sportIds que fueron calificados
   
-  // Métricas de Interacción
-  likes: number;
-  dislikes: number;
+  // sportRatings es un map donde la key es el sportId
+  sportRatings: { [sportId: string]: FirestoreSportRating };
+  
+  // Métricas de Interacción (planas)
+  likesCount: number;
+  dislikesCount: number;
   commentsCount: number;
   reports: number;
   
@@ -31,8 +43,8 @@ export interface FirestoreReviewData {
 }
 
 /**
- * Estructura de sport_review en Firestore
- * Ubicación: spots/[spotId]/sport_review/[sportReviewId]
+ * Estructura de sport_review en Firestore (DEPRECATED - ahora parte de sportRatings map)
+ * Mantenida para compatibilidad durante migración
  */
 export interface FirestoreSportReviewData {
   // Calificación Específica del Deporte
@@ -41,7 +53,7 @@ export interface FirestoreSportReviewData {
   comment?: string; // Comentario específico sobre este deporte
   
   // Referencias
-  refReview: DocumentReference; // Referencia directa a la review en spots/[spotId]/reviews/[reviewId]
+  refReview: DocumentReference; // Referencia directa a la review
   sportId: string; // ID del deporte
 }
 
@@ -56,8 +68,12 @@ export interface FirestoreSpotSportMetrics {
   
   // Métricas Calculadas
   avg_difficulty: number;
-  avg_quality: number; // Promedio de sportRating
+  avg_rating: number; // Promedio de sportRating (antes avg_quality)
   review_count: number;
+  
+  // Sumas para facilitar recalculos
+  sum_difficulty: number;
+  sum_rating: number;
   
   // Metadatos
   createdAt: Timestamp;
@@ -66,34 +82,45 @@ export interface FirestoreSpotSportMetrics {
 
 /**
  * Mapea los datos de Firestore a la entidad Review
- * Nota: Los reviewSports se deben cargar por separado desde sport_review
  */
 export const mapFirestoreToReview = (
   id: string,
-  data: FirestoreReviewData,
-  sportReviews: ReviewSport[] = [],
-  spotId?: string
+  data: FirestoreReviewData
 ): Review => {
+  // Convertir sportRatings map a array de ReviewSport
+  const sportReviews: ReviewSport[] = [];
+  if (data.sportRatings) {
+    for (const sportId in data.sportRatings) {
+      const sportRating = data.sportRatings[sportId];
+      sportReviews.push({
+        sportId,
+        sportRating: sportRating.sportRating,
+        difficulty: sportRating.difficulty,
+        comment: sportRating.content || "",
+      });
+    }
+  }
+
   const details: ReviewDetails = {
-    spotId: spotId || '', // Se pasa como parámetro ya que no está en FirestoreReviewData
+    spotId: data.spotId,
     content: data.content,
     rating: data.rating,
     reviewSports: sportReviews,
-    media: data.media || [], // Asegurar que siempre sea un array
+    media: data.gallery || [], // Asegurar que siempre sea un array
   };
 
   const metadata: ReviewMetadata = {
     createdAt: data.createdAt.toDate(),
     updatedAt: data.updatedAt?.toDate(),
-    createdBy: data.createdByRef.id, // Obtener ID de la referencia
+    createdBy: data.userId, // userId es string ahora
     isDeleted: data.isDeleted,
   };
 
   const activity: ReviewActivity = {
-    likes: data.likes,
-    dislikes: data.dislikes,
-    commentsCount: data.commentsCount,
-    reports: data.reports,
+    likesCount: data.likesCount || 0,
+    dislikesCount: data.dislikesCount || 0,
+    commentsCount: data.commentsCount || 0,
+    reports: data.reports || 0,
   };
 
   return {
@@ -123,21 +150,37 @@ export const mapFirestoreToReviewSport = (
  */
 export const createFirestoreReviewData = (
   userId: string,
+  spotId: string,
   content: string,
   rating: number,
-  sportReviewIds: string[],
-  media?: string[]
+  reviewSports: ReviewSport[],
+  gallery?: string[]
 ): FirestoreReviewData => {
   const now = Timestamp.now();
+  
+  // Crear el map de sportRatings
+  const sportRatings: { [sportId: string]: FirestoreSportRating } = {};
+  const sportReviewsIds: string[] = [];
+  
+  for (const reviewSport of reviewSports) {
+    sportRatings[reviewSport.sportId] = {
+      sportRating: reviewSport.sportRating,
+      difficulty: reviewSport.difficulty,
+      content: reviewSport.comment || "",
+    };
+    sportReviewsIds.push(reviewSport.sportId);
+  }
   
   return {
     content,
     rating,
-    createdByRef: doc(firestore, `users/${userId}`), // Referencia correcta usando doc()
-    refSportReviews: sportReviewIds,
-    media: media || [],
-    likes: 0,
-    dislikes: 0,
+    gallery: gallery || [],
+    spotId,
+    userId,
+    SportReviews: sportReviewsIds, // Array de sportIds
+    sportRatings, // Map de sportId -> FirestoreSportRating
+    likesCount: 0,
+    dislikesCount: 0,
     commentsCount: 0,
     reports: 0,
     createdAt: now,

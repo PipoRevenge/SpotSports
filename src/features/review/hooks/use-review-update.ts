@@ -38,7 +38,9 @@ export const useReviewUpdate = (onSuccess?: () => void) => {
         media: reviewData.media,
       };
 
-      const result = await reviewRepository.updateReview(user.id, reviewData.spotId, updates);
+      // Construir reviewId como userId_spotId
+      const reviewId = `${user.id}_${reviewData.spotId}`;
+      const result = await reviewRepository.updateReview(reviewId, reviewData.spotId, updates);
       
       console.log("[useReviewUpdate] Review updated successfully:", result.id);
       Alert.alert("Success", "Review updated successfully");

@@ -18,7 +18,7 @@ import {
 } from "react-native";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const CAROUSEL_ITEM_WIDTH = SCREEN_WIDTH - 32;
+const CAROUSEL_ITEM_WIDTH = SCREEN_WIDTH-100;
 const THUMBNAIL_SIZE = 80;
 const MAX_MEDIA_COUNT = 10;
 
@@ -324,7 +324,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
           {/* Renderizar video o imagen según el tipo */}
           {item.type === "video" ? (
             // Para videos, mostrar un fondo oscuro con icono de play
-            <View className="w-full h-full bg-black items-center justify-center">
+            <View className="w-full h-full p-4 bg-black items-center justify-center">
               <View className="bg-white/90 p-4 rounded-full">
                 <VideoIcon size={48} color="#000" />
               </View>
@@ -340,7 +340,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
             // Para imágenes, renderizar normalmente
             <Image
               source={{ uri: item.uri }}
-              className="w-full h-full"
+              className="w-full h-full p-4 bg-black"
               resizeMode="contain"
             />
           )}
@@ -552,14 +552,14 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
                 {media[previewIndex].type === "video" ? (
                   <VideoView
                     player={videoPlayer}
-                    style={{ width: "100%", height: "100%" }}
+                    style={{ width: "100%", height: "100%", padding: 16 }}
                     contentFit="contain"
                     nativeControls
                   />
                 ) : (
                   <Image
                     source={{ uri: media[previewIndex].uri }}
-                    className="w-full h-full"
+                    className="w-full h-full p-4"
                     resizeMode="contain"
                   />
                 )}

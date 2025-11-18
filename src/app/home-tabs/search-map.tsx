@@ -4,19 +4,20 @@ import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { Spot } from "@/src/entities/spot/model/spot";
 import {
-    formatDistance,
-    MapSearchBar,
-    MapSearchMap,
-    MapSearchResult,
-    MapSearchResultItem,
-    MapSearchResultList,
-    SpotCardModal,
-    SpotMarker,
-    spotsToMapResults,
-    useMapSpotSearch,
+  formatDistance,
+  MapSearchBar,
+  MapSearchMap,
+  MapSearchResult,
+  MapSearchResultItem,
+  MapSearchResultList,
+  SpotCardModal,
+  SpotMarker,
+  spotsToMapResults,
+  useMapSpotSearch,
 } from "@/src/features/map-search";
 import {
-    SpotSearchFilterModal,
+  SpotSearchFilterModal,
+  useSelectedSpot,
 } from "@/src/features/spot";
 import { useUserLocation } from "@/src/hooks/use-user-location";
 import { useFocusEffect } from "@react-navigation/native";
@@ -42,13 +43,14 @@ export default function SearchMapScreen() {
   const [viewMode, setViewMode] = useState<"map" | "list">("map");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedSpotId, setSelectedSpotId] = useState<string | undefined>();
-  const [selectedSpot, setSelectedSpot] = useState<Spot | undefined>();
   const [showSpotCard, setShowSpotCard] = useState(false);
-  const [isLoadingSpotDetails, setIsLoadingSpotDetails] = useState(false);
   const hasSearchedRef = useRef(false);
   const shouldSearchAfterFiltersRef = useRef(false);
 
   // ==================== HOOKS DE FEATURES ====================
+  // Contexto de Spot Seleccionado para mantener sincronización global
+  const { selectedSpot, selectSpot, refreshAll } = useSelectedSpot();
+  
   // Ubicación del usuario
   const { location: userLocation, isLoading: isLoadingLocation } = useUserLocation(true);
 
@@ -91,11 +93,11 @@ export default function SearchMapScreen() {
     useCallback(() => {
       // Solo refrescar si hay un spot seleccionado Y el modal está visible
       if (selectedSpotId && showSpotCard && selectedSpot) {
-        refetchSpot(selectedSpotId).catch(err => {
+        refreshAll().catch(err => {
           console.log('[SearchMapScreen] Error refreshing spot on focus:', err);
         });
       }
-    }, [selectedSpotId, showSpotCard, selectedSpot, refetchSpot])
+    }, [selectedSpotId, showSpotCard, selectedSpot, refreshAll])
   );
 
   /**
@@ -135,45 +137,43 @@ export default function SearchMapScreen() {
    * Selecciona el spot y muestra el callout automáticamente
    */
   const handleMarkerPress = useCallback((spot: Spot) => {
-    setSelectedSpot(spot);
+    selectSpot(spot);
     setSelectedSpotId(spot.id);
-  }, []);
+  }, [selectSpot]);
 
   /**
    * Maneja el press en el callout
    * Muestra el card modal con toda la información
    */
   const handleCalloutPress = useCallback((spot: Spot) => {
-    // Simplemente mostrar el modal con los datos que ya tenemos
-    // El spot ya está en memoria y en caché
+    // Asegurar que el spot esté seleccionado en el contexto
+    selectSpot(spot);
+    // Mostrar el modal con los datos que ya tenemos
     setShowSpotCard(true);
-  }, []);
+  }, [selectSpot]);
 
   /**
    * Maneja el press en un spot desde la lista o el card
    * Navega a la página del spot
-   * Prefetch: Actualiza datos del spot antes de navegar
    */
   const handleSpotPress = useCallback(async (spot: Spot) => {
-    // Prefetch spot data antes de navegar
-    refetchSpot(spot.id).catch(err => {
-      console.log('[SearchMapScreen] Error prefetching before navigation:', err);
-    });
+    // Seleccionar el spot en el contexto (sincronización global)
+    await selectSpot(spot);
     
-    // Navegar inmediatamente (no esperar prefetch)
+    // Navegar a la página del spot
     router.push({
       pathname: '/spot/[spotId]',
       params: { spotId: spot.id }
     });
-  }, [refetchSpot]);
+  }, [selectSpot]);
 
   /**
    * Cierra el card del spot
    */
   const handleCloseSpotCard = useCallback(() => {
     setShowSpotCard(false);
-    setSelectedSpot(undefined);
     setSelectedSpotId(undefined);
+    // No limpiar selectedSpot del contexto para mantener la sincronización
   }, []);
 
   /**

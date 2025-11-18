@@ -42,7 +42,7 @@ export class UserRepositoryImpl implements IUserRepository {
                 // UserDetails con valores por defecto
                 email: userData.email,
                 userName: userData.userName,
-                photoURL: userData.photoURL || "",
+                profileUrl: userData.photoURL || "", // ACTUALIZADO: photoURL → profileUrl
                 fullName: userData.fullName || "",
                 bio: userData.bio || "",
                 birthDate: userData.birthDate || now.toDate(),
@@ -481,7 +481,7 @@ export class UserRepositoryImpl implements IUserRepository {
 
     async uploadProfilePhoto(userId: string, photoUri: string): Promise<string> {
         try {
-            const photoRef = ref(this.storage, `userMedia/${userId}/profile.jpg`);
+            const photoRef = ref(this.storage, `users/${userId}/profile.jpeg`);
             const response = await fetch(photoUri);
             
             if (!response.ok) {

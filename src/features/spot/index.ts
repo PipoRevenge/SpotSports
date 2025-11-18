@@ -1,5 +1,8 @@
 // Exportaciones públicas de la feature spot
 
+// Context
+export { SelectedSpotProvider, useSelectedSpot } from '../../context/selected-spot-context';
+
 // Types
 export type { SpotSearchFilters } from './components/spot-search/spot-search-filter-modal';
 export { DISTANCE_CONFIG, RATING_CONFIG } from './types/spot-types';
@@ -30,7 +33,6 @@ export {
 
 // Hooks
 export { useCreateSpot } from './hooks/use-create-spot';
-export { useSpotDetails } from './hooks/use-spot-details';
 
 
 // Utils

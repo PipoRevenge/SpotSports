@@ -1,12 +1,12 @@
 import { Button, ButtonText } from '@/src/components/ui/button';
 import { HStack } from '@/src/components/ui/hstack';
 import {
-  Modal,
-  ModalBackdrop,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader
+    Modal,
+    ModalBackdrop,
+    ModalBody,
+    ModalContent,
+    ModalFooter,
+    ModalHeader
 } from '@/src/components/ui/modal';
 import { Text } from '@/src/components/ui/text';
 import { VStack } from '@/src/components/ui/vstack';
@@ -49,13 +49,23 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
     latitude: number;
     longitude: number;
   } | null>(null);
+  const hasRequestedLocation = useRef(false);
 
   // Solicitar ubicación cuando se abre el modal (solo si no hay initialLocation)
   useEffect(() => {
-    if (isOpen && !initialLocation && !userLocation) {
-      requestLocation();
+    if (isOpen && !initialLocation) {
+      // Solicitar ubicación solo la primera vez que se abre el modal
+      if (!hasRequestedLocation.current) {
+        hasRequestedLocation.current = true;
+        requestLocation();
+      }
     }
-  }, [isOpen, initialLocation, userLocation, requestLocation]);
+    
+    // Reset cuando se cierra el modal
+    if (!isOpen) {
+      hasRequestedLocation.current = false;
+    }
+  }, [isOpen, initialLocation, requestLocation]);
 
   // Inicializar selectedLocation con initialLocation o userLocation
   useEffect(() => {

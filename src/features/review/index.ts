@@ -4,9 +4,11 @@ export { RatingStars } from './components/review-create/rating-stars';
 export { CreateReviewForm } from './components/review-create/review-create-form';
 export { SportRatingItem } from './components/review-create/sport-rating-item';
 export { ReviewCard } from './components/review-view/review-card';
+export { ReviewComments } from './components/review-view/review-comments';
 export { ReviewList } from './components/review-view/review-list';
 
 // Hooks
+export { useReviewComments } from './hooks/use-review-comments';
 export { useReviewCreate } from './hooks/use-review-create';
 export { useReviewDelete } from './hooks/use-review-delete';
 export { useReviewLoad } from './hooks/use-review-load';
@@ -18,6 +20,7 @@ export { useSpotReviews } from './hooks/use-spot-reviews';
 export type { ReviewCardProps } from './components/review-view/review-card';
 export type { ReviewListProps } from './components/review-view/review-list';
 export type { ReviewFilters, ReviewSortOption } from './hooks/use-spot-reviews';
+export type { CommentWithUser } from './types/comment-types';
 export type {
     CreateReviewData, DifficultyLevel, ReviewFormData,
     ReviewFormErrors, ReviewSportFormData, SimpleSport

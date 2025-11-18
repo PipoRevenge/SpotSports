@@ -1,6 +1,9 @@
+import { Comment } from "@/src/entities/review/comment";
 import { Review, ReviewDetails, ReviewSport } from "@/src/entities/review/review";
 import { firestore, storage } from "@/src/lib/firebase-config";
+import { ref as dbRef, getDatabase, push } from "firebase/database";
 import {
+  addDoc,
   collection,
   doc,
   limit as firestoreLimit,
@@ -11,41 +14,42 @@ import {
   query,
   runTransaction,
   Timestamp,
-  where,
+  updateDoc,
+  where
 } from "firebase/firestore";
 import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { IReviewRepository } from "../interfaces/i-review-repository";
 import {
   createFirestoreReviewData,
-  createFirestoreSportReviewData,
   FirestoreReviewData,
-  FirestoreSportReviewData,
+  FirestoreSportRating,
   FirestoreSpotSportMetrics,
-  mapFirestoreToReview,
-  mapFirestoreToReviewSport,
+  mapFirestoreToReview
 } from "../mappers/review-mapper";
 
 /**
  * Implementación del repositorio de reviews usando Firestore
  * 
- * Estructura de datos en Firestore según firebase_structure.txt:
- * - spots/{spotId}/reviews/{reviewId} - Review principal con contenido y rating general
- * - spots/{spotId}/sport_review/{sportReviewId} - Calificaciones específicas por deporte
+ * Estructura de datos en Firestore según firebase_structure_review_restructure.txt:
+ * - reviews/{reviewId} - Review principal en colección raíz con spotId y userId
+ * - reviews/{reviewId}/votes/{userId} - Votos (likes/dislikes) como subcolección
+ * - reviews/{reviewId}/comments/{commentId} - Comentarios como subcolección
+ * - sportRatings - Map dentro del documento review (key: sportId)
  * - spot_sport_metrics/{idMetric} - Métricas agregadas (spots + sports)
  * - Las imágenes/videos se guardan en: /spots/{spotId}/reviews/{reviewId}/
  */
 export class ReviewRepositoryImpl implements IReviewRepository {
   /**
    * Crea una nueva review siguiendo la estructura de Firebase
-   * El reviewId será igual al userId para permitir una sola review por usuario por spot
+   * El reviewId será una combinación de userId_spotId para permitir una review por usuario por spot
    */
   async createReview(userId: string, reviewData: ReviewDetails): Promise<Review> {
     try {
-      // Usar el userId como reviewId para permitir solo una review por usuario por spot
-      const reviewId = userId;
+      // Crear reviewId único combinando userId y spotId
+      const reviewId = `${userId}_${reviewData.spotId}`;
       
       // Subir archivos multimedia si existen
-      let mediaStoragePaths: string[] = [];
+      let mediaUrls: string[] = [];
       if (reviewData.media && reviewData.media.length > 0) {
         try {
           console.log('[ReviewRepository] Processing', reviewData.media.length, 'media files...');
@@ -58,18 +62,18 @@ export class ReviewRepositoryImpl implements IReviewRepository {
           
           // Subir solo los archivos locales nuevos
           if (local.length > 0) {
-            const newPaths = await this.uploadReviewMedia(
+            const newUrls = await this.uploadReviewMedia(
               reviewData.spotId,
               reviewId,
               local
             );
-            mediaStoragePaths = [...remote, ...newPaths];
+            mediaUrls = [...remote, ...newUrls];
           } else {
             // Solo archivos remotos, no hay nada que subir
-            mediaStoragePaths = remote;
+            mediaUrls = remote;
           }
           
-          console.log('[ReviewRepository] Media processing successful. Total paths:', mediaStoragePaths.length);
+          console.log('[ReviewRepository] Media processing successful. Total URLs:', mediaUrls.length);
         } catch (uploadError) {
           console.error('[ReviewRepository] Media upload failed:', uploadError);
           throw new Error(`Failed to upload media files. Please check:
@@ -90,9 +94,9 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
         // ============================================================
 
         // 1.0. Verificar si ya existe una review de este usuario en este spot
-        const reviewsCollectionRef = collection(firestore, `spots/${spotId}/reviews`);
-        const existingReviewRef = doc(reviewsCollectionRef, reviewId);
-        const existingReviewDoc = await transaction.get(existingReviewRef);
+        // NUEVA ESTRUCTURA: reviews está en la colección raíz
+        const reviewRef = doc(firestore, `reviews/${reviewId}`);
+        const existingReviewDoc = await transaction.get(reviewRef);
         const isUpdate = existingReviewDoc.exists();
 
         // 1.1. Leer el spot para verificar que existe
@@ -118,28 +122,15 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
 
         // Si es actualización, obtener el rating anterior para recalcular
         let previousRating = 0;
-        if (isUpdate && existingReviewDoc.data()) {
-          previousRating = existingReviewDoc.data().rating || 0;
-        }
-
-        // 1.3. Si es actualización, leer todos los sport_review anteriores
-        const previousSportReviewsMap: Map<string, FirestoreSportReviewData> = new Map();
+        let previousSportRatings: { [sportId: string]: FirestoreSportRating } = {};
+        
         if (isUpdate && existingReviewDoc.data()) {
           const existingData = existingReviewDoc.data() as FirestoreReviewData;
-          const previousSportReviewIds = existingData.refSportReviews || [];
-          
-          for (const prevSportReviewId of previousSportReviewIds) {
-            const prevSportReviewRef = doc(firestore, `spots/${spotId}/sport_review/${prevSportReviewId}`);
-            const prevSportReviewDoc = await transaction.get(prevSportReviewRef);
-            
-            if (prevSportReviewDoc.exists()) {
-              const prevData = prevSportReviewDoc.data() as FirestoreSportReviewData;
-              previousSportReviewsMap.set(prevData.sportId, prevData);
-            }
-          }
+          previousRating = existingData.rating || 0;
+          previousSportRatings = existingData.sportRatings || {};
         }
 
-        // 1.4. Leer las métricas existentes para cada deporte
+        // 1.3. Leer las métricas existentes para cada deporte
         const metricsData: Map<string, { ref: any; data: FirestoreSpotSportMetrics | null }> = new Map();
         
         for (const sportReview of reviewData.reviewSports) {
@@ -174,58 +165,20 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
         // FASE 2: TODAS LAS ESCRITURAS DESPUÉS
         // ============================================================
 
-        // 2.1. Usar la referencia de review
-        const newReviewRef = existingReviewRef;
-
-        // 2.2. Crear o actualizar documentos sport_review con referencia a la review
-        const sportReviewIds: string[] = [];
+        // 2.1. Crear review principal usando la nueva estructura
+        // Usar mediaUrls en vez de storagePaths para guardar URLs directamente
+        const firestoreReviewData = createFirestoreReviewData(
+          userId,
+          spotId,
+          reviewData.content,
+          reviewData.rating,
+          reviewData.reviewSports,
+          mediaUrls // Usar URLs de descarga directamente en gallery
+        );
         
-        // Si es actualización, obtener los IDs de sport_review existentes
-        let existingSportReviewIds: string[] = [];
-        if (isUpdate && existingReviewDoc.data()) {
-          existingSportReviewIds = (existingReviewDoc.data() as FirestoreReviewData).refSportReviews || [];
-        }
+        transaction.set(reviewRef, firestoreReviewData);
 
-        for (let i = 0; i < reviewData.reviewSports.length; i++) {
-          const sportReview = reviewData.reviewSports[i];
-          const sportReviewCollectionRef = collection(firestore, `spots/${spotId}/sport_review`);
-          
-          // Si es actualización y tenemos un ID existente para este índice, reutilizarlo
-          let sportReviewDocRef;
-          let sportReviewId;
-          
-          if (isUpdate && i < existingSportReviewIds.length) {
-            // Reutilizar el documento existente
-            sportReviewId = existingSportReviewIds[i];
-            sportReviewDocRef = doc(sportReviewCollectionRef, sportReviewId);
-          } else {
-            // Crear nuevo documento (para nuevas reviews o deportes adicionales)
-            sportReviewDocRef = doc(sportReviewCollectionRef);
-            sportReviewId = sportReviewDocRef.id;
-          }
-          
-          const sportReviewData = createFirestoreSportReviewData(
-            newReviewRef, // Referencia directa a la review
-            sportReview.sportId,
-            sportReview.sportRating,
-            sportReview.difficulty,
-            sportReview.comment
-          );
-          
-          transaction.set(sportReviewDocRef, sportReviewData);
-          sportReviewIds.push(sportReviewId);
-        }
-        
-        // Si es actualización y se eliminaron deportes, borrar los sport_review sobrantes
-        if (isUpdate && existingSportReviewIds.length > reviewData.reviewSports.length) {
-          const idsToDelete = existingSportReviewIds.slice(reviewData.reviewSports.length);
-          for (const idToDelete of idsToDelete) {
-            const docToDelete = doc(firestore, `spots/${spotId}/sport_review/${idToDelete}`);
-            transaction.delete(docToDelete);
-          }
-        }
-
-        // 2.3. Actualizar o crear spot_sport_metrics y determinar nuevos deportes
+        // 2.2. Actualizar o crear spot_sport_metrics y determinar nuevos deportes
         const newSports: string[] = [];
         
         for (const sportReview of reviewData.reviewSports) {
@@ -236,45 +189,54 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
             // ACTUALIZAR métricas existentes
             if (isUpdate) {
               // Obtener el rating previo de este deporte en la review anterior
-              // Usamos el Map que llenamos en FASE 1 (todas las lecturas ya están hechas)
-              const previousSportReview = previousSportReviewsMap.get(sportReview.sportId);
-              const previousSportRating = previousSportReview?.sportRating || sportReview.sportRating;
-              const previousDifficulty = previousSportReview?.difficulty || sportReview.difficulty;
+              const previousSportRating = previousSportRatings[sportReview.sportId];
+              const previousRatingValue = previousSportRating?.sportRating || sportReview.sportRating;
+              const previousDifficulty = previousSportRating?.difficulty || sportReview.difficulty;
               
               console.log(`[ReviewRepository] Recalculating metrics for sport ${sportReview.sportId}:`, {
-                previousRating: previousSportRating,
+                previousRating: previousRatingValue,
                 newRating: sportReview.sportRating,
                 previousDifficulty,
                 newDifficulty: sportReview.difficulty,
               });
               
-              // Recalcular usando: (suma_total - valor_viejo + valor_nuevo) / count
+              // Usar sumas para recalcular: (suma_total - valor_viejo + valor_nuevo) / count
               const currentCount = metricInfo.data.review_count || 1;
-              const currentQualitySum = (metricInfo.data.avg_quality || 0) * currentCount;
-              const currentDifficultySum = (metricInfo.data.avg_difficulty || 0) * currentCount;
+              const currentRatingSum = metricInfo.data.sum_rating || (metricInfo.data.avg_rating * currentCount);
+              const currentDifficultySum = metricInfo.data.sum_difficulty || (metricInfo.data.avg_difficulty * currentCount);
               
-              const newAvgQuality = (currentQualitySum - previousSportRating + sportReview.sportRating) / currentCount;
-              const newAvgDifficulty = (currentDifficultySum - previousDifficulty + sportReview.difficulty) / currentCount;
+              const newRatingSum = currentRatingSum - previousRatingValue + sportReview.sportRating;
+              const newDifficultySum = currentDifficultySum - previousDifficulty + sportReview.difficulty;
+              
+              const newAvgRating = newRatingSum / currentCount;
+              const newAvgDifficulty = newDifficultySum / currentCount;
               
               transaction.update(metricInfo.ref, {
-                avg_quality: newAvgQuality,
+                avg_rating: newAvgRating,
                 avg_difficulty: newAvgDifficulty,
+                sum_rating: newRatingSum,
+                sum_difficulty: newDifficultySum,
                 updatedAt: now,
               });
             } else {
               // NUEVA review: incrementar métricas
               const currentCount = metricInfo.data.review_count || 0;
-              const currentQualitySum = (metricInfo.data.avg_quality || 0) * currentCount;
-              const currentDifficultySum = (metricInfo.data.avg_difficulty || 0) * currentCount;
+              const currentRatingSum = metricInfo.data.sum_rating || 0;
+              const currentDifficultySum = metricInfo.data.sum_difficulty || 0;
 
               const newCount = currentCount + 1;
-              const newAvgQuality = (currentQualitySum + sportReview.sportRating) / newCount;
-              const newAvgDifficulty = (currentDifficultySum + sportReview.difficulty) / newCount;
+              const newRatingSum = currentRatingSum + sportReview.sportRating;
+              const newDifficultySum = currentDifficultySum + sportReview.difficulty;
+              
+              const newAvgRating = newRatingSum / newCount;
+              const newAvgDifficulty = newDifficultySum / newCount;
 
               transaction.update(metricInfo.ref, {
                 review_count: newCount,
-                avg_quality: newAvgQuality,
+                avg_rating: newAvgRating,
                 avg_difficulty: newAvgDifficulty,
+                sum_rating: newRatingSum,
+                sum_difficulty: newDifficultySum,
                 updatedAt: now,
               });
             }
@@ -286,9 +248,11 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
             const newMetricData: FirestoreSpotSportMetrics = {
               spot_ref: spotDocRef,
               sport_ref: sportDocRef,
-              avg_quality: sportReview.sportRating,
+              avg_rating: sportReview.sportRating,
               avg_difficulty: sportReview.difficulty,
               review_count: 1,
+              sum_rating: sportReview.sportRating,
+              sum_difficulty: sportReview.difficulty,
               createdAt: now,
               updatedAt: now,
             };
@@ -302,18 +266,7 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
           }
         }
 
-        // 2.4. Crear review principal con referencia al usuario y rutas de Storage
-        const firestoreReviewData = createFirestoreReviewData(
-          userId,
-          reviewData.content,
-          reviewData.rating,
-          sportReviewIds,
-          mediaStoragePaths // Usar rutas de Storage en lugar de URIs locales
-        );
-        
-        transaction.set(newReviewRef, firestoreReviewData);
-
-        // 2.5. Actualizar spot: contador y rating
+        // 2.3. Actualizar spot: contador y rating
         // Si es actualización, recalcular el rating considerando el cambio
         let newReviewsCount = currentReviewsCount;
         let newOverallRating = currentOverallRating;
@@ -346,22 +299,15 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
 
         transaction.update(spotRef, spotUpdates);
 
-        // 2.6. Actualizar contador de reviews del usuario (solo si es nueva)
+        // 2.4. Actualizar contador de reviews del usuario (solo si es nueva)
         if (!isUpdate) {
           transaction.update(userRef, {
             reviewsCount: increment(1),
           });
-
-          // 2.7. Crear referencia en la subcolección de reviews del usuario
-          const userReviewRef = doc(firestore, `users/${userId}/reviews/${reviewId}`);
-          transaction.set(userReviewRef, {
-            reviewRef: newReviewRef, // Referencia directa a la review del spot
-            createdAt: now,
-          });
         }
 
-        // 2.8. Retornar la review creada
-        return mapFirestoreToReview(reviewId, firestoreReviewData, reviewData.reviewSports, spotId);
+        // 2.5. Retornar la review creada
+        return mapFirestoreToReview(reviewId, firestoreReviewData);
       });
     } catch (error) {
       console.error("[ReviewRepository] Error creating review:", error);
@@ -370,15 +316,12 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
   }
 
   /**
-   * Obtiene una review por su ID y spotId
+   * Obtiene una review por su ID
    */
   async getReviewById(reviewId: string, spotId?: string): Promise<Review | null> {
     try {
-      if (!spotId) {
-        throw new Error("getReviewById requires spotId");
-      }
-
-      const reviewRef = doc(firestore, `spots/${spotId}/reviews/${reviewId}`);
+      // NUEVA ESTRUCTURA: reviews está en la colección raíz
+      const reviewRef = doc(firestore, `reviews/${reviewId}`);
       const reviewDoc = await getDoc(reviewRef);
 
       if (!reviewDoc.exists()) {
@@ -387,16 +330,16 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
 
       const reviewData = reviewDoc.data() as FirestoreReviewData;
 
-      // Cargar los sport_reviews asociados
-      const sportReviews = await this.loadSportReviews(spotId, reviewData.refSportReviews);
-
       // Convertir rutas de Storage a URLs completas
       let mediaUrls: string[] = [];
-      if (reviewData.media && reviewData.media.length > 0) {
-        mediaUrls = await this.getReviewMediaUrls(spotId, reviewId, reviewData.media);
+      if (reviewData.gallery && reviewData.gallery.length > 0) {
+        mediaUrls = await this.getReviewMediaUrls(reviewData.spotId, reviewId, reviewData.gallery);
       }
 
-      return mapFirestoreToReview(reviewDoc.id, { ...reviewData, media: mediaUrls }, sportReviews, spotId);
+      // Actualizar gallery con URLs completas antes de mapear
+      const reviewDataWithUrls = { ...reviewData, gallery: mediaUrls };
+      
+      return mapFirestoreToReview(reviewDoc.id, reviewDataWithUrls);
     } catch (error) {
       console.error("[ReviewRepository] Error getting review:", error);
       return null;
@@ -407,28 +350,19 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
    * Obtiene la review de un usuario para un spot específico
    */
   async getUserReviewForSpot(userId: string, spotId: string): Promise<Review | null> {
-    // Como el reviewId es igual al userId, simplemente llamamos a getReviewById
-    return this.getReviewById(userId, spotId);
-  }
-
-  /**
-   * Carga los sport_reviews desde sus IDs
-   */
-  private async loadSportReviews(spotId: string, sportReviewIds: string[]): Promise<ReviewSport[]> {
-    const sportReviews: ReviewSport[] = [];
-
-    for (const sportReviewId of sportReviewIds) {
-      const sportReviewRef = doc(firestore, `spots/${spotId}/sport_review/${sportReviewId}`);
-      const sportReviewDoc = await getDoc(sportReviewRef);
-
-      if (sportReviewDoc.exists()) {
-        const data = sportReviewDoc.data() as FirestoreSportReviewData;
-        sportReviews.push(mapFirestoreToReviewSport(data));
-      }
+    // El reviewId es la combinación de userId_spotId
+    const reviewId = `${userId}_${spotId}`;
+    const review = await this.getReviewById(reviewId);
+    
+    // Verificar que la review sea del spot correcto (seguridad adicional)
+    if (review && review.details.spotId === spotId) {
+      return review;
     }
-
-    return sportReviews;
+    
+    return null;
   }
+
+ 
 
   /**
    * Obtiene todas las reviews de un spot
@@ -439,9 +373,11 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
     offset: number = 0
   ): Promise<Review[]> {
     try {
-      const reviewsRef = collection(firestore, `spots/${spotId}/reviews`);
+      // NUEVA ESTRUCTURA: reviews está en la colección raíz, filtramos por spotId
+      const reviewsRef = collection(firestore, `reviews`);
       const q = query(
         reviewsRef,
+        where("spotId", "==", spotId),
         where("isDeleted", "==", false),
         orderBy("createdAt", "desc"),
         firestoreLimit(limit)
@@ -450,11 +386,18 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
       const querySnapshot = await getDocs(q);
       const reviews: Review[] = [];
 
-      // Cargar cada review con sus sport_reviews
+      // Cargar cada review con URLs de media
       for (const docSnapshot of querySnapshot.docs) {
         const data = docSnapshot.data() as FirestoreReviewData;
-        const sportReviews = await this.loadSportReviews(spotId, data.refSportReviews);
-        reviews.push(mapFirestoreToReview(docSnapshot.id, data, sportReviews));
+        
+        // Convertir rutas de Storage a URLs
+        let mediaUrls: string[] = [];
+        if (data.gallery && data.gallery.length > 0) {
+          mediaUrls = await this.getReviewMediaUrls(spotId, docSnapshot.id, data.gallery);
+        }
+        
+        const reviewDataWithUrls = { ...data, gallery: mediaUrls };
+        reviews.push(mapFirestoreToReview(docSnapshot.id, reviewDataWithUrls));
       }
 
       return reviews;
@@ -466,8 +409,6 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
 
   /**
    * Obtiene todas las reviews de un usuario
-   * Nota: Esta funcionalidad requeriría una colección adicional users/{userId}/reviews
-   * que no está en la estructura actual de Firebase
    */
   async getReviewsByUser(
     userId: string,
@@ -475,9 +416,34 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
     offset: number = 0
   ): Promise<Review[]> {
     try {
-      // TODO: Implementar cuando se defina la estructura de user reviews
-      // Por ahora, lanzamos un error indicando que no está implementado
-      throw new Error("getReviewsByUser not yet implemented - requires user reviews collection");
+      // NUEVA ESTRUCTURA: reviews está en la colección raíz, filtramos por userId
+      const reviewsRef = collection(firestore, `reviews`);
+      const q = query(
+        reviewsRef,
+        where("userId", "==", userId),
+        where("isDeleted", "==", false),
+        orderBy("createdAt", "desc"),
+        firestoreLimit(limit)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const reviews: Review[] = [];
+
+      // Cargar cada review con URLs de media
+      for (const docSnapshot of querySnapshot.docs) {
+        const data = docSnapshot.data() as FirestoreReviewData;
+        
+        // Convertir rutas de Storage a URLs
+        let mediaUrls: string[] = [];
+        if (data.gallery && data.gallery.length > 0) {
+          mediaUrls = await this.getReviewMediaUrls(data.spotId, docSnapshot.id, data.gallery);
+        }
+        
+        const reviewDataWithUrls = { ...data, gallery: mediaUrls };
+        reviews.push(mapFirestoreToReview(docSnapshot.id, reviewDataWithUrls));
+      }
+
+      return reviews;
     } catch (error) {
       console.error("[ReviewRepository] Error getting reviews by user:", error);
       throw new Error("Failed to get user reviews");
@@ -501,8 +467,8 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
     try {
       console.log('[ReviewRepository] Updating review:', reviewId, 'for spot:', spotId);
       
-      // Obtener review existente
-      const reviewRef = doc(firestore, `spots/${spotId}/reviews/${reviewId}`);
+      // Obtener review existente - NUEVA ESTRUCTURA: colección raíz
+      const reviewRef = doc(firestore, `reviews/${reviewId}`);
       const reviewDoc = await getDoc(reviewRef);
       
       if (!reviewDoc.exists()) {
@@ -511,53 +477,96 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
 
       const existingData = reviewDoc.data() as FirestoreReviewData;
       
-      // Manejar actualización de medios
-      let finalMediaPaths: string[] = existingData.media || [];
+      // Manejar actualización de medios (ahora gallery con URLs completas)
+      let finalMediaUrls: string[] = existingData.gallery || [];
       
       if (updates.media) {
         const { local, remote } = this.separateLocalAndRemoteMedia(updates.media);
         console.log('[ReviewRepository] Local media to upload:', local.length);
         console.log('[ReviewRepository] Remote media (already uploaded):', remote.length);
         
-        // Convertir URLs remotas de vuelta a rutas de Storage
-        const remotePaths = remote.map(url => {
-          // Si ya es una ruta de Storage, mantenerla
+        // remote ya contiene URLs completas, mantenerlas tal cual
+        const remoteUrls = remote;
+        
+        // Detectar archivos eliminados
+        // Necesitamos comparar URLs, normalizándolas si es necesario
+        const existingUrls = existingData.gallery || [];
+        const normalizeUrl = (url: string) => {
+          // Si es una ruta de Storage, convertirla a un identificador comparable
           if (!url.startsWith('http')) {
             return url;
           }
-          // Si es URL de Firebase Storage, extraer la ruta
-          // Formato: https://firebasestorage.googleapis.com/v0/b/bucket/o/path%2Fto%2Ffile?...
+          // Extraer el path de Storage de la URL para comparar
           try {
             const match = url.match(/\/o\/(.+?)(\?|$)/);
             if (match) {
               return decodeURIComponent(match[1]);
             }
           } catch {
-            console.warn('[ReviewRepository] Could not extract path from URL:', url);
+            // Si no se puede parsear, usar la URL completa
           }
           return url;
-        });
+        };
         
-        // Detectar archivos eliminados (estaban en existingData.media pero NO en remotePaths)
-        const existingPaths = existingData.media || [];
-        const pathsToDelete = existingPaths.filter(existingPath => 
-          !remotePaths.includes(existingPath)
-        );
+        const currentUrlsSet = new Set(remoteUrls.map(normalizeUrl));
+        const urlsToDelete: string[] = [];
+        
+        for (const existingUrl of existingUrls) {
+          const normalized = normalizeUrl(existingUrl);
+          if (!currentUrlsSet.has(normalized)) {
+            // Esta URL fue eliminada, extraer la ruta de Storage para eliminar
+            if (existingUrl.startsWith('http')) {
+              try {
+                const match = existingUrl.match(/\/o\/(.+?)(\?|$)/);
+                if (match) {
+                  const storagePath = decodeURIComponent(match[1]);
+                  urlsToDelete.push(storagePath);
+                }
+              } catch {
+                console.warn('[ReviewRepository] Could not extract storage path from:', existingUrl);
+              }
+            } else {
+              // Ya es una ruta de Storage
+              urlsToDelete.push(existingUrl);
+            }
+          }
+        }
         
         // Eliminar archivos de Storage que ya no están en la review
-        if (pathsToDelete.length > 0) {
-          console.log('[ReviewRepository] Deleting removed media files:', pathsToDelete.length);
-          await this.deleteMediaFiles(pathsToDelete);
+        if (urlsToDelete.length > 0) {
+          console.log('[ReviewRepository] Deleting removed media files:', urlsToDelete.length);
+          await this.deleteMediaFiles(urlsToDelete);
         }
         
-        // Subir solo los medios locales nuevos
-        let newMediaPaths: string[] = [];
+        // Subir solo los medios locales nuevos (uploadReviewMedia devuelve URLs completas)
+        let newMediaUrls: string[] = [];
         if (local.length > 0) {
-          newMediaPaths = await this.uploadReviewMedia(spotId, reviewId, local);
+          newMediaUrls = await this.uploadReviewMedia(spotId, reviewId, local);
         }
         
-        // Combinar rutas: medios ya subidos + nuevos medios subidos
-        finalMediaPaths = [...remotePaths, ...newMediaPaths];
+        // Combinar URLs: medios ya subidos + nuevos medios subidos (todo URLs completas)
+        finalMediaUrls = [...remoteUrls, ...newMediaUrls];
+        
+        console.log('[ReviewRepository] Final media URLs:', {
+          existing: remoteUrls.length,
+          new: newMediaUrls.length,
+          total: finalMediaUrls.length,
+          deleted: urlsToDelete.length
+        });
+      }
+
+      // Extraer reviewSports del sportRatings map existente
+      const existingReviewSports: ReviewSport[] = [];
+      if (existingData.sportRatings) {
+        for (const sportId in existingData.sportRatings) {
+          const sportRating = existingData.sportRatings[sportId];
+          existingReviewSports.push({
+            sportId,
+            sportRating: sportRating.sportRating,
+            difficulty: sportRating.difficulty,
+            comment: sportRating.content || "",
+          });
+        }
       }
 
       // Construir ReviewDetails completo con los cambios
@@ -565,13 +574,16 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
         spotId,
         content: updates.content ?? existingData.content,
         rating: updates.rating ?? existingData.rating,
-        reviewSports: updates.reviewSports ?? await this.loadSportReviews(spotId, existingData.refSportReviews),
-        media: finalMediaPaths,
+        reviewSports: updates.reviewSports ?? existingReviewSports,
+        media: finalMediaUrls, // Usar URLs completas en vez de paths
       };
 
+      // Extraer userId del reviewId (formato: userId_spotId)
+      const userId = reviewId.split('_')[0];
+      
       // Re-crear la review (esto actualizará todo incluyendo métricas)
       console.log('[ReviewRepository] Re-creating review with updated data...');
-      return await this.createReview(reviewId, fullReviewData);
+      return await this.createReview(userId, fullReviewData);
       
     } catch (error) {
       console.error("[ReviewRepository] Error updating review:", error);
@@ -648,9 +660,266 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
   }
 
   /**
+   * Obtiene los comentarios de una review con paginación
+   */
+  async getComments(
+    reviewId: string,
+    page: number,
+    pageSize: number
+  ): Promise<{ comments: Comment[]; total: number }> {
+    try {
+      const commentsRef = collection(firestore, "reviews", reviewId, "comments");
+      
+      // Consulta para obtener el total de comentarios no eliminados
+      const totalQuery = query(
+        commentsRef,
+        where("isDeleted", "==", false)
+      );
+      const totalSnapshot = await getDocs(totalQuery);
+      const total = totalSnapshot.size;
+
+      // Consulta paginada - obtener todos los comentarios ordenados
+      const allCommentsQuery = query(
+        commentsRef,
+        where("isDeleted", "==", false),
+        orderBy("createdAt", "desc")
+      );
+
+      const snapshot = await getDocs(allCommentsQuery);
+      
+      // Aplicar paginación manualmente
+      const offset = (page - 1) * pageSize;
+      const allComments: Comment[] = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        allComments.push({
+          id: doc.id,
+          createdBy: data.createdBy,
+          content: data.content,
+          likesCount: data.likesCount || 0,
+          dislikesCount: data.dislikesCount || 0,
+          reports: data.reports || 0,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate(),
+          isDeleted: data.isDeleted || false,
+        });
+      });
+
+      // Retornar solo la página solicitada
+      const comments = allComments.slice(offset, offset + pageSize);
+
+      return { comments, total };
+    } catch (error) {
+      console.error("[ReviewRepository] Error getting comments:", error);
+      throw new Error("Failed to get comments");
+    }
+  }
+
+  /**
+   * Añade un comentario a una review
+   */
+  async addComment(
+    reviewId: string,
+    userId: string,
+    content: string
+  ): Promise<Comment> {
+    try {
+      const now = Timestamp.now();
+
+      const commentData = {
+        createdBy: userId,
+        content,
+        likesCount: 0,
+        dislikesCount: 0,
+        reports: 0,
+        createdAt: now,
+        updatedAt: now,
+        isDeleted: false,
+      };
+
+      // Dejar que Firestore genere el ID automáticamente usando addDoc
+      const commentsCollectionRef = collection(firestore, "reviews", reviewId, "comments");
+      const newCommentRef = await addDoc(commentsCollectionRef, commentData);
+      const commentId = newCommentRef.id;
+
+      // Actualizar el contador de comentarios
+      const reviewRef = doc(firestore, "reviews", reviewId);
+      await updateDoc(reviewRef, {
+        commentsCount: increment(1),
+      });
+
+      return {
+        id: commentId,
+        createdBy: userId,
+        content,
+        likesCount: 0,
+        dislikesCount: 0,
+        reports: 0,
+        createdAt: now.toDate(),
+        updatedAt: now.toDate(),
+        isDeleted: false,
+      };
+    } catch (error) {
+      console.error("[ReviewRepository] Error adding comment:", error);
+      throw new Error("Failed to add comment");
+    }
+  }
+
+  /**
+   * Elimina un comentario (soft delete)
+   */
+  async deleteComment(reviewId: string, commentId: string): Promise<void> {
+    try {
+      const now = Timestamp.now();
+
+      await runTransaction(firestore, async (transaction) => {
+        const commentRef = doc(firestore, "reviews", reviewId, "comments", commentId);
+        const reviewRef = doc(firestore, "reviews", reviewId);
+
+        transaction.update(commentRef, {
+          isDeleted: true,
+          updatedAt: now,
+        });
+
+        transaction.update(reviewRef, {
+          commentsCount: increment(-1),
+        });
+      });
+    } catch (error) {
+      console.error("[ReviewRepository] Error deleting comment:", error);
+      throw new Error("Failed to delete comment");
+    }
+  }
+
+  /**
+   * Vota en un comentario (like o dislike)
+   */
+  async voteComment(
+    reviewId: string,
+    commentId: string,
+    userId: string,
+    isLike: boolean
+  ): Promise<void> {
+    try {
+      const voteRef = doc(firestore, `reviews/${reviewId}/comments/${commentId}/votes/${userId}`);
+      const commentRef = doc(firestore, `reviews/${reviewId}/comments/${commentId}`);
+
+      await runTransaction(firestore, async (transaction) => {
+        const voteDoc = await transaction.get(voteRef);
+        const commentDoc = await transaction.get(commentRef);
+
+        if (!commentDoc.exists()) {
+          throw new Error(`Comment ${commentId} not found`);
+        }
+
+        const currentLikesCount = commentDoc.data()?.likesCount || 0;
+        const currentDislikesCount = commentDoc.data()?.dislikesCount || 0;
+
+        if (!voteDoc.exists()) {
+          // Nuevo voto
+          transaction.set(voteRef, {
+            isLike,
+            createdAt: Timestamp.now(),
+          });
+
+          // Incrementar contador correspondiente
+          if (isLike) {
+            transaction.update(commentRef, { likesCount: increment(1) });
+          } else {
+            transaction.update(commentRef, { dislikesCount: increment(1) });
+          }
+        } else {
+          // Voto existente - cambiar voto
+          const previousVote = voteDoc.data()?.isLike;
+
+          if (previousVote !== isLike) {
+            // Actualizar el voto
+            transaction.update(voteRef, { isLike });
+
+            // Ajustar contadores
+            if (isLike) {
+              transaction.update(commentRef, {
+                likesCount: increment(1),
+                dislikesCount: increment(-1),
+              });
+            } else {
+              transaction.update(commentRef, {
+                likesCount: increment(-1),
+                dislikesCount: increment(1),
+              });
+            }
+          }
+        }
+      });
+    } catch (error) {
+      console.error("[ReviewRepository] Error voting comment:", error);
+      throw new Error("Failed to vote comment");
+    }
+  }
+
+  /**
+   * Elimina el voto de un comentario
+   */
+  async removeCommentVote(
+    reviewId: string,
+    commentId: string,
+    userId: string
+  ): Promise<void> {
+    try {
+      const voteRef = doc(firestore, `reviews/${reviewId}/comments/${commentId}/votes/${userId}`);
+      const commentRef = doc(firestore, `reviews/${reviewId}/comments/${commentId}`);
+
+      await runTransaction(firestore, async (transaction) => {
+        const voteDoc = await transaction.get(voteRef);
+
+        if (!voteDoc.exists()) {
+          return;
+        }
+
+        const voteData = voteDoc.data();
+        transaction.delete(voteRef);
+
+        // Decrementar contador correspondiente
+        if (voteData.isLike) {
+          transaction.update(commentRef, { likesCount: increment(-1) });
+        } else {
+          transaction.update(commentRef, { dislikesCount: increment(-1) });
+        }
+      });
+    } catch (error) {
+      console.error("[ReviewRepository] Error removing comment vote:", error);
+      throw new Error("Failed to remove comment vote");
+    }
+  }
+
+  /**
+   * Obtiene el voto de un usuario en un comentario
+   */
+  async getCommentVote(
+    reviewId: string,
+    commentId: string,
+    userId: string
+  ): Promise<boolean | null> {
+    try {
+      const voteRef = doc(firestore, `reviews/${reviewId}/comments/${commentId}/votes/${userId}`);
+      const voteDoc = await getDoc(voteRef);
+
+      if (!voteDoc.exists()) {
+        return null;
+      }
+
+      return voteDoc.data()?.isLike ?? null;
+    } catch (error) {
+      console.error("[ReviewRepository] Error getting comment vote:", error);
+      return null;
+    }
+  }
+
+  /**
    * Sube archivos multimedia de una review a Firebase Storage
-   * Ruta: spots/{spotId}/reviews/{reviewId}/
-   * Nombre de archivo: {reviewId}_0.jpg, {reviewId}_1.jpg, etc.
+   * Ruta: reviews/{reviewId}/
+   * Nombre de archivo: uuid.ext
    */
   async uploadReviewMedia(spotId: string, reviewId: string, mediaUris: string[]): Promise<string[]> {
     try {
@@ -665,11 +934,10 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
         storageConfig: storage.app.options.storageBucket,
       });
 
-      const storagePaths: string[] = [];
+      const downloadUrls: string[] = [];
 
       for (let i = 0; i < mediaUris.length; i++) {
         const mediaUri = mediaUris[i];
-        const fileNumber = i;
         
         console.log(`[ReviewRepository] Processing file ${i + 1}/${mediaUris.length}:`, {
           uri: mediaUri,
@@ -680,11 +948,14 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
         // Determinar extensión del archivo
         const extension = this.getFileExtension(mediaUri);
         
-        // Crear nombre del archivo: reviewId_n.ext (ej: abc123_0.jpg, abc123_1.jpg)
-        const fileName = `${reviewId}_${fileNumber}${extension}`;
+        // Generar ID único usando Firebase
+        const uniqueId = push(dbRef(getDatabase())).key || `${Date.now()}_${i}`;
         
-        // Crear ruta de Storage: spots/{spotId}/reviews/{reviewId}/{fileName}
-        const storagePath = `spots/${spotId}/reviews/${reviewId}/${fileName}`;
+        // Crear nombre del archivo: uniqueId.ext según estructura de Firebase Storage
+        const fileName = `${uniqueId}${extension}`;
+        
+        // Crear ruta de Storage: reviews/{reviewId}/{fileName}
+        const storagePath = `reviews/${reviewId}/${fileName}`;
         const storageRef = ref(storage, storagePath);
         
         try {
@@ -708,10 +979,12 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
           // Subir a Storage
           await uploadBytes(storageRef, blob);
           
-          console.log(`[ReviewRepository] ✓ Successfully uploaded file ${fileNumber + 1}/${mediaUris.length}`);
+          console.log(`[ReviewRepository] ✓ Successfully uploaded file ${i + 1}/${mediaUris.length}`);
           
-          // Guardar la ruta de Storage (sin gs://bucket/)
-          storagePaths.push(storagePath);
+          // Obtener URL de descarga
+          const downloadUrl = await getDownloadURL(storageRef);
+          downloadUrls.push(downloadUrl);
+          console.log(`File uploaded successfully. URL: ${downloadUrl}`);
         } catch (fileError) {
           console.error(`[ReviewRepository] ✗ Error uploading file ${i}:`, {
             uri: mediaUri,
@@ -736,8 +1009,8 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
         }
       }
 
-      console.log(`[ReviewRepository] ✓ All ${storagePaths.length} files uploaded successfully`);
-      return storagePaths;
+      console.log(`[ReviewRepository] ✓ All ${downloadUrls.length} files uploaded successfully`);
+      return downloadUrls;
     } catch (error) {
       console.error('[ReviewRepository] Error uploading review media:', error);
       throw new Error(`Failed to upload media: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -747,11 +1020,12 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
   /**
    * Vota en una review (like o dislike)
    * Crea o actualiza el voto en la subcolección votes
+   * NUEVA ESTRUCTURA: reviews/{reviewId}/votes/{userId}
    */
   async voteReview(spotId: string, reviewId: string, userId: string, isLike: boolean): Promise<void> {
     try {
-      const voteRef = doc(firestore, `spots/${spotId}/reviews/${reviewId}/votes/${userId}`);
-      const reviewRef = doc(firestore, `spots/${spotId}/reviews/${reviewId}`);
+      const voteRef = doc(firestore, `reviews/${reviewId}/votes/${userId}`);
+      const reviewRef = doc(firestore, `reviews/${reviewId}`);
 
       await runTransaction(firestore, async (transaction) => {
         // Leer el voto actual y la review
@@ -812,11 +1086,12 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
 
   /**
    * Elimina el voto de una review
+   * NUEVA ESTRUCTURA: reviews/{reviewId}/votes/{userId}
    */
   async removeVote(spotId: string, reviewId: string, userId: string): Promise<void> {
     try {
-      const voteRef = doc(firestore, `spots/${spotId}/reviews/${reviewId}/votes/${userId}`);
-      const reviewRef = doc(firestore, `spots/${spotId}/reviews/${reviewId}`);
+      const voteRef = doc(firestore, `reviews/${reviewId}/votes/${userId}`);
+      const reviewRef = doc(firestore, `reviews/${reviewId}`);
 
       await runTransaction(firestore, async (transaction) => {
         // Leer el voto actual y la review
@@ -858,10 +1133,11 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
 
   /**
    * Obtiene el voto de un usuario en una review
+   * NUEVA ESTRUCTURA: reviews/{reviewId}/votes/{userId}
    */
   async getUserVote(spotId: string, reviewId: string, userId: string): Promise<boolean | null> {
     try {
-      const voteRef = doc(firestore, `spots/${spotId}/reviews/${reviewId}/votes/${userId}`);
+      const voteRef = doc(firestore, `reviews/${reviewId}/votes/${userId}`);
       const voteDoc = await getDoc(voteRef);
 
       if (!voteDoc.exists()) {
@@ -949,7 +1225,7 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
    * Separa medios locales (para subir) de URLs remotas (ya subidas)
    * Detecta:
    * - URLs HTTP/HTTPS → Ya en Firebase Storage (remote)
-   * - Rutas de Storage (spots/...) → Ya en Firebase Storage (remote)
+   * - Rutas de Storage (reviews/..., spots/...) → Ya en Firebase Storage (remote)
    * - URIs locales (file://, content://) → Archivos nuevos (local)
    */
   private separateLocalAndRemoteMedia(mediaUris: string[]): { local: string[]; remote: string[] } {
@@ -961,8 +1237,8 @@ Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown 
       if (uri.startsWith('http://') || uri.startsWith('https://')) {
         remote.push(uri);
       } 
-      // Rutas de Storage (empiezan con "spots/") → Ya subidos
-      else if (uri.startsWith('spots/')) {
+      // Rutas de Storage (empiezan con "reviews/" o "spots/") → Ya subidos
+      else if (uri.startsWith('reviews/') || uri.startsWith('spots/')) {
         remote.push(uri);
       }
       // URIs locales → Archivos nuevos

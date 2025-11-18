@@ -15,6 +15,7 @@ import { Edit, MessageCircle, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react-
 import React, { useState } from "react";
 import { Alert, View } from "react-native";
 import { useReviewVote } from "../../hooks/use-review-vote";
+import { ReviewComments } from "./review-comments";
 
 /**
  * Props del componente ReviewCard
@@ -68,8 +69,8 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   const isOwnReview = currentUser?.id === userId;
 
   // Estado local para contadores de votos
-  const [likesCount, setLikesCount] = useState(review.activity?.likes || 0);
-  const [dislikesCount, setDislikesCount] = useState(review.activity?.dislikes || 0);
+  const [likesCount, setLikesCount] = useState(review.activity?.likesCount || 0);
+  const [dislikesCount, setDislikesCount] = useState(review.activity?.dislikesCount || 0);
 
   // Callback para actualizar contadores cuando cambia un voto
   const handleVoteChange = (newLikes: number, newDislikes: number) => {
@@ -289,6 +290,12 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
             )}
           </HStack>
         </HStack>
+
+        {/* Sección de comentarios */}
+        <ReviewComments
+          reviewId={review.id}
+          initialCommentsCount={review.activity?.commentsCount || 0}
+        />
       </VStack>
     </View>
   );

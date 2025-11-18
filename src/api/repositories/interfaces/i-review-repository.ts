@@ -1,3 +1,4 @@
+import { Comment } from "@/src/entities/review/comment";
 import { Review, ReviewDetails } from "@/src/entities/review/review";
 
 /**
@@ -22,7 +23,7 @@ export interface IReviewRepository {
 
   /**
    * Obtiene la review de un usuario para un spot específico
-   * Como el reviewId es igual al userId, esto es un alias de getReviewById
+   * El reviewId se genera como userId_spotId
    * @param userId - ID del usuario
    * @param spotId - ID del spot
    * @returns La review del usuario para ese spot o null
@@ -58,7 +59,7 @@ export interface IReviewRepository {
 
   /**
    * Actualiza una review existente
-   * @param reviewId - ID de la review a actualizar (igual al userId)
+   * @param reviewId - ID de la review a actualizar (formato: userId_spotId)
    * @param spotId - ID del spot
    * @param updates - Datos parciales a actualizar
    * @returns La review actualizada
@@ -106,4 +107,55 @@ export interface IReviewRepository {
    * @param reason - Razón del reporte
    */
   reportReview(reviewId: string, userId: string, reason: string): Promise<void>;
+
+  /**
+   * Obtiene los comentarios de una review con paginación
+   * @param reviewId - ID de la review
+   * @param page - Número de página (empezando en 1)
+   * @param pageSize - Cantidad de comentarios por página
+   * @returns Array de comentarios y total de comentarios
+   */
+  getComments(reviewId: string, page: number, pageSize: number): Promise<{ comments: Comment[], total: number }>;
+
+  /**
+   * Añade un comentario a una review
+   * @param reviewId - ID de la review
+   * @param userId - ID del usuario que comenta
+   * @param content - Contenido del comentario
+   * @returns El comentario creado
+   */
+  addComment(reviewId: string, userId: string, content: string): Promise<Comment>;
+
+  /**
+   * Elimina un comentario (soft delete)
+   * @param reviewId - ID de la review
+   * @param commentId - ID del comentario a eliminar
+   */
+  deleteComment(reviewId: string, commentId: string): Promise<void>;
+
+  /**
+   * Vota en un comentario (like o dislike)
+   * @param reviewId - ID de la review
+   * @param commentId - ID del comentario
+   * @param userId - ID del usuario que vota
+   * @param isLike - true para like, false para dislike
+   */
+  voteComment(reviewId: string, commentId: string, userId: string, isLike: boolean): Promise<void>;
+
+  /**
+   * Elimina el voto de un comentario
+   * @param reviewId - ID de la review
+   * @param commentId - ID del comentario
+   * @param userId - ID del usuario que quita el voto
+   */
+  removeCommentVote(reviewId: string, commentId: string, userId: string): Promise<void>;
+
+  /**
+   * Obtiene el voto de un usuario en un comentario
+   * @param reviewId - ID de la review
+   * @param commentId - ID del comentario
+   * @param userId - ID del usuario
+   * @returns true si es like, false si es dislike, null si no hay voto
+   */
+  getCommentVote(reviewId: string, commentId: string, userId: string): Promise<boolean | null>;
 }

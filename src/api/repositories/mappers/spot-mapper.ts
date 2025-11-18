@@ -1,22 +1,23 @@
 import { Spot, SpotActivity, SpotDetails, SpotMetadata } from "@/src/entities/spot/model/spot";
-import { GeoPoint as FirebaseGeoPoint } from "firebase/firestore";
+import { DocumentReference, GeoPoint as FirebaseGeoPoint } from "firebase/firestore";
 
 /**
  * Interface que representa el modelo de spot tal como se almacena en Firebase
+ * Actualizado según firebase_structure_review_restructure.txt
  */
 export interface SpotFirebase {
   // SpotDetails (campos planos en Firebase)
   name: string;
   description: string;
   availableSports: string[];
-  // media NO se almacena en Firestore, solo en Storage (se gestiona por URLs)
-  media?: string[];
+  // gallery - Lista de URLs de imágenes/videos en Storage
+  gallery: string[];
   // GeoPoint de Firebase
   location: FirebaseGeoPoint;
   geohash: string;
   overallRating: number;
   
-  // ContactInfo (campos planos en Firebase)
+  // ContactInfo (campos separados en Firebase)
   contactPhone: string;
   contactEmail: string;
   contactWebsite: string;
@@ -26,7 +27,7 @@ export interface SpotFirebase {
   isActive: boolean;
   createdAt?: any; // Timestamp de Firebase u otros formatos
   updatedAt?: any; // Timestamp de Firebase u otros formatos
-  createdBy: string;
+  createdBy: DocumentReference; // Referencia al usuario (ACTUALIZADO)
 
   // SpotActivity (campos planos en Firebase)
   reviewsCount: number;
@@ -54,7 +55,7 @@ export class SpotMapper {
       name: firebaseData.name || '',
       description: firebaseData.description || '',
       availableSports: firebaseData.availableSports || [],
-      media: firebaseData.media || [],
+      media: firebaseData.gallery || [], // gallery → media
       location: {
         latitude: firebaseData.location?.latitude || 0,
         longitude: firebaseData.location?.longitude || 0,
@@ -72,7 +73,7 @@ export class SpotMapper {
       isActive: firebaseData.isActive !== false,
       createdAt: parseTimestamp(firebaseData.createdAt) || new Date(),
       updatedAt: parseTimestamp(firebaseData.updatedAt) || new Date(),
-      createdBy: firebaseData.createdBy,
+      createdBy: firebaseData.createdBy?.id || "", // Extraer ID de la referencia
     };
 
     const activity: SpotActivity = {

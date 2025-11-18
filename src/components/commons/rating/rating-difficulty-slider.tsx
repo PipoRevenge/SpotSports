@@ -3,13 +3,13 @@ import { Slider, SliderFilledTrack, SliderThumb, SliderTrack } from "@/src/compo
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import {
-    DIFFICULTY_CONFIG,
-    DIFFICULTY_MARKERS,
-    DIFFICULTY_RANGE,
-    DifficultyLevel,
-    numberToDifficulty,
+  DIFFICULTY_CONFIG,
+  DIFFICULTY_MARKERS,
+  DIFFICULTY_RANGE,
+  DifficultyLevel,
+  numberToDifficulty,
 } from "@/src/types/difficulty";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { View } from "react-native";
 
 export interface RatingDifficultySliderProps {
@@ -81,11 +81,6 @@ export const RatingDifficultySlider: React.FC<RatingDifficultySliderProps> = ({
   // Usar el valor central del rango como valor inicial
   const [sliderValue, setSliderValue] = useState(config.centerValue);
 
-  // Actualiza el valor cuando cambia la dificultad externamente
-  useEffect(() => {
-    setSliderValue(DIFFICULTY_CONFIG[difficulty].centerValue);
-  }, [difficulty]);
-
   const sizeClasses = {
     sm: {
       slider: "h-2",
@@ -108,6 +103,11 @@ export const RatingDifficultySlider: React.FC<RatingDifficultySliderProps> = ({
     // Redondear a 1 decimal para evitar problemas de precisión
     const roundedValue = Math.round(value * 10) / 10;
     setSliderValue(roundedValue);
+  };
+
+  const handleSliderChangeEnd = (value: number) => {
+    // Redondear a 1 decimal
+    const roundedValue = Math.round(value * 10) / 10;
     
     // Emitir el valor numérico exacto
     if (onValueChange) {
@@ -207,6 +207,7 @@ export const RatingDifficultySlider: React.FC<RatingDifficultySliderProps> = ({
         <Slider
           value={sliderValue}
           onChange={handleSliderChange}
+          onChangeEnd={handleSliderChangeEnd}
           minValue={DIFFICULTY_RANGE.MIN}
           maxValue={DIFFICULTY_RANGE.MAX}
           step={DIFFICULTY_RANGE.STEP}
@@ -221,43 +222,6 @@ export const RatingDifficultySlider: React.FC<RatingDifficultySliderProps> = ({
             style={{ borderColor: config.sliderColor }}
           />
         </Slider>
-        {/*Marcadores en los límites de cada franja */}
-        {/* Marcadores en los límites de cada franja */}
-        <View className="w-full mt-3 relative" style={{ height: 40 }}>
-          {/* Marcadores numéricos en los límites */}
-          {[0, 2.5, 5, 7.5, 10].map((value) => {
-            const positionPercent = (value / DIFFICULTY_RANGE.MAX) * 100;
-            return (
-              <View
-                key={`number-${value}`}
-                className="items-center absolute"
-                style={{
-                  left: `${positionPercent}%`,
-                  transform: [{ translateX: -10 }], // Centrar el marcador (aprox mitad del ancho del número)
-                }}
-              >
-                <Text className="text-xs text-gray-400">{value}</Text>
-              </View>
-            );
-          })}
-
-          {/* Etiquetas intermedias */}
-          {DIFFICULTY_MARKERS.map((marker) => {
-            const positionPercent = (marker.value / DIFFICULTY_RANGE.MAX) * 100;
-            return (
-              <View
-                key={`label-${marker.value}`}
-                className="items-center absolute"
-                style={{
-                  left: `${positionPercent}%`,
-                  transform: [{ translateX: -25 }], // Centrar el marcador (aprox mitad del ancho del texto)
-                }}
-              >
-                <Text className="text-xs text-gray-500">{marker.label}</Text>
-              </View>
-            );
-          })}
-        </View>
 
         {/* Marcadores en el centro de cada franja */}
         <View className="w-full mt-3 relative" style={{ height: 60 }}>
@@ -267,17 +231,14 @@ export const RatingDifficultySlider: React.FC<RatingDifficultySliderProps> = ({
             const positionPercent = (marker.value / DIFFICULTY_RANGE.MAX) * 100;
             
             return (
-              
               <View 
                 key={marker.value}
-                className="items-center absolute bg-black"
+                className="items-center absolute"
                 style={{ 
                   left: `${positionPercent}%`,
-                  transform: [{ translateX: -25 }], // Centrar el marcador
+                  transform: [{ translateX: -25 }],
                 }}
               >
-                
-                
                 {/* Label del nivel */}
                 <Text className={`${sizeClasses[size].text} mt-1 text-center ${
                   isActive ? `${markerConfig.textColor} font-bold` : 'text-gray-500'
@@ -302,8 +263,6 @@ export const RatingDifficultySlider: React.FC<RatingDifficultySliderProps> = ({
           <View className="flex-1 bg-red-600" style={{ width: '25%' }} />
         </View>
       </View>
-
-      
     </VStack>
   );
 };

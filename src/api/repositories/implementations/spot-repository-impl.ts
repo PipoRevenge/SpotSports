@@ -1,7 +1,8 @@
 import { SportSpotRating, Spot, SpotDetails } from '@/src/entities/spot/model/spot';
 import { firestore, storage } from '@/src/lib/firebase-config';
 import { GeoPoint } from '@/src/types/geopoint';
-import { addDoc, collection, doc, GeoPoint as FirebaseGeoPoint, limit as firestoreLimit, getDoc, getDocs, orderBy, query, Timestamp, where } from 'firebase/firestore';
+import { ref as dbRef, getDatabase, push } from 'firebase/database';
+import { addDoc, collection, doc, GeoPoint as FirebaseGeoPoint, limit as firestoreLimit, getDoc, getDocs, orderBy, query, Timestamp, updateDoc, where } from 'firebase/firestore';
 import { getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 import { distanceBetween, geohashForLocation, geohashQueryBounds } from 'geofire-common';
 import { ISpotRepository, SpotSearchFilters } from '../interfaces/i-spot-repository';
@@ -46,10 +47,14 @@ export class SpotRepositoryImpl implements ISpotRepository {
       };
 
       const geohash = await this.createGeohash(spotData.location);
+      
+      // Crear referencia al usuario
+      const userRef = doc(firestore, `users/${userId}`);
 
       const firestoreData = {
         name: spotDataWithoutMedia.name,
         description: spotDataWithoutMedia.description,
+        gallery: [], // NUEVA ESTRUCTURA: gallery en lugar de media
         availableSports: spotDataWithoutMedia.availableSports || [],
         location: new FirebaseGeoPoint(
           spotDataWithoutMedia.location.latitude,
@@ -64,7 +69,7 @@ export class SpotRepositoryImpl implements ISpotRepository {
         isActive: true,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
-        createdBy: username,
+        createdBy: userRef, // NUEVA ESTRUCTURA: referencia en lugar de string
         reviewsCount: 0,
         visitsCount: 0,
       };
@@ -79,7 +84,14 @@ export class SpotRepositoryImpl implements ISpotRepository {
       }
 
       if (spotData.media && spotData.media.length > 0) {
-        await this.uploadSpotMedia(spotId, userId, spotData.media);
+        const galleryUrls = await this.uploadSpotMedia(spotId, userId, spotData.media);
+        
+        // Actualizar el documento del spot con las URLs de la galería
+        const spotRef = doc(firestore, this.COLLECTION_NAME, spotId);
+        await updateDoc(spotRef, {
+          gallery: galleryUrls,
+          updatedAt: Timestamp.now()
+        });
       }
 
       return spotId;
@@ -162,7 +174,7 @@ export class SpotRepositoryImpl implements ISpotRepository {
               sportId: sportSnap.id,
               sportName: sportData.name || 'Unknown Sport',
               sportDescription: sportData.description || 'No description available',
-              rating: metricData.avg_quality || 0,
+              rating: metricData.avg_rating || 0, // ACTUALIZADO: avg_quality → avg_rating
               difficulty: metricData.avg_difficulty || 0,
             });
           }
@@ -211,8 +223,10 @@ export class SpotRepositoryImpl implements ISpotRepository {
           spot_ref: spotRef,
           sport_ref: sportRef,
           avg_difficulty: 0,
-          avg_quality: 0,
+          avg_rating: 0, // ACTUALIZADO: avg_quality → avg_rating
           review_count: 0,
+          sum_difficulty: 0, // NUEVA ESTRUCTURA: agregar sumas
+          sum_rating: 0,     // NUEVA ESTRUCTURA: agregar sumas
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
         };
@@ -233,25 +247,25 @@ export class SpotRepositoryImpl implements ISpotRepository {
   /**
    * Subir archivos multimedia a Storage y retornar las URLs
    */
-  private async uploadSpotMedia(spotId: string, userId: string, mediaUris: string[]): Promise<void> {
+  private async uploadSpotMedia(spotId: string, userId: string, mediaUris: string[]): Promise<string[]> {
     try {
-      // Obtener fecha actual en formato YYYY_MM_DD
-      const now = new Date();
-      const dateStr = `${now.getFullYear()}_${String(now.getMonth() + 1).padStart(2, '0')}_${String(now.getDate()).padStart(2, '0')}`;
+      const galleryUrls: string[] = [];
       
       // Subir cada archivo
       for (let i = 0; i < mediaUris.length; i++) {
         const mediaUri = mediaUris[i];
-        const fileNumber = i + 1;
         
         // Determinar extensión del archivo
         const extension = this.getFileExtension(mediaUri);
         
-        // Crear nombre del archivo: YYYY_MM_DD_userId_numero.ext
-        const fileName = `${dateStr}_${userId}_${fileNumber}${extension}`;
+        // Generar ID único usando Firebase
+        const uniqueId = push(dbRef(getDatabase())).key || `${Date.now()}_${i}`;
         
-        // Crear referencia en Storage: /spots/spotId/media/fileName
-        const storageRef = ref(storage, `spots/${spotId}/media/${fileName}`);
+        // Crear nombre del archivo: (uniqueId)_n.ext según estructura de Firebase Storage
+        const fileName = `${uniqueId}_${i}${extension}`;
+        
+        // Crear referencia en Storage: spots/spotId/gallery/fileName
+        const storageRef = ref(storage, `spots/${spotId}/gallery/${fileName}`);
         
         // Descargar el archivo desde la URI local
         const response = await fetch(mediaUri);
@@ -262,9 +276,16 @@ export class SpotRepositoryImpl implements ISpotRepository {
         const blob = await response.blob();
         
         // Subir a Storage
-        console.log(`Uploading file ${fileNumber}/${mediaUris.length}: ${fileName}`);
+        console.log(`Uploading file ${i + 1}/${mediaUris.length}: ${fileName}`);
         await uploadBytes(storageRef, blob);
+        
+        // Obtener URL de descarga
+        const downloadUrl = await getDownloadURL(storageRef);
+        galleryUrls.push(downloadUrl);
+        console.log(`File uploaded successfully. URL: ${downloadUrl}`);
       }
+      
+      return galleryUrls;
     } catch (error) {
       console.error('Error uploading spot media:', error);
       throw new Error(`Failed to upload media: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -296,10 +317,11 @@ export class SpotRepositoryImpl implements ISpotRepository {
       if (obj[key] !== undefined) {
         const value = obj[key];
         
-        // No procesar recursivamente objetos especiales de Firebase (Timestamp, GeoPoint, etc.)
+        // No procesar recursivamente objetos especiales de Firebase (Timestamp, GeoPoint, DocumentReference, etc.)
         // Verificamos si tiene métodos específicos de estos objetos o si es una instancia de Date
         const isFirebaseTimestamp = value && typeof value === 'object' && ('toDate' in value || 'toMillis' in value);
         const isFirebaseGeoPoint = value && typeof value === 'object' && ('latitude' in value && 'longitude' in value && value.constructor?.name === 'GeoPoint');
+        const isFirebaseDocumentReference = value && typeof value === 'object' && ('firestore' in value || 'path' in value || value.constructor?.name === 'DocumentReference');
         const isDate = value && typeof value === 'object' && (value.constructor?.name === 'Date' || Object.prototype.toString.call(value) === '[object Date]');
         const isArray = Array.isArray(value);
         
@@ -308,11 +330,12 @@ export class SpotRepositoryImpl implements ISpotRepository {
             !isArray &&
             !isFirebaseTimestamp &&
             !isFirebaseGeoPoint &&
+            !isFirebaseDocumentReference &&
             !isDate) {
           // Recursivamente limpiar objetos anidados normales
           cleaned[key] = this.removeUndefinedFields(value);
         } else {
-          // Mantener el valor tal cual (incluyendo Timestamp, GeoPoint, Date, arrays, primitivos)
+          // Mantener el valor tal cual (incluyendo Timestamp, GeoPoint, DocumentReference, Date, arrays, primitivos)
           cleaned[key] = value;
         }
       }
@@ -326,8 +349,8 @@ export class SpotRepositoryImpl implements ISpotRepository {
    */
   private async getSpotMediaUrls(spotId: string): Promise<string[]> {
     try {
-      // Crear referencia a la carpeta de media del spot
-      const mediaFolderRef = ref(storage, `spots/${spotId}/media`);
+      // Crear referencia a la carpeta gallery del spot
+      const mediaFolderRef = ref(storage, `spots/${spotId}/gallery`);
       
       // Listar todos los archivos en la carpeta
       const result = await listAll(mediaFolderRef);
@@ -557,7 +580,7 @@ export class SpotRepositoryImpl implements ISpotRepository {
             if (sportRef) {
               spotMetrics.set(sportRef.id, {
                 difficulty: metricData.avg_difficulty || 0,
-                quality: metricData.avg_quality || 0,
+                quality: metricData.avg_rating || 0, // ACTUALIZADO: avg_quality → avg_rating
               });
             }
           }

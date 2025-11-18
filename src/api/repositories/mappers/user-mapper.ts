@@ -2,12 +2,13 @@ import { User, UserActivity, UserDetails, UserMetadata } from '@/src/entities/us
 
 /**
  * Interface que representa el modelo de usuario tal como se almacena en Firebase
+ * Actualizado según firebase_structure_review_restructure.txt
  */
 export interface UserFirebase {
   // User Details (campos planos en Firebase)
   email: string;
-  userName: string;
-  photoURL?: string;
+  userName: string; // ACTUALIZADO: debe ser único
+  profileUrl?: string; // ACTUALIZADO: photoURL → profileUrl
   fullName?: string;
   bio?: string;
   birthDate?: any; // Timestamp de Firebase, Date, número (ms) o string
@@ -22,8 +23,8 @@ export interface UserFirebase {
   reviewsCount?: number;
   commentsCount?: number;
   favoriteSpotsCount?: number;
-  followersCount?: number;
-  followingCount?: number;
+  followersCount?: number; // ACTUALIZADO: agregado
+  followingCount?: number; // ACTUALIZADO: agregado
 }
 
 /**
@@ -46,7 +47,7 @@ export class UserMapper {
     const userDetails: UserDetails = {
       email: firebaseUser.email,
       userName: firebaseUser.userName,
-      photoURL: firebaseUser.photoURL,
+      photoURL: firebaseUser.profileUrl, // ACTUALIZADO: profileUrl → photoURL (modelo interno)
       fullName: firebaseUser.fullName,
       bio: firebaseUser.bio,
       birthDate: parseTimestamp(firebaseUser.birthDate) || new Date(),
@@ -85,7 +86,7 @@ export class UserMapper {
       // UserDetails -> campos planos
       email: user.userDetails.email,
       userName: user.userDetails.userName,
-      photoURL: user.userDetails.photoURL,
+      profileUrl: user.userDetails.photoURL, // ACTUALIZADO: photoURL → profileUrl
       fullName: user.userDetails.fullName,
       bio: user.userDetails.bio,
       birthDate: user.userDetails.birthDate,
@@ -118,7 +119,7 @@ export class UserMapper {
       const details = userData.userDetails;
       if (details.email !== undefined) firebaseUpdate.email = details.email;
       if (details.userName !== undefined) firebaseUpdate.userName = details.userName;
-      if (details.photoURL !== undefined) firebaseUpdate.photoURL = details.photoURL;
+      if (details.photoURL !== undefined) firebaseUpdate.profileUrl = details.photoURL; // ACTUALIZADO
       if (details.fullName !== undefined) firebaseUpdate.fullName = details.fullName;
       if (details.bio !== undefined) firebaseUpdate.bio = details.bio;
       if (details.birthDate !== undefined) firebaseUpdate.birthDate = details.birthDate;

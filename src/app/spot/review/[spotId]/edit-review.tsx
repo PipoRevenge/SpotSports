@@ -7,6 +7,7 @@ import { CreateReviewForm } from "@/src/features/review";
 import { useReviewLoad } from "@/src/features/review/hooks/use-review-load";
 import { useReviewUpdate } from "@/src/features/review/hooks/use-review-update";
 import { CreateReviewData, ReviewFormData } from "@/src/features/review/types/review-types";
+import { useSelectedSpot } from "@/src/features/spot";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
@@ -27,9 +28,14 @@ export const EditReviewPage = () => {
     const [initialData, setInitialData] = useState<ReviewFormData | undefined>(undefined);
     const [loadingInitial, setLoadingInitial] = useState(true);
     
+    // Usar el contexto de Spot Seleccionado para actualizar globalmente
+    const { refreshAll } = useSelectedSpot();
+    
     const { loadReview, loadingReview, error: loadError } = useReviewLoad();
-    const { updateReview, isLoading: isUpdating, error: updateError } = useReviewUpdate(() => {
-        // Volver a la página del spot después de actualizar
+    const { updateReview, isLoading: isUpdating, error: updateError } = useReviewUpdate(async () => {
+        // Refrescar todos los datos del spot (spot + reviews)
+        await refreshAll();
+        // Volver atrás sin forzar navegación
         router.back();
     });
     

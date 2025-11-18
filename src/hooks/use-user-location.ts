@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface UserLocation {
   latitude: number;
@@ -22,7 +22,7 @@ export const useUserLocation = (autoRequest: boolean = false): UseUserLocationRe
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const requestLocation = async () => {
+  const requestLocation = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -40,29 +40,61 @@ export const useUserLocation = (autoRequest: boolean = false): UseUserLocationRe
 
       console.log('[useUserLocation] Permission granted, getting current position...');
 
-      // Obtener ubicación actual
-      const currentLocation = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      try {
+        // Intentar obtener ubicación actual con timeout
+        const currentLocation = await Promise.race([
+          Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          }),
+          new Promise<null>((_, reject) => 
+            setTimeout(() => reject(new Error('Location timeout')), 10000)
+          )
+        ]);
 
-      console.log('[useUserLocation] Got current position:', currentLocation.coords);
-      setLocation({
-        latitude: currentLocation.coords.latitude,
-        longitude: currentLocation.coords.longitude,
-      });
+        if (currentLocation) {
+          console.log('[useUserLocation] Got current position:', currentLocation.coords);
+          setLocation({
+            latitude: currentLocation.coords.latitude,
+            longitude: currentLocation.coords.longitude,
+          });
+        }
+      } catch (locationError) {
+        console.warn('[useUserLocation] getCurrentPositionAsync failed, trying last known location...', locationError);
+        
+        // Intentar obtener la última ubicación conocida como fallback
+        try {
+          const lastKnownLocation = await Location.getLastKnownPositionAsync({
+            maxAge: 300000, // 5 minutos
+            requiredAccuracy: 1000, // 1km
+          });
+
+          if (lastKnownLocation) {
+            console.log('[useUserLocation] Using last known position:', lastKnownLocation.coords);
+            setLocation({
+              latitude: lastKnownLocation.coords.latitude,
+              longitude: lastKnownLocation.coords.longitude,
+            });
+          } else {
+            throw new Error('No se pudo obtener la ubicación. Asegúrate de que los servicios de ubicación estén activos en tu dispositivo.');
+          }
+        } catch (fallbackError) {
+          console.error('[useUserLocation] Last known location also failed:', fallbackError);
+          throw new Error('No se pudo obtener la ubicación. Si estás usando un emulador, configura una ubicación GPS simulada.');
+        }
+      }
     } catch (err) {
       console.error('[useUserLocation] Error getting user location:', err);
       setError(err instanceof Error ? err.message : 'Error al obtener ubicación');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (autoRequest) {
       requestLocation();
     }
-  }, [autoRequest]);
+  }, [autoRequest, requestLocation]);
 
   return {
     location,

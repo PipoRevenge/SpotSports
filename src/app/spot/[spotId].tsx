@@ -1,10 +1,9 @@
 import {
     ReviewList,
-    useReviewDelete,
-    useSpotReviews
+    useReviewDelete
 } from "@/src/features/review";
 import { SpotSportsTable } from "@/src/features/sport";
-import { SpotDataDetails, useSpotDetails } from "@/src/features/spot";
+import { SpotDataDetails, useSelectedSpot } from "@/src/features/spot";
 import { HStack } from "@components/ui/hstack";
 import { Icon } from "@components/ui/icon";
 import { SafeAreaView } from "@components/ui/safe-area-view";
@@ -12,7 +11,7 @@ import { Text } from "@components/ui/text";
 import { VStack } from "@components/ui/vstack";
 import { router, useLocalSearchParams } from "expo-router";
 import { ChevronDown, ChevronUp } from "lucide-react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 
 export const SpotPage = () => {
@@ -20,28 +19,35 @@ export const SpotPage = () => {
     const spotId = params.spotId as string | undefined;
     
     const [isSportsTableVisible, setIsSportsTableVisible] = useState(true);
-    const { spot, sportRatings, loading, error: spotError, refetch } = useSpotDetails(spotId);
+    const [sortBy, setSortBy] = useState<'recent' | 'oldest' | 'rating-high' | 'rating-low'>('recent');
+    const [sportFilter, setSportFilter] = useState<string>('');
     
-    // Hook para gestionar reviews
+    // Usar el contexto de Spot Seleccionado que incluye todo
     const {
+        selectedSpot,
+        sportRatings,
         reviews,
-        totalReviews,
         usersData,
-        loading: reviewsLoading,
-        error: reviewsError,
-        filters,
-        sortBy,
-        updateFilters,
-        setSortBy,
-        refetch: refetchReviews,
-    } = useSpotReviews(spotId);
+        loadingSpot,
+        loadingReviews,
+        spotError,
+        reviewsError,
+        selectSpot,
+        refreshAll,
+        refreshReviews
+    } = useSelectedSpot();
+    
+    // Cargar el spot cuando se monta el componente
+    useEffect(() => {
+        if (spotId) {
+            selectSpot(spotId);
+        }
+    }, [spotId]);
     
     // Hook de eliminación
-    const {
-        deleteReview,
-    } = useReviewDelete(() => {
-        refetch();
-        refetchReviews();
+    const { deleteReview } = useReviewDelete(async () => {
+        // Refrescar todo después de eliminar
+        await refreshAll();
     });
 
     /**
@@ -89,7 +95,7 @@ export const SpotPage = () => {
         }
     };
 
-    if (loading) {
+    if (loadingSpot) {
         return (
             <SafeAreaView>
                 <View className="flex-1 justify-center items-center p-6">
@@ -111,7 +117,7 @@ export const SpotPage = () => {
         );
     }
 
-    if (!spot) {
+    if (!selectedSpot) {
         return (
             <SafeAreaView>
                 <View className="flex-1 justify-center items-center p-6">
@@ -128,7 +134,7 @@ export const SpotPage = () => {
         <SafeAreaView className="flex-1">
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 {/* Detalles del spot */}
-                <SpotDataDetails spot={spot} />
+                <SpotDataDetails spot={selectedSpot} />
 
                 {/* Sección de deportes disponibles */}
                 <VStack className="w-full px-6 mt-6 mb-4">
@@ -156,14 +162,14 @@ export const SpotPage = () => {
                 </VStack>
 
                 {/* Sección de ubicación */}
-                {spot.details.location && spot.details.location.latitude && spot.details.location.longitude && (
+                {selectedSpot.details.location && selectedSpot.details.location.latitude && selectedSpot.details.location.longitude && (
                     <VStack className="w-full px-6 mt-4 mb-6">
                         <Text className="text-xl font-bold mb-2">Location</Text>
                         <Text className="text-gray-600">
-                            Latitude: {spot.details.location.latitude.toFixed(6)}
+                            Latitude: {selectedSpot.details.location.latitude.toFixed(6)}
                         </Text>
                         <Text className="text-gray-600">
-                            Longitude: {spot.details.location.longitude.toFixed(6)}
+                            Longitude: {selectedSpot.details.location.longitude.toFixed(6)}
                         </Text>
                     </VStack>
                 )}
@@ -175,16 +181,16 @@ export const SpotPage = () => {
                 <ReviewList
                     reviews={reviews}
                     spotId={spotId || ""}
-                    totalReviews={totalReviews}
+                    totalReviews={reviews.length}
                     usersData={usersData}
-                    loading={reviewsLoading}
-                    error={reviewsError}
+                    loading={loadingReviews}
+                    error={reviewsError || undefined}
                     availableSports={sportRatings.map(sr => ({
                         id: sr.sportId,
                         name: sr.sportName,
                     }))}
-                    selectedSportId={filters.sportId || ""}
-                    onSportFilterChange={(sportId) => updateFilters({ sportId })}
+                    selectedSportId={sportFilter}
+                    onSportFilterChange={setSportFilter}
                     getSportName={getSportName}
                     sortBy={sortBy}
                     onSortChange={setSortBy}

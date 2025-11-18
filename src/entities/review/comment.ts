@@ -1,26 +1,14 @@
 
 
-export interface CommentDetails {
+// Interfaz principal de Comentario (estructura plana)
+export interface Comment {
+  id: string;
+  createdBy: string; // userId
   content: string;
-}
-
-export interface CommentMetadata {
+  likesCount: number;
+  dislikesCount: number;
+  reports: number;
   createdAt: Date;
   updatedAt?: Date;
-  isDeleted?: boolean;
-}
-
-export interface CommentActivity {
-  likes: number;
-  dislikes: number;
-  reports: number;
-}
-
-// Interfaz principal de Comentario
-export interface Comment{
-  id: string;
-  author: string;
-  details: CommentDetails;
-  metadata: CommentMetadata;
-  activity?: CommentActivity;
+  isDeleted: boolean;
 }
