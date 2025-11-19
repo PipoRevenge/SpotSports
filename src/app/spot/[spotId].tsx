@@ -3,7 +3,10 @@ import {
     useReviewDelete
 } from "@/src/features/review";
 import { SpotSportsTable } from "@/src/features/sport";
-import { SpotCollectionSelector, SpotDataDetails, useSelectedSpot } from "@/src/features/spot";
+import { SpotDataDetails, useSelectedSpot } from "@/src/features/spot";
+import { SpotCollectionButton } from "@/src/features/spot-collection/components/spot-collection-button";
+import { SpotCollectionModal } from "@/src/features/spot-collection/components/spot-collection-modal";
+import { useSpotCollection } from "@/src/features/spot-collection/hooks/use-spot-collection";
 import { HStack } from "@components/ui/hstack";
 import { Icon } from "@components/ui/icon";
 import { SafeAreaView } from "@components/ui/safe-area-view";
@@ -12,7 +15,7 @@ import { VStack } from "@components/ui/vstack";
 import { router, useLocalSearchParams } from "expo-router";
 import { CheckCircle, ChevronDown, ChevronUp, Heart, MessageSquare, Target } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, View } from "react-native";
 
 export const SpotPage = () => {
     const params = useLocalSearchParams();
@@ -46,9 +49,31 @@ export const SpotPage = () => {
     
     // Hook de eliminación
     const { deleteReview, isLoading: isDeleting } = useReviewDelete(async () => {
-        // Refrescar todo después de eliminar
         await refreshAll();
     });
+
+    // Spot Collection logic
+    const {
+        categories,
+        isLoading: isCollectionLoading,
+        addToCategories,
+        removeFromCategories,
+    } = useSpotCollection(spotId);
+
+    const [modalVisible, setModalVisible] = useState(false);
+
+    const handleCollectionButtonPress = () => {
+        setModalVisible(true);
+    };
+
+    const handleToggleCategory = async (category: import("@/src/entities/user/model/spot-collection").SpotCategory) => {
+        const isInCategory = categories.includes(category);
+        if (isInCategory) {
+            return await removeFromCategories([category]);
+        } else {
+            return await addToCategories([category]);
+        }
+    };
 
     /**
      * Función helper para obtener el nombre de un deporte por su ID
@@ -127,17 +152,39 @@ export const SpotPage = () => {
 
     return (
         <SafeAreaView className="flex-1">
-            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-                {/* Detalles del spot */}
-                <View className="flex-row items-start justify-between">
+            <KeyboardAvoidingView
+                behavior="padding"
+                className="flex-1"
+            >
+                <ScrollView 
+                    className="flex-1" 
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {/* Detalles del spot */}
+                    <View className="flex-row items-start justify-between">
                     <View className="flex-1">
-                        <SpotDataDetails spot={selectedSpot} />
+                        <SpotDataDetails
+                            spot={selectedSpot}
+                            collectionSlot={
+                                <>
+                                    <SpotCollectionButton
+                                        hasCategories={categories.length > 0}
+                                        onPress={handleCollectionButtonPress}
+                                        disabled={isCollectionLoading}
+                                    />
+                                    <SpotCollectionModal
+                                        visible={modalVisible}
+                                        categories={categories}
+                                        isLoading={isCollectionLoading}
+                                        onToggleCategory={handleToggleCategory}
+                                        onClose={() => setModalVisible(false)}
+                                    />
+                                </>
+                            }
+                        />
                     </View>
-                    {spotId && (
-                        <View className="ml-4 mt-6">
-                            <SpotCollectionSelector spotId={spotId} />
-                        </View>
-                    )}
+                    
                 </View>
 
                 {/* Sección de deportes disponibles */}
@@ -249,7 +296,8 @@ export const SpotPage = () => {
                     onEdit={handleEditReview}
                     onDelete={handleDeleteReview}
                 />
-            </ScrollView>
+                </ScrollView>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 };

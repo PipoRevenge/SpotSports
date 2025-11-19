@@ -10,19 +10,32 @@ La feature `spot` implementa toda la funcionalidad relacionada con la creación,
 
 ```
 spot/
-├── index.ts                    # Exportaciones públicas
-├── README.md                   # Este archivo
-├── components/                 # Componentes UI
-│   ├── spot-create-form.tsx   # Formulario de creación ✅
-│   ├── spot-data-details.tsx  # Detalles del spot
-│   └── spot-map-point.tsx     # Punto en el mapa ✅
-├── hooks/                      # Hooks personalizados
-│   └── use-create-spot.ts     # Hook para crear spots ✅
-├── types/                      # Definiciones de tipos
-│   └── spot-types.ts          # Tipos de la feature ✅
-└── utils/                      # Utilidades
-    └── spot-validations.ts    # Validaciones ✅
+├── index.ts                       # Exportaciones públicas
+├── README.md                      # Este archivo
+├── components/                    # Componentes UI
+│   ├── spot-create/
+│   │   └── spot-create-form.tsx  # Formulario de creación
+│   ├── spot-view/
+│   │   ├── spot-collection-selector.tsx  # Selector de colecciones (usa spot-collection)
+│   │   ├── spot-data-details.tsx         # Detalles del spot
+│   │   ├── spot-image-gallery.tsx        # Galería de imágenes
+│   │   └── spot-sports-table.tsx         # Tabla de deportes
+│   ├── spot-search/
+│   │   ├── spot-card.tsx                 # Tarjeta de spot para mapa
+│   │   ├── spot-list-card.tsx            # Tarjeta de spot para lista
+│   │   └── spot-search-filter-modal.tsx  # Modal de filtros
+│   └── spot-filter-components/           # Componentes de filtros
+├── hooks/                         # Hooks personalizados
+│   ├── use-create-spot.ts        # Hook para crear spots
+│   ├── use-spot-details.ts       # Hook para obtener detalles de spot
+│   └── use-spot-filters.ts       # Hook para filtros de búsqueda
+├── types/                         # Definiciones de tipos
+│   └── spot-types.ts             # Tipos de la feature
+└── utils/                         # Utilidades
+    └── spot-validations.ts       # Validaciones
 ```
+
+**⚠️ Nota:** La funcionalidad de colecciones de spots (favoritos, visitados, etc.) fue movida a la feature independiente `spot-collection`.
 
 ### ✅ Funcionalidades Implementadas
 

@@ -1,4 +1,4 @@
-import { spotRepository, userRepository } from "@/src/api/repositories";
+import { spotRepository } from "@/src/api/repositories";
 import { HStack } from "@/src/components/ui/hstack";
 import { Icon } from "@/src/components/ui/icon";
 import { Pressable } from "@/src/components/ui/pressable";
@@ -9,19 +9,14 @@ import { Spot } from "@/src/entities/spot/model/spot";
 import { useUser } from "@/src/entities/user/context/user-context";
 import { SpotCategory } from "@/src/entities/user/model/spot-collection";
 import { SpotListCard } from "@/src/features/spot";
+import { SPOT_CATEGORIES, useSpotCollection } from "@/src/features/spot-collection";
 import { router } from "expo-router";
-import { CheckCircle, Heart, Target } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, View } from "react-native";
 
-const TABS: { type: SpotCategory; label: string; icon: any }[] = [
-  { type: 'Favorites', label: 'Favoritos', icon: Heart },
-  { type: 'Visited', label: 'Visitados', icon: CheckCircle },
-  { type: 'WantToVisit', label: 'Quiero Visitar', icon: Target },
-];
-
 export default function SavedSpotsScreen() {
   const { user } = useUser();
+  const { savedSpots, loadSavedSpots } = useSpotCollection();
   const [selectedTab, setSelectedTab] = useState<SpotCategory>('Favorites');
   const [spots, setSpots] = useState<Spot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,55 +24,76 @@ export default function SavedSpotsScreen() {
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Cargar spots de la categoría seleccionada
+   * Cargar detalles de los spots cuando cambien los savedSpots
    */
-  const loadSpots = useCallback(async () => {
-    if (!user?.id) return;
-
-    try {
-      setError(null);
-      
-      // Obtener spots guardados de la categoría seleccionada
-      const savedSpots = await userRepository.getUserSavedSpots(user.id, selectedTab);
-      
+  useEffect(() => {
+    const loadSpotDetails = async () => {
       if (savedSpots.length === 0) {
         setSpots([]);
+        setLoading(false);
         return;
       }
 
-      // Obtener detalles de cada spot
-      const spotIds = savedSpots.map(ss => ss.spotId);
-      const spotsPromises = spotIds.map(id => spotRepository.getSpotById(id));
-      const spotsData = await Promise.all(spotsPromises);
+      try {
+        // Obtener detalles de cada spot
+        const spotIds = savedSpots.map(ss => ss.spotId);
+        const spotsPromises = spotIds.map(id => spotRepository.getSpotById(id));
+        const spotsData = await Promise.all(spotsPromises);
+        
+        // Filtrar spots que no existan (por si fueron eliminados)
+        const validSpots = spotsData.filter(spot => spot !== null) as Spot[];
+        
+        setSpots(validSpots);
+      } catch (err) {
+        console.error("Error loading spot details:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSpotDetails();
+  }, [savedSpots]);
+
+  /**
+   * Efecto para cargar spots cuando cambia el tab seleccionado
+   */
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const loadCategorySpots = async () => {
+      setLoading(true);
+      setError(null);
       
-      // Filtrar spots que no existan (por si fueron eliminados)
-      const validSpots = spotsData.filter(spot => spot !== null) as Spot[];
-      
-      setSpots(validSpots);
+      try {
+        await loadSavedSpots(selectedTab);
+      } catch (err) {
+        console.error("Error loading spots:", err);
+        setError("Error al cargar spots");
+        setLoading(false);
+      }
+    };
+
+    loadCategorySpots();
+  }, [selectedTab, user?.id, loadSavedSpots]);
+
+  const onRefresh = useCallback(async () => {
+    if (!user?.id) return;
+    
+    setRefreshing(true);
+    try {
+      await loadSavedSpots(selectedTab);
     } catch (err) {
-      console.error("Error loading spots:", err);
-      setError("Error al cargar spots");
+      console.error("Error refreshing spots:", err);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
-  }, [user?.id, selectedTab]);
-
-  useEffect(() => {
-    setLoading(true);
-    loadSpots();
-  }, [loadSpots]);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadSpots();
-  }, [loadSpots]);
+  }, [user?.id, selectedTab, loadSavedSpots]);
 
   const handleSpotPress = (spotId: string) => {
     router.push(`/spot/${spotId}`);
   };
 
-  const renderTabButton = (tab: typeof TABS[0]) => {
+  const renderTabButton = (tab: typeof SPOT_CATEGORIES[0]) => {
     const isSelected = selectedTab === tab.type;
     
     return (
@@ -139,20 +155,20 @@ export default function SavedSpotsScreen() {
 
         {/* Tabs */}
         <HStack className="bg-white border-b border-gray-200">
-          {TABS.map(renderTabButton)}
+          {SPOT_CATEGORIES.map(renderTabButton)}
         </HStack>
 
         {/* Lista de spots */}
         {spots.length === 0 ? (
           <View className="flex-1 justify-center items-center p-6">
             <Icon 
-              as={TABS.find(t => t.type === selectedTab)?.icon || Heart} 
+              as={SPOT_CATEGORIES.find(t => t.type === selectedTab)?.icon} 
               size={60} 
               color="#d1d5db" 
               className="mb-4"
             />
             <Text className="text-gray-600 text-center font-semibold text-lg">
-              No tienes spots en {TABS.find(t => t.type === selectedTab)?.label}
+              No tienes spots en {SPOT_CATEGORIES.find(t => t.type === selectedTab)?.label}
             </Text>
             <Text className="text-gray-500 text-center text-sm mt-2">
               Explora y guarda spots para verlos aquí

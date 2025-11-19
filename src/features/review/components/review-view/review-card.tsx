@@ -2,6 +2,7 @@ import { MediaCarousel } from "@/src/components/commons/media-carousel";
 import { RatingStars } from "@/src/components/commons/rating/rating-stars";
 import { SportsRatingTable } from "@/src/components/commons/sports-rating-table/sports-rating-table";
 import { Avatar, AvatarFallbackText, AvatarImage } from "@/src/components/ui/avatar";
+import { Card } from "@/src/components/ui/card";
 import { HStack } from "@/src/components/ui/hstack";
 import { Pressable } from "@/src/components/ui/pressable";
 import { Text } from "@/src/components/ui/text";
@@ -132,7 +133,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   };
 
   return (
-    <View className="bg-white px-6">
+    <Card className="bg-white px-6 border border-gray-500 shadow-sm">
       <VStack className="gap-3">
         {/* Header: Avatar + Nombre + Rating */}
         <HStack className="justify-between items-start gap-2">
@@ -309,6 +310,6 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
           initialCommentsCount={review.activity?.commentsCount || 0}
         />
       </VStack>
-    </View>
+    </Card>
   );
 };

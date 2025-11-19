@@ -11,7 +11,7 @@ import { useSelectedSpot } from "@/src/features/spot";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, SafeAreaView, ScrollView, View } from "react-native";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, View } from "react-native";
 
 /**
  * Página de edición de review
@@ -154,26 +154,36 @@ export const EditReviewPage = () => {
             </HStack>
             
             {/* Formulario */}
-            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-                <View className="p-6">
-                    {updateError && (
-                        <View className="bg-red-50 p-4 rounded-lg mb-4">
-                            <Text className="text-red-700">{updateError}</Text>
-                        </View>
-                    )}
-                    
-                    <CreateReviewForm
-                        spotId={spotId}
-                        spotSports={spotSports}
-                        onSubmit={handleSubmit}
-                        onCancel={handleCancel}
-                        isLoading={isUpdating}
-                        error={updateError}
-                        initialData={initialData}
-                        isEditMode={true}
-                    />
-                </View>
-            </ScrollView>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                className="flex-1"
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            >
+                <ScrollView 
+                    className="flex-1" 
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    <View className="p-6">
+                        {updateError && (
+                            <View className="bg-red-50 p-4 rounded-lg mb-4">
+                                <Text className="text-red-700">{updateError}</Text>
+                            </View>
+                        )}
+                        
+                        <CreateReviewForm
+                            spotId={spotId}
+                            spotSports={spotSports}
+                            onSubmit={handleSubmit}
+                            onCancel={handleCancel}
+                            isLoading={isUpdating}
+                            error={updateError}
+                            initialData={initialData}
+                            isEditMode={true}
+                        />
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 };

@@ -8,7 +8,7 @@ import { useSelectedSpot } from "@/src/features/spot";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import React, { useMemo } from "react";
-import { SafeAreaView, ScrollView } from "react-native";
+import { KeyboardAvoidingView, Platform, SafeAreaView, ScrollView } from "react-native";
 
 /**
  * Página de creación de review
@@ -62,20 +62,26 @@ export const CreateReviewPage = () => {
             </HStack>
             
             {/* Formulario */}
-            <ScrollView 
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 className="flex-1"
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
             >
-                <CreateReviewForm
-                    spotId={spotId}
-                    spotSports={spotSports}
-                    onSubmit={handleSubmit}
-                    onCancel={handleCancel}
-                    isLoading={isLoading}
-                    error={error}
-                />
-            </ScrollView>
+                <ScrollView 
+                    className="flex-1"
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    <CreateReviewForm
+                        spotId={spotId}
+                        spotSports={spotSports}
+                        onSubmit={handleSubmit}
+                        onCancel={handleCancel}
+                        isLoading={isLoading}
+                        error={error}
+                    />
+                </ScrollView>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 };
