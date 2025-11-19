@@ -5,6 +5,7 @@ import { Image } from '@/src/components/ui/image';
 import { Pressable } from '@/src/components/ui/pressable';
 import { Text } from '@/src/components/ui/text';
 import { VStack } from '@/src/components/ui/vstack';
+import { SpotCollectionSelector } from '@/src/features/spot/components/spot-view/spot-collection-selector';
 import React, { useState } from 'react';
 
 
@@ -16,9 +17,8 @@ interface SpotCardProps {
   onPress?: () => void;
 }
 
-export const SpotCard: React.FC<SpotCardProps> = ({ name, number, imageUrl, onPress }) => {
+export const SpotCard: React.FC<SpotCardProps> = ({ id, name, number, imageUrl, onPress }) => {
   const [isPressed, setIsPressed] = useState(false);
-
 
   return (
     <Pressable
@@ -40,7 +40,12 @@ export const SpotCard: React.FC<SpotCardProps> = ({ name, number, imageUrl, onPr
           />
           <HStack className="p-3 justify-between items-center">
             <Text className="font-medium text-lg w-1/2">{name}</Text>
-            <RatingStars rating={number} size="sm" showValue={true} />
+            <HStack className="gap-2 items-center">
+              <RatingStars rating={number} size="sm" showValue={true} />
+              
+              {/* Selector de colecciones */}
+              <SpotCollectionSelector spotId={id} />
+            </HStack>
           </HStack>
         </VStack>
       </Card>

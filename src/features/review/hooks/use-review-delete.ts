@@ -1,4 +1,4 @@
-// import { reviewRepository } from "@/src/api/repositories"; // TODO: Descomentar cuando se implemente
+import { reviewRepository } from "@/src/api/repositories";
 import { useUser } from "@/src/entities/user/context/user-context";
 import { useState } from "react";
 import { Alert } from "react-native";
@@ -14,7 +14,7 @@ export const useReviewDelete = (onSuccess?: () => void) => {
 
   /**
    * Elimina una review existente
-   * TODO: Implementar en el repositorio la lógica de eliminación
+   * Actualiza todas las métricas relacionadas
    */
   const deleteReview = async (reviewId: string, spotId: string): Promise<void> => {
     setIsLoading(true);
@@ -25,17 +25,14 @@ export const useReviewDelete = (onSuccess?: () => void) => {
         throw new Error("User must be authenticated to delete a review");
       }
 
-      // TODO: Implementar reviewRepository.deleteReview(reviewId, spotId)
-      // Por ahora, solo mostramos un placeholder
-      console.log("[useReviewDelete] Delete review not yet implemented:", reviewId, spotId);
-      Alert.alert("Próximamente", "La función de eliminar review estará disponible pronto");
+      // Eliminar la review usando el repositorio
+      await reviewRepository.deleteReview(reviewId, spotId);
       
-      // Cuando se implemente:
-      // await reviewRepository.deleteReview(reviewId, spotId);
-      // Alert.alert("Success", "Review eliminada exitosamente");
-      // if (onSuccess) {
-      //   onSuccess();
-      // }
+      Alert.alert("Success", "Review eliminada exitosamente");
+      
+      if (onSuccess) {
+        onSuccess();
+      }
       
     } catch (err) {
       const errorMessage = err instanceof Error 

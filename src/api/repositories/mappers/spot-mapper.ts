@@ -1,5 +1,5 @@
 import { Spot, SpotActivity, SpotDetails, SpotMetadata } from "@/src/entities/spot/model/spot";
-import { DocumentReference, GeoPoint as FirebaseGeoPoint } from "firebase/firestore";
+import { GeoPoint as FirebaseGeoPoint } from "firebase/firestore";
 
 /**
  * Interface que representa el modelo de spot tal como se almacena en Firebase
@@ -27,11 +27,14 @@ export interface SpotFirebase {
   isActive: boolean;
   createdAt?: any; // Timestamp de Firebase u otros formatos
   updatedAt?: any; // Timestamp de Firebase u otros formatos
-  createdBy: DocumentReference; // Referencia al usuario (ACTUALIZADO)
+  createdBy: string; // ID del usuario como string
 
   // SpotActivity (campos planos en Firebase)
   reviewsCount: number;
   visitsCount: number;
+  favoritesCount?: number;
+  visitedCount?: number;
+  wantToVisitCount?: number;
 }
 
 /**
@@ -73,12 +76,15 @@ export class SpotMapper {
       isActive: firebaseData.isActive !== false,
       createdAt: parseTimestamp(firebaseData.createdAt) || new Date(),
       updatedAt: parseTimestamp(firebaseData.updatedAt) || new Date(),
-      createdBy: firebaseData.createdBy?.id || "", // Extraer ID de la referencia
+      createdBy: firebaseData.createdBy || "",
     };
 
     const activity: SpotActivity = {
       reviewsCount: firebaseData.reviewsCount || 0,
       visitsCount: firebaseData.visitsCount || 0,
+      favoritesCount: firebaseData.favoritesCount || 0,
+      visitedCount: firebaseData.visitedCount || 0,
+      wantToVisitCount: firebaseData.wantToVisitCount || 0,
     };
 
     return {
@@ -100,7 +106,7 @@ export class SpotMapper {
       name: spot.details.name,
       description: spot.details.description,
       availableSports: spot.details.availableSports || [],
-      media: spot.details.media || [],
+      gallery: spot.details.media || [],
       location: new FirebaseGeoPoint(
         spot.details.location.latitude,
         spot.details.location.longitude
@@ -117,6 +123,9 @@ export class SpotMapper {
       createdBy: spot.metadata.createdBy || "",
       reviewsCount: spot.activity?.reviewsCount || 0,
       visitsCount: spot.activity?.visitsCount || 0,
+      favoritesCount: spot.activity?.favoritesCount || 0,
+      visitedCount: spot.activity?.visitedCount || 0,
+      wantToVisitCount: spot.activity?.wantToVisitCount || 0,
     };
   }
 
@@ -135,7 +144,7 @@ export class SpotMapper {
       if (details.name !== undefined) firebaseUpdate.name = details.name;
       if (details.description !== undefined) firebaseUpdate.description = details.description;
       if (details.availableSports !== undefined) firebaseUpdate.availableSports = details.availableSports;
-      if (details.media !== undefined) firebaseUpdate.media = details.media;
+      if (details.media !== undefined) firebaseUpdate.gallery = details.media;
       if (details.location !== undefined) {
         firebaseUpdate.location = new FirebaseGeoPoint(
           details.location.latitude,
@@ -180,6 +189,15 @@ export class SpotMapper {
       }
       if (activity.visitsCount !== undefined) {
         firebaseUpdate.visitsCount = activity.visitsCount;
+      }
+      if (activity.favoritesCount !== undefined) {
+        firebaseUpdate.favoritesCount = activity.favoritesCount;
+      }
+      if (activity.visitedCount !== undefined) {
+        firebaseUpdate.visitedCount = activity.visitedCount;
+      }
+      if (activity.wantToVisitCount !== undefined) {
+        firebaseUpdate.wantToVisitCount = activity.wantToVisitCount;
       }
     }
 

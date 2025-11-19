@@ -258,7 +258,13 @@ const CommentItem: React.FC<CommentItemProps> = ({
   }, [comment.id, currentUser, onGetVote]);
 
   const handleNavigateToProfile = () => {
-    router.push(`/profile/${comment.createdBy}`);
+    // Si es el propio usuario, ir a my-profile
+    if (currentUser?.id === comment.createdBy) {
+      router.push('/home-tabs/my-profile');
+    } else {
+      // Si es otro usuario, ir a su perfil
+      router.push(`/profile/${comment.createdBy}`);
+    }
   };
 
   /**

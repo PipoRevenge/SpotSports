@@ -2,17 +2,18 @@ import { Box } from "@/src/components/ui/box";
 import { Button, ButtonIcon, ButtonText } from "@/src/components/ui/button";
 import { Heading } from "@/src/components/ui/heading";
 import { HStack } from "@/src/components/ui/hstack";
-import { CloseIcon, Icon, TrashIcon } from "@/src/components/ui/icon";
+import { Icon } from "@/src/components/ui/icon";
 import {
-  Modal,
-  ModalBackdrop,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalHeader
+    Modal,
+    ModalBackdrop,
+    ModalBody,
+    ModalCloseButton,
+    ModalContent,
+    ModalHeader
 } from "@/src/components/ui/modal";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
+import { Trash2, X } from "lucide-react-native";
 import React, { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import { ScrollView } from "react-native";
 import { useCreateSport } from "../../hooks/use-create-sport";
@@ -189,7 +190,7 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
                   {viewMode === 'select' ? 'Buscar y Seleccionar Deportes' : 'Crear Nuevo Deporte'}
                 </Heading>
                 <ModalCloseButton>
-                  <Icon as={CloseIcon} />
+                  <Icon as={X} />
                 </ModalCloseButton>
               </HStack>
             </ModalHeader>
@@ -236,7 +237,7 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
                                       onPress={() => toggleSport(sport.id)}
                                       className="p-2"
                                     >
-                                      <ButtonIcon as={TrashIcon} className="text-red-500" size="sm" />
+                                      <ButtonIcon as={Trash2} className="text-red-500" size="sm" />
                                     </Button>
                                   </HStack>
                                 ))}

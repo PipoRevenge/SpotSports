@@ -40,6 +40,9 @@ export interface ISpotRepository {
   // Obtener spot por ID
   getSpotById(id: string): Promise<Spot | null>;
   
+  // Obtener solo los contadores del spot (optimizado)
+  getSpotCounters(id: string): Promise<{ favoritesCount: number; visitedCount: number; wantToVisitCount: number; reviewsCount: number; } | null>;
+  
   // Obtener calificaciones de deportes para un spot
   getSportRatings(spotId: string): Promise<SportSpotRating[]>;
   

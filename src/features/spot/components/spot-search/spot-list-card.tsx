@@ -2,12 +2,13 @@ import { RatingStars } from "@/src/components/commons/rating/rating-stars";
 import { Badge, BadgeIcon, BadgeText } from "@/src/components/ui/badge";
 import { Card } from "@/src/components/ui/card";
 import { HStack } from "@/src/components/ui/hstack";
-import { CheckIcon } from "@/src/components/ui/icon";
 import { Image } from "@/src/components/ui/image";
 import { Pressable } from "@/src/components/ui/pressable";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { Spot } from "@/src/entities/spot/model/spot";
+import { useSportNames } from "@/src/features/sport/hooks/use-sport-names";
+import { Check } from "lucide-react-native";
 import React from "react";
 
 interface SpotListCardProps {
@@ -28,6 +29,7 @@ export const SpotListCard: React.FC<SpotListCardProps> = ({
   showDistance = true,
 }) => {
   const mainImage = spot.details.media[0] || "https://via.placeholder.com/150";
+  const { getSportName } = useSportNames(spot.details.availableSports);
 
   return (
     <Pressable onPress={onPress}>
@@ -55,7 +57,7 @@ export const SpotListCard: React.FC<SpotListCardProps> = ({
                     variant="solid"
                     action="success"
                   >
-                    <BadgeIcon as={CheckIcon} />
+                    <BadgeIcon as={Check} />
                     <BadgeText>Verificado</BadgeText>
                   </Badge>
                 )}
@@ -88,7 +90,7 @@ export const SpotListCard: React.FC<SpotListCardProps> = ({
                     variant="outline"
                     action="info"
                   >
-                    <BadgeText>{sportId}</BadgeText>
+                    <BadgeText>{getSportName(sportId)}</BadgeText>
                   </Badge>
                 ))}
                 {spot.details.availableSports.length > 3 && (

@@ -43,7 +43,7 @@ export default function SignIn() {
   };
 
   return (
-    <VStack style={{ flex: 1, padding: 16 }}>
+    <VStack className='w-3/4 self-center justify-center flex-1'>
       <SignInForm 
         onSubmit={onSignInSubmit}
         onSignUpPress={handleSignUpPress}

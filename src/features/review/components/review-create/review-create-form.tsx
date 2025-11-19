@@ -21,10 +21,10 @@ import {
     FormControlLabelText,
 } from "@/src/components/ui/form-control";
 import { HStack } from "@/src/components/ui/hstack";
-import { AddIcon, CloseIcon } from "@/src/components/ui/icon";
 import { Text } from "@/src/components/ui/text";
 import { Textarea, TextareaInput } from "@/src/components/ui/textarea";
 import { VStack } from "@/src/components/ui/vstack";
+import { Plus, X } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import { Alert, ScrollView } from "react-native";
 import {
@@ -235,7 +235,7 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
               onPress={onCancel}
               disabled={isLoading}
             >
-              <ButtonIcon as={CloseIcon} className="text-gray-500" />
+              <ButtonIcon as={X} className="text-gray-500" />
             </Button>
           </HStack>
 
@@ -360,7 +360,7 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
                 }
                 className="border-blue-500"
               >
-                <ButtonIcon as={AddIcon} className="text-blue-600 mr-2" />
+                <ButtonIcon as={Plus} className="text-blue-600 mr-2" />
                 <ButtonText className="text-blue-600 font-medium">
                   Add Sport ({formData.reviewSports.length} /{" "}
                   {REVIEW_VALIDATION_LIMITS.MAX_SPORTS_COUNT})

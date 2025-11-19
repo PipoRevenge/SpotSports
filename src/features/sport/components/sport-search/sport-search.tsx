@@ -1,10 +1,10 @@
 import { Box } from "@/src/components/ui/box";
 import { HStack } from "@/src/components/ui/hstack";
-import { CloseIcon, SearchIcon } from "@/src/components/ui/icon";
 import { Input, InputField, InputIcon, InputSlot } from "@/src/components/ui/input";
 import { Pressable } from "@/src/components/ui/pressable";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
+import { Search, X } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import { ScrollView } from "react-native";
 import { useSearchSports } from "../../hooks/use-search-sports";
@@ -129,7 +129,7 @@ export const SportSearch: React.FC<SportSearchProps> = ({
       {/* Input de búsqueda */}
       <Input variant="outline" size="md">
         <InputSlot className="pl-3">
-          <InputIcon as={SearchIcon} className="text-gray-500" />
+          <InputIcon as={Search} className="text-gray-500" />
         </InputSlot>
         <InputField
           value={searchQuery}
@@ -139,7 +139,7 @@ export const SportSearch: React.FC<SportSearchProps> = ({
         {searchQuery && (
           <InputSlot className="pr-3">
             <Pressable onPress={handleClear}>
-              <InputIcon as={CloseIcon} className="text-gray-500" />
+              <InputIcon as={X} className="text-gray-500" />
             </Pressable>
           </InputSlot>
         )}

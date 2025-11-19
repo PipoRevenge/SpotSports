@@ -3,14 +3,14 @@ import {
     useReviewDelete
 } from "@/src/features/review";
 import { SpotSportsTable } from "@/src/features/sport";
-import { SpotDataDetails, useSelectedSpot } from "@/src/features/spot";
+import { SpotCollectionSelector, SpotDataDetails, useSelectedSpot } from "@/src/features/spot";
 import { HStack } from "@components/ui/hstack";
 import { Icon } from "@components/ui/icon";
 import { SafeAreaView } from "@components/ui/safe-area-view";
 import { Text } from "@components/ui/text";
 import { VStack } from "@components/ui/vstack";
 import { router, useLocalSearchParams } from "expo-router";
-import { ChevronDown, ChevronUp } from "lucide-react-native";
+import { CheckCircle, ChevronDown, ChevronUp, Heart, MessageSquare, Target } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 
@@ -26,6 +26,7 @@ export const SpotPage = () => {
     const {
         selectedSpot,
         sportRatings,
+        availableSports,
         reviews,
         usersData,
         loadingSpot,
@@ -34,18 +35,17 @@ export const SpotPage = () => {
         reviewsError,
         selectSpot,
         refreshAll,
-        refreshReviews
     } = useSelectedSpot();
     
     // Cargar el spot cuando se monta el componente
     useEffect(() => {
-        if (spotId) {
-            selectSpot(spotId);
+        if (spotId && (!selectedSpot || selectedSpot.id !== spotId)) {
+            selectSpot(spotId, true);
         }
-    }, [spotId]);
+    }, [spotId, selectSpot, selectedSpot]);
     
     // Hook de eliminación
-    const { deleteReview } = useReviewDelete(async () => {
+    const { deleteReview, isLoading: isDeleting } = useReviewDelete(async () => {
         // Refrescar todo después de eliminar
         await refreshAll();
     });
@@ -68,16 +68,11 @@ export const SpotPage = () => {
     const handleEditReview = (reviewId: string) => {
         if (!spotId) return;
         
-        const sports = sportRatings.map(sr => ({
-            id: sr.sportId,
-            name: sr.sportName,
-        }));
-        
         router.push({
             pathname: `/spot/review/[spotId]/edit-review`,
             params: {
                 spotId,
-                spotSports: JSON.stringify(sports),
+                spotSports: JSON.stringify(availableSports),
             },
         });
     };
@@ -134,7 +129,16 @@ export const SpotPage = () => {
         <SafeAreaView className="flex-1">
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 {/* Detalles del spot */}
-                <SpotDataDetails spot={selectedSpot} />
+                <View className="flex-row items-start justify-between">
+                    <View className="flex-1">
+                        <SpotDataDetails spot={selectedSpot} />
+                    </View>
+                    {spotId && (
+                        <View className="ml-4 mt-6">
+                            <SpotCollectionSelector spotId={spotId} />
+                        </View>
+                    )}
+                </View>
 
                 {/* Sección de deportes disponibles */}
                 <VStack className="w-full px-6 mt-6 mb-4">
@@ -177,6 +181,55 @@ export const SpotPage = () => {
                 {/* Separador antes de reviews */}
                 <View className="h-2 bg-gray-100" />
 
+                {/* Contadores de interacción */}
+                <VStack className="w-full px-6 mb-4">
+                    <HStack className="flex-row justify-between items-center py-3 border-b border-gray-300">
+                        <Text className="text-xl font-bold">Interactions</Text>
+                    </HStack>
+
+                    <View className="flex-row justify-around mt-4 py-4 bg-gray-50 rounded-lg">
+                        <View className="flex-1 items-center">
+                            <View className="flex-row items-center mb-1">
+                                <Heart size={18} color="#FF6B6B" fill="#FF6B6B" />
+                                <Text className="ml-1 text-lg font-semibold text-gray-800">
+                                    {selectedSpot.activity.favoritesCount || 0}
+                                </Text>
+                            </View>
+                            <Text className="text-xs text-gray-600 text-center">Favorites</Text>
+                        </View>
+                        
+                        <View className="flex-1 items-center">
+                            <View className="flex-row items-center mb-1">
+                                <CheckCircle size={18} color="#4ECDC4" fill="#4ECDC4" />
+                                <Text className="ml-1 text-lg font-semibold text-gray-800">
+                                    {selectedSpot.activity.visitedCount || 0}
+                                </Text>
+                            </View>
+                            <Text className="text-xs text-gray-600 text-center">Visited</Text>
+                        </View>
+                        
+                        <View className="flex-1 items-center">
+                            <View className="flex-row items-center mb-1">
+                                <Target size={18} color="#45B7D1" fill="#45B7D1" />
+                                <Text className="ml-1 text-lg font-semibold text-gray-800">
+                                    {selectedSpot.activity.wantToVisitCount || 0}
+                                </Text>
+                            </View>
+                            <Text className="text-xs text-gray-600 text-center">Want to Visit</Text>
+                        </View>
+                        
+                        <View className="flex-1 items-center">
+                            <View className="flex-row items-center mb-1">
+                                <MessageSquare size={18} color="#9B59B6" fill="#9B59B6" />
+                                <Text className="ml-1 text-lg font-semibold text-gray-800">
+                                    {selectedSpot.activity.reviewsCount || 0}
+                                </Text>
+                            </View>
+                            <Text className="text-xs text-gray-600 text-center">Reviews</Text>
+                        </View>
+                    </View>
+                </VStack>
+
                 {/* Lista de reviews */}
                 <ReviewList
                     reviews={reviews}
@@ -184,11 +237,9 @@ export const SpotPage = () => {
                     totalReviews={reviews.length}
                     usersData={usersData}
                     loading={loadingReviews}
+                    isDeleting={isDeleting}
                     error={reviewsError || undefined}
-                    availableSports={sportRatings.map(sr => ({
-                        id: sr.sportId,
-                        name: sr.sportName,
-                    }))}
+                    availableSports={availableSports}
                     selectedSportId={sportFilter}
                     onSportFilterChange={setSportFilter}
                     getSportName={getSportName}

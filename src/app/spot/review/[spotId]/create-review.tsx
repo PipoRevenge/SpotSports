@@ -17,9 +17,9 @@ import { SafeAreaView, ScrollView } from "react-native";
 export const CreateReviewPage = () => {
     const params = useLocalSearchParams();
     const spotId = params.spotId as string;
-    const spotSports = useMemo(() => 
-        params.spotSports ? JSON.parse(params.spotSports as string) : []
-    , [params.spotSports]);
+    const spotSports = useMemo(() => {
+        return params.spotSports ? JSON.parse(params.spotSports as string) : [];
+    }, [params.spotSports]);
     
     // Usar el contexto de Spot Seleccionado para actualizar globalmente
     const { refreshAll } = useSelectedSpot();

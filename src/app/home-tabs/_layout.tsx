@@ -12,7 +12,10 @@ export default function TabsLayout() {
           borderTopWidth: 1,
           borderTopColor: '#e2e8f0', // Slate-200
         },
+        // Usar replace para no acumular historial entre tabs
+        tabBarHideOnKeyboard: true,
       }}
+      backBehavior="history"
     >
       <Tabs.Screen
         name="search-map"
@@ -22,9 +25,9 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="my-favorite-spots"
+        name="saved-spots"
         options={{
-          title: 'Favorites',
+          title: 'Saved Spots',
           tabBarIcon: ({ color, size }) => <Heart size={size} color={color} />,
         }}
       />

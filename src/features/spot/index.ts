@@ -12,6 +12,7 @@ export type { MediaItem, SportFilterCriteria, SpotCreateFormData, SpotCreateForm
 export { SpotCreateForm } from './components/spot-create/spot-create-form';
 
 // Components - View
+export { SpotCollectionSelector } from './components/spot-view/spot-collection-selector';
 export { SpotDataDetails } from './components/spot-view/spot-data-details';
 export { SpotImageGallery } from './components/spot-view/spot-image-gallery';
 export { SpotSportsTable } from './components/spot-view/spot-sports-table';
@@ -33,6 +34,7 @@ export {
 
 // Hooks
 export { useCreateSpot } from './hooks/use-create-spot';
+export { useSpotFavorites } from './hooks/use-spot-favorites';
 
 
 // Utils

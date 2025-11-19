@@ -1,19 +1,19 @@
 import { Box } from "@/src/components/ui/box";
 import { Button, ButtonIcon, ButtonText } from "@/src/components/ui/button";
 import {
-  FormControl,
-  FormControlError,
-  FormControlErrorText,
-  FormControlLabel,
-  FormControlLabelText
+    FormControl,
+    FormControlError,
+    FormControlErrorText,
+    FormControlLabel,
+    FormControlLabelText
 } from "@/src/components/ui/form-control";
 import { HStack } from "@/src/components/ui/hstack";
-import { CloseIcon } from "@/src/components/ui/icon";
 import { Input, InputField } from "@/src/components/ui/input";
 import { Pressable } from "@/src/components/ui/pressable";
 import { Text } from "@/src/components/ui/text";
 import { Textarea, TextareaInput } from "@/src/components/ui/textarea";
 import { VStack } from "@/src/components/ui/vstack";
+import { X } from "lucide-react-native";
 import React, { useState } from "react";
 import { ScrollView } from "react-native";
 import { CreateSportData } from "../../types/sport-types";
@@ -126,7 +126,7 @@ export const CreateSportForm: React.FC<CreateSportFormProps> = ({
           disabled={isLoading}
           className="p-2"
         >
-          <ButtonIcon as={CloseIcon} className="text-gray-500" />
+          <ButtonIcon as={X} className="text-gray-500" />
         </Button>
       </HStack>
 

@@ -154,7 +154,13 @@ export const createFirestoreReviewData = (
   content: string,
   rating: number,
   reviewSports: ReviewSport[],
-  gallery?: string[]
+  gallery?: string[],
+  existingCounts?: {
+    likesCount?: number;
+    dislikesCount?: number;
+    commentsCount?: number;
+    reports?: number;
+  }
 ): FirestoreReviewData => {
   const now = Timestamp.now();
   
@@ -179,10 +185,10 @@ export const createFirestoreReviewData = (
     userId,
     SportReviews: sportReviewsIds, // Array de sportIds
     sportRatings, // Map de sportId -> FirestoreSportRating
-    likesCount: 0,
-    dislikesCount: 0,
-    commentsCount: 0,
-    reports: 0,
+    likesCount: existingCounts?.likesCount ?? 0,
+    dislikesCount: existingCounts?.dislikesCount ?? 0,
+    commentsCount: existingCounts?.commentsCount ?? 0,
+    reports: existingCounts?.reports ?? 0,
     createdAt: now,
     isDeleted: false,
   };

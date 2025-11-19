@@ -91,6 +91,34 @@ export class SportRepositoryImpl implements ISportRepository {
   }
 
   /**
+   * Obtiene deportes por IDs en bulk (optimizado para múltiples IDs)
+   */
+  async getSportsByIds(ids: string[]): Promise<Sport[]> {
+    try {
+      if (!ids || ids.length === 0) {
+        return [];
+      }
+
+      // Filtrar IDs válidos
+      const validIds = ids.filter(id => id?.trim());
+      if (validIds.length === 0) {
+        return [];
+      }
+
+      // Obtener deportes en paralelo
+      const sportsPromises = validIds.map(id => this.getSportById(id));
+      const sports = await Promise.all(sportsPromises);
+
+      // Filtrar deportes que existen
+      return sports.filter(sport => sport !== null) as Sport[];
+      
+    } catch (error: any) {
+      console.error('Error getting sports by IDs:', error);
+      throw new Error(error.message || 'No se pudieron obtener los deportes');
+    }
+  }
+
+  /**
    * Obtiene todos los deportes
    */
   async getAllSports(): Promise<Sport[]> {

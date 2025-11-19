@@ -1,10 +1,15 @@
+import { SavedSpot, SpotCategory } from '@/src/entities/user/model/spot-collection';
 import { User, UserDetails } from '@/src/entities/user/model/user';
 import {
+    addDoc,
+    arrayRemove,
+    arrayUnion,
     collection,
     deleteDoc,
     doc,
     getDoc,
     getDocs,
+    increment,
     query,
     setDoc,
     Timestamp,
@@ -18,7 +23,7 @@ import { UserFirebase, UserMapper } from '../mappers/user-mapper';
 
 export class UserRepositoryImpl implements IUserRepository {
     private readonly USERS_COLLECTION = 'users';
-    private readonly FAVORITE_SPOTS_SUBCOLLECTION = 'favoriteSpots';
+    private readonly SAVED_SPOTS_SUBCOLLECTION = 'saved_spots';
     private readonly FAVORITE_SPORTS_SUBCOLLECTION = 'favoriteSports';
     private readonly FOLLOWERS_SUBCOLLECTION = 'followers';
     private readonly FOLLOWING_SUBCOLLECTION = 'following';
@@ -100,7 +105,7 @@ export class UserRepositoryImpl implements IUserRepository {
         try {
             const userRef = await doc(firestore, this.USERS_COLLECTION, userId);
             const userDoc = await getDoc(userRef);
-            console.log('Fetched user document:', userDoc);
+            
             if (!userDoc.exists()) {
                 throw new Error('User not found');
             }
@@ -185,55 +190,53 @@ export class UserRepositoryImpl implements IUserRepository {
         }
     }
 
-    async getUserFavoriteSpots(userId: string): Promise<string[]> {
-        // For now, return empty array since favorites are now handled differently
-        // This method might need to be removed or updated to query a separate collection
-        return [];
-    }
-
-    async addFavoriteSpot(userId: string, spotId: string): Promise<void> {
+    /**
+     * Obtiene las colecciones de spots de un usuario
+     * @param userId ID del usuario
+     * @param collectionType Tipo de colección (opcional, si no se especifica devuelve todas)
+     * @returns Array de SpotCollection
+     */
+    /**
+     * Obtiene los spots guardados del usuario
+     * @param userId ID del usuario
+     * @param category Filtrar por categoría específica (opcional)
+     * @returns Array de SavedSpot
+     */
+    async getUserSavedSpots(userId: string, category?: SpotCategory): Promise<SavedSpot[]> {
         try {
             const userRef = doc(firestore, this.USERS_COLLECTION, userId);
+            const savedSpotsRef = collection(userRef, this.SAVED_SPOTS_SUBCOLLECTION);
             
-            // Verificar que el usuario existe
-            const userDoc = await getDoc(userRef);
-            if (!userDoc.exists()) {
-                throw new Error('User not found');
+            let q = query(savedSpotsRef);
+            
+            // Si se especifica categoría, filtrar por spots que contengan esa categoría
+            if (category) {
+                q = query(savedSpotsRef, where('categories', 'array-contains', category));
             }
             
-            // Agregar a la subcolección favoriteSpots
-            const favoriteSpotsRef = collection(userRef, this.FAVORITE_SPOTS_SUBCOLLECTION);
-            const favoriteSpotDoc = doc(favoriteSpotsRef, spotId);
+            const querySnapshot = await getDocs(q);
             
-            // Verificar si ya existe
-            const existingFavorite = await getDoc(favoriteSpotDoc);
-            if (existingFavorite.exists()) {
-                throw new Error('Spot is already in favorites');
-            }
-            
-            const now = Timestamp.now();
-            
-            // Agregar el documento a la subcolección
-            await setDoc(favoriteSpotDoc, {
-                spotId: spotId,
-                addedAt: now
-            });
-            
-            // Incrementar el contador en el documento principal del usuario
-            const currentFirebaseUser = userDoc.data() as UserFirebase;
-            const currentCount = currentFirebaseUser.favoriteSpotsCount || 0;
-            
-            await updateDoc(userRef, {
-                'favoriteSpotsCount': currentCount + 1,
-                'updatedAt': now
-            });
+            return querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                spotId: doc.data().spotId,
+                categories: doc.data().categories || [],
+                createdAt: doc.data().createdAt?.toDate() || new Date(),
+                updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+            }));
         } catch (error) {
-            console.error('Error adding favorite spot:', error);
-            throw new Error(error instanceof Error ? error.message : 'Unable to add favorite spot');
+            console.error('Error getting user saved spots:', error);
+            throw new Error('Unable to get user saved spots');
         }
     }
 
-    async removeFavoriteSpot(userId: string, spotId: string): Promise<void> {
+    /**
+     * Añade categorías a un spot guardado (o crea el spot guardado si no existe)
+     * También incrementa los contadores correspondientes en el documento del spot
+     * @param userId ID del usuario
+     * @param spotId ID del spot
+     * @param categories Array de categorías a añadir
+     */
+    async addSpotToCategories(userId: string, spotId: string, categories: SpotCategory[]): Promise<void> {
         try {
             const userRef = doc(firestore, this.USERS_COLLECTION, userId);
             
@@ -243,39 +246,221 @@ export class UserRepositoryImpl implements IUserRepository {
                 throw new Error('User not found');
             }
             
-            // Eliminar de la subcolección favoriteSpots
-            const favoriteSpotsRef = collection(userRef, this.FAVORITE_SPOTS_SUBCOLLECTION);
-            const favoriteSpotDoc = doc(favoriteSpotsRef, spotId);
+            const savedSpotsRef = collection(userRef, this.SAVED_SPOTS_SUBCOLLECTION);
             
-            // Verificar si existe antes de eliminar
-            const existingFavorite = await getDoc(favoriteSpotDoc);
-            if (!existingFavorite.exists()) {
-                throw new Error('Spot is not in favorites');
+            // Buscar si ya existe un documento para este spotId
+            const existingQuery = query(savedSpotsRef, where('spotId', '==', spotId));
+            const existingDocs = await getDocs(existingQuery);
+            
+            const now = Timestamp.now();
+            const spotRef = doc(firestore, 'spots', spotId);
+            
+            if (existingDocs.empty) {
+                // No existe, crear nuevo documento con las categorías
+                await addDoc(savedSpotsRef, {
+                    spotId: spotId,
+                    categories: categories,
+                    createdAt: now,
+                    updatedAt: now,
+                });
+                
+                // Incrementar contadores para cada categoría
+                const updateData: any = { updatedAt: now };
+                categories.forEach(cat => {
+                    const counterField = this.getCounterFieldName(cat);
+                    updateData[counterField] = increment(1);
+                });
+                
+                await updateDoc(spotRef, updateData);
+                
+                console.log(`[UserRepository] Created saved spot ${spotId} with categories:`, categories);
+            } else {
+                // Ya existe, añadir las nuevas categorías
+                const savedSpotDoc = existingDocs.docs[0];
+                const currentCategories: SpotCategory[] = savedSpotDoc.data().categories || [];
+                
+                // Filtrar solo las categorías que aún no están añadidas
+                const newCategories = categories.filter(cat => !currentCategories.includes(cat));
+                
+                if (newCategories.length === 0) {
+                    console.log(`[UserRepository] All categories already exist for spot ${spotId}`);
+                    return;
+                }
+                
+                // Actualizar el documento añadiendo las nuevas categorías
+                await updateDoc(savedSpotDoc.ref, {
+                    categories: arrayUnion(...newCategories),
+                    updatedAt: now,
+                });
+                
+                // Incrementar contadores solo para las nuevas categorías
+                const updateData: any = { updatedAt: now };
+                newCategories.forEach(cat => {
+                    const counterField = this.getCounterFieldName(cat);
+                    updateData[counterField] = increment(1);
+                });
+                
+                await updateDoc(spotRef, updateData);
+                
+                console.log(`[UserRepository] Added categories to spot ${spotId}:`, newCategories);
+            }
+        } catch (error) {
+            console.error('Error adding spot to categories:', error);
+            throw new Error(error instanceof Error ? error.message : 'Unable to add spot to categories');
+        }
+    }
+
+    /**
+     * Elimina categorías de un spot guardado
+     * También decrementa los contadores correspondientes en el documento del spot
+     * Si se eliminan todas las categorías, elimina el documento completo
+     * @param userId ID del usuario
+     * @param spotId ID del spot
+     * @param categories Array de categorías a eliminar
+     */
+    async removeSpotFromCategories(userId: string, spotId: string, categories: SpotCategory[]): Promise<void> {
+        try {
+            const userRef = doc(firestore, this.USERS_COLLECTION, userId);
+            const savedSpotsRef = collection(userRef, this.SAVED_SPOTS_SUBCOLLECTION);
+            
+            // Buscar el documento del spot guardado
+            const q = query(savedSpotsRef, where('spotId', '==', spotId));
+            const querySnapshot = await getDocs(q);
+            
+            if (querySnapshot.empty) {
+                throw new Error('Spot is not saved');
+            }
+            
+            const savedSpotDoc = querySnapshot.docs[0];
+            const currentCategories: SpotCategory[] = savedSpotDoc.data().categories || [];
+            
+            // Filtrar las categorías que realmente existen
+            const categoriesToRemove = categories.filter(cat => currentCategories.includes(cat));
+            
+            if (categoriesToRemove.length === 0) {
+                console.log(`[UserRepository] No categories to remove for spot ${spotId}`);
+                return;
             }
             
             const now = Timestamp.now();
+            const spotRef = doc(firestore, 'spots', spotId);
             
-            // Eliminar el documento de la subcolección
-            await deleteDoc(favoriteSpotDoc);
+            // Calcular las categorías restantes
+            const remainingCategories = currentCategories.filter(cat => !categoriesToRemove.includes(cat));
             
-            // Decrementar el contador en el documento principal del usuario
-            const currentFirebaseUser = userDoc.data() as UserFirebase;
-            const currentCount = currentFirebaseUser.favoriteSpotsCount || 0;
+            if (remainingCategories.length === 0) {
+                // Si no quedan categorías, eliminar el documento completo
+                await deleteDoc(savedSpotDoc.ref);
+                console.log(`[UserRepository] Deleted saved spot ${spotId} (no categories left)`);
+            } else {
+                // Actualizar el documento eliminando las categorías
+                await updateDoc(savedSpotDoc.ref, {
+                    categories: arrayRemove(...categoriesToRemove),
+                    updatedAt: now,
+                });
+                console.log(`[UserRepository] Removed categories from spot ${spotId}:`, categoriesToRemove);
+            }
             
-            await updateDoc(userRef, {
-                'favoriteSpotsCount': Math.max(0, currentCount - 1), // Ensure count doesn't go negative
-                'updatedAt': now
+            // Decrementar contadores para las categorías eliminadas
+            const updateData: any = { updatedAt: now };
+            categoriesToRemove.forEach(cat => {
+                const counterField = this.getCounterFieldName(cat);
+                updateData[counterField] = increment(-1);
             });
+            
+            await updateDoc(spotRef, updateData);
+            
         } catch (error) {
-            console.error('Error removing favorite spot:', error);
-            throw new Error(error instanceof Error ? error.message : 'Unable to remove favorite spot');
+            console.error('Error removing spot from categories:', error);
+            throw new Error(error instanceof Error ? error.message : 'Unable to remove spot from categories');
+        }
+    }
+
+    /**
+     * Obtiene las categorías en las que está guardado un spot
+     * @param userId ID del usuario
+     * @param spotId ID del spot
+     * @returns Array de categorías
+     */
+    async getSpotCategories(userId: string, spotId: string): Promise<SpotCategory[]> {
+        try {
+            const userRef = doc(firestore, this.USERS_COLLECTION, userId);
+            const savedSpotsRef = collection(userRef, this.SAVED_SPOTS_SUBCOLLECTION);
+            
+            const q = query(savedSpotsRef, where('spotId', '==', spotId));
+            const querySnapshot = await getDocs(q);
+            
+            if (querySnapshot.empty) {
+                return [];
+            }
+            
+            return querySnapshot.docs[0].data().categories || [];
+        } catch (error) {
+            console.error('Error getting spot categories:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Actualiza las categorías de un spot guardado
+     * Reemplaza completamente las categorías existentes con las nuevas
+     * @param userId ID del usuario
+     * @param spotId ID del spot
+     * @param newCategories Nuevas categorías
+     */
+    async updateSpotCategories(userId: string, spotId: string, newCategories: SpotCategory[]): Promise<void> {
+        try {
+            // Obtener categorías actuales
+            const currentCategories = await this.getSpotCategories(userId, spotId);
+            
+            // Calcular diferencias
+            const categoriesToAdd = newCategories.filter(cat => !currentCategories.includes(cat));
+            const categoriesToRemove = currentCategories.filter(cat => !newCategories.includes(cat));
+            
+            // Aplicar cambios
+            if (categoriesToRemove.length > 0) {
+                await this.removeSpotFromCategories(userId, spotId, categoriesToRemove);
+            }
+            
+            if (categoriesToAdd.length > 0) {
+                await this.addSpotToCategories(userId, spotId, categoriesToAdd);
+            }
+            
+            console.log(`[UserRepository] Updated spot ${spotId} categories:`, newCategories);
+        } catch (error) {
+            console.error('Error updating spot categories:', error);
+            throw new Error(error instanceof Error ? error.message : 'Unable to update spot categories');
+        }
+    }
+
+    /**
+     * Obtiene el nombre del campo contador según la categoría
+     */
+    private getCounterFieldName(category: SpotCategory): string {
+        switch (category) {
+            case 'Favorites':
+                return 'favoritesCount';
+            case 'Visited':
+                return 'visitedCount';
+            case 'WantToVisit':
+                return 'wantToVisitCount';
+            default:
+                throw new Error(`Unknown category: ${category}`);
         }
     }
 
     async getUserFavoriteSports(userId: string): Promise<string[]> {
-        // For now, return empty array since favorites are now handled differently
-        // This method might need to be removed or updated to query a separate collection
-        return [];
+        try {
+            const userRef = doc(firestore, this.USERS_COLLECTION, userId);
+            const favoriteSportsRef = collection(userRef, this.FAVORITE_SPORTS_SUBCOLLECTION);
+            
+            const querySnapshot = await getDocs(favoriteSportsRef);
+            
+            return querySnapshot.docs.map(doc => doc.data().sportId);
+        } catch (error) {
+            console.error('Error getting favorite sports:', error);
+            return [];
+        }
     }
 
     async addFavoriteSport(userId: string, sportId: string): Promise<void> {

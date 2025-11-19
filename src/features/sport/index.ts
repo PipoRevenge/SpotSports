@@ -9,26 +9,27 @@ export { SportsSelectorModal as SportsSelector, SportsSelectorModal } from "./co
 export { useCreateSport } from "./hooks/use-create-sport";
 export { useSearchSports } from "./hooks/use-search-sports";
 export { useSelectSports } from "./hooks/use-select-sports";
+export { useSportNames } from "./hooks/use-sport-names";
 
 // Types
 export type {
-    CreateSportData, Sport, SportCategory, SportFilters, SportOption, SportSimple, SportsSelectorProps, SportsSelectorRef, SportState, UseSportsSearchOptions
+  CreateSportData, Sport, SportCategory, SportFilters, SportOption, SportSimple, SportsSelectorProps, SportsSelectorRef, SportState, UseSportsSearchOptions
 } from "./types/sport-types";
 
 // Utilities
 export {
-    validateCreateSport, validateSportDescription, validateSportName, validateSportSelection
+  validateCreateSport, validateSportDescription, validateSportName, validateSportSelection
 } from "./utils/sport-validations";
 
 export {
-    filterSportsByCategory, filterSportsExcluding, filterSportsMultiple, formatResultsCount, formatSelectedCount, limitResults, toSimpleSport,
-    toSportOption
+  filterSportsByCategory, filterSportsExcluding, filterSportsMultiple, formatResultsCount, formatSelectedCount, limitResults, toSimpleSport,
+  toSportOption
 } from "./utils/sport-helpers";
 
 export {
-    LOADING_STATES, SPORT_CATEGORIES,
-    SPORT_CATEGORIES_LIST, SPORT_ERROR_MESSAGES,
-    SPORT_PLACEHOLDERS, SPORT_SEARCH_CONFIG,
-    SPORT_VALIDATION_LIMITS
+  LOADING_STATES, SPORT_CATEGORIES,
+  SPORT_CATEGORIES_LIST, SPORT_ERROR_MESSAGES,
+  SPORT_PLACEHOLDERS, SPORT_SEARCH_CONFIG,
+  SPORT_VALIDATION_LIMITS
 } from "./utils/sport-constants";
 

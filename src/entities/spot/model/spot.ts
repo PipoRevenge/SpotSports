@@ -39,6 +39,9 @@ export interface SpotMetadata {
 export interface SpotActivity {
   reviewsCount: number;
   visitsCount: number;
+  favoritesCount?: number; // Contador de usuarios que tienen el spot en favoritos
+  visitedCount?: number; // Contador de usuarios que marcaron el spot como visitado
+  wantToVisitCount?: number; // Contador de usuarios que quieren visitar el spot
 }
 
 // Interfaz principal de Spot
@@ -46,7 +49,7 @@ export interface Spot {
   id: string;
   details: SpotDetails;
   metadata: SpotMetadata;
-  activity?: SpotActivity;
+  activity: SpotActivity; // Agregado para incluir contadores de actividad
 }
 
 

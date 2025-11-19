@@ -1,7 +1,8 @@
 import { MediaCarousel } from "@/src/components/commons/media-carousel";
 import { RatingStars } from "@/src/components/commons/rating/rating-stars";
+import { SpotCollectionSelector } from "@/src/features/spot";
 import { X } from "lucide-react-native";
-import React from "react";
+import React, { useState } from "react";
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { HStack } from "../../../../components/ui/hstack";
 import { VStack } from "../../../../components/ui/vstack";
@@ -32,6 +33,8 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
   onPress,
   getSportName,
 }) => {
+  const [isNavigating, setIsNavigating] = useState(false);
+  
   // No renderizar nada si no está visible
   if (!visible) {
     return null;
@@ -71,18 +74,24 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
           }}
         >
           <View className="bg-white rounded-t-3xl shadow-2xl">
-            {/* Header con botón de cerrar */}
+            {/* Header con botón de cerrar y colecciones */}
             <View className="p-4 border-b border-gray-200">
               <HStack className="justify-between items-center">
                 <Text className="text-lg font-bold text-typography-900">
                   Detalles del Spot
                 </Text>
-                <Pressable
-                  onPress={onClose}
-                  className="bg-gray-100 p-2 rounded-full"
-                >
-                  <X size={20} color="#374151" />
-                </Pressable>
+                <HStack className="gap-2 items-center">
+                  {/* Selector de colecciones */}
+                  <SpotCollectionSelector spotId={spot.id} />
+                  
+                  {/* Botón cerrar */}
+                  <Pressable
+                    onPress={onClose}
+                    className="bg-gray-100 p-2 rounded-full"
+                  >
+                    <X size={20} color="#374151" />
+                  </Pressable>
+                </HStack>
               </HStack>
             </View>
 
@@ -218,12 +227,31 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
 
                 {/* Botón para ver más detalles */}
                 <Pressable
-                  onPress={() => onPress(spot)}
-                  className="bg-blue-600 py-3 rounded-lg items-center"
+                  onPress={async () => {
+                    if (!isNavigating && spot) {
+                      setIsNavigating(true);
+                      onPress(spot);
+                      // Reset después de un delay para permitir la navegación
+                      setTimeout(() => setIsNavigating(false), 2000);
+                    }
+                  }}
+                  disabled={isNavigating}
+                  className={`py-3 rounded-lg items-center ${
+                    isNavigating ? 'bg-blue-400' : 'bg-blue-600'
+                  }`}
                 >
-                  <Text className="text-white font-semibold">
-                    Ver detalles completos
-                  </Text>
+                  {isNavigating ? (
+                    <HStack className="items-center gap-2">
+                      <ActivityIndicator size="small" color="white" />
+                      <Text className="text-white font-semibold">
+                        Cargando...
+                      </Text>
+                    </HStack>
+                  ) : (
+                    <Text className="text-white font-semibold">
+                      Ver detalles completos
+                    </Text>
+                  )}
                 </Pressable>
               </VStack>
             </ScrollView>

@@ -7,6 +7,9 @@ export interface ISportRepository {
   // Obtener deporte por ID
   getSportById(id: string): Promise<Sport | null>;
   
+  // Obtener deportes por IDs (bulk)
+  getSportsByIds(ids: string[]): Promise<Sport[]>;
+  
   // Obtener todos los deportes
   getAllSports(): Promise<Sport[]>;
   

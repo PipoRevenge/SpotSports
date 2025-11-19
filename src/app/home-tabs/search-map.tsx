@@ -69,7 +69,6 @@ export default function SearchMapScreen() {
     mapRegion,
     setMapRegion,
     shouldCenterOnUser,
-    refetchSpot,
   } = useMapSpotSearch({
     userLocation: userLocation || undefined,
     autoSearch: true,
@@ -137,7 +136,7 @@ export default function SearchMapScreen() {
    * Selecciona el spot y muestra el callout automáticamente
    */
   const handleMarkerPress = useCallback((spot: Spot) => {
-    selectSpot(spot);
+    selectSpot(spot, false); // No cargar reviews para el modal
     setSelectedSpotId(spot.id);
   }, [selectSpot]);
 
@@ -146,8 +145,8 @@ export default function SearchMapScreen() {
    * Muestra el card modal con toda la información
    */
   const handleCalloutPress = useCallback((spot: Spot) => {
-    // Asegurar que el spot esté seleccionado en el contexto
-    selectSpot(spot);
+    // Asegurar que el spot esté seleccionado en el contexto (sin cargar reviews)
+    selectSpot(spot, false);
     // Mostrar el modal con los datos que ya tenemos
     setShowSpotCard(true);
   }, [selectSpot]);
@@ -157,8 +156,8 @@ export default function SearchMapScreen() {
    * Navega a la página del spot
    */
   const handleSpotPress = useCallback(async (spot: Spot) => {
-    // Seleccionar el spot en el contexto (sincronización global)
-    await selectSpot(spot);
+    // Seleccionar el spot en el contexto con loadReviews: true (para la página completa)
+    await selectSpot(spot, true);
     
     // Navegar a la página del spot
     router.push({
@@ -390,7 +389,7 @@ export default function SearchMapScreen() {
             
             {/* Card modal del spot seleccionado */}
             <SpotCardModal
-              spot={selectedSpot}
+              spot={selectedSpot || undefined}
               visible={showSpotCard}
               distance={mapResults.find((r) => r.item.id === selectedSpot?.id)?.location.distance}
               onClose={handleCloseSpotCard}

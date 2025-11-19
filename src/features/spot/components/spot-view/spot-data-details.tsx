@@ -3,6 +3,7 @@ import { HStack } from "@/src/components/ui/hstack";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { Spot } from "@/src/entities/spot/model/spot";
+import { SpotCollectionSelector } from "@/src/features/spot/components/spot-view/spot-collection-selector";
 import { SpotImageGallery } from "@/src/features/spot/components/spot-view/spot-image-gallery";
 import React from "react";
 
@@ -12,15 +13,21 @@ interface SpotDataDetailsProps {
 }
 
 export const SpotDataDetails: React.FC<SpotDataDetailsProps> = ({ spot }) => {
+    
     return (
         <VStack className="w-full flex-1 px-6 pt-6">
             {/* Galería de imágenes */}
             <SpotImageGallery images={spot.details.media} spotName={spot.details.name} />
             
-            {/* Nombre y rating */}
+            {/* Nombre, rating y marcador de colección */}
             <HStack className="w-full flex-row justify-between items-center mt-4">
                 <Text size="xl" className="w-52 font-bold">{spot.details.name}</Text>
-                <RatingStars rating={spot.details.overallRating} size="md" showValue={true} />
+                <HStack className="gap-3 items-center">
+                    <RatingStars rating={spot.details.overallRating} size="md" showValue={true} />
+                    
+                    {/* Selector de colecciones */}
+                    <SpotCollectionSelector spotId={spot.id} />
+                </HStack>
             </HStack>
             
             {/* Descripción */}

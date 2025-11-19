@@ -141,6 +141,36 @@ export class SpotRepositoryImpl implements ISpotRepository {
   }
 
   /**
+   * Obtener solo los contadores del spot (optimizado para actualizaciones rápidas)
+   */
+  async getSpotCounters(id: string): Promise<{ favoritesCount: number; visitedCount: number; wantToVisitCount: number; reviewsCount: number; } | null> {
+    try {
+      if (!id || typeof id !== 'string' || id.trim().length === 0) {
+        throw new Error('Valid spot ID is required');
+      }
+
+      const spotDoc = doc(firestore, this.COLLECTION_NAME, id);
+      const docSnap = await getDoc(spotDoc);
+
+      if (!docSnap.exists()) {
+        return null;
+      }
+
+      const data = docSnap.data();
+      return {
+        favoritesCount: data.favoritesCount || 0,
+        visitedCount: data.visitedCount || 0,
+        wantToVisitCount: data.wantToVisitCount || 0,
+        reviewsCount: data.reviewsCount || 0,
+      };
+
+    } catch (error) {
+      console.error('Error getting spot counters:', error);
+      return null;
+    }
+  }
+
+  /**
    * Obtener calificaciones de deportes para un spot
    */
   async getSportRatings(spotId: string): Promise<SportSpotRating[]> {

@@ -1,7 +1,8 @@
-import { reviewRepository, spotRepository, userRepository } from "@/src/api/repositories";
+import { reviewRepository, sportRepository, spotRepository, userRepository } from "@/src/api/repositories";
 import { Review } from "@/src/entities/review/review";
 import { SportSpotRating, Spot } from "@/src/entities/spot/model/spot";
 import { User } from "@/src/entities/user/model/user";
+import { SimpleSport } from "@/src/features/review/types/review-types";
 import React, { createContext, useCallback, useContext, useState } from "react";
 
 /**
@@ -27,6 +28,11 @@ interface SelectedSpotContextValue {
    * Métricas de deportes del spot seleccionado
    */
   sportRatings: SportSpotRating[];
+  
+  /**
+   * Deportes disponibles en el spot (con nombres)
+   */
+  availableSports: SimpleSport[];
   
   /**
    * Reviews del spot seleccionado
@@ -63,9 +69,10 @@ interface SelectedSpotContextValue {
   // ===== ACTIONS =====
   /**
    * Selecciona un spot (lo carga si solo se pasa el ID)
-   * También carga sus sport ratings y reviews
+   * @param spotOrId - Spot object o spotId string
+   * @param shouldLoadReviews - Si debe cargar reviews automáticamente (default: true)
    */
-  selectSpot: (spotOrId: Spot | string) => Promise<void>;
+  selectSpot: (spotOrId: Spot | string, shouldLoadReviews?: boolean) => Promise<void>;
   
   /**
    * Refresca todos los datos del spot actual desde el servidor
@@ -82,6 +89,11 @@ interface SelectedSpotContextValue {
    * Refresca solo las reviews
    */
   refreshReviews: () => Promise<void>;
+  
+  /**
+   * Refresca solo los contadores del spot (optimizado)
+   */
+  refreshSpotCounters: () => Promise<void>;
   
   /**
    * Limpia la selección
@@ -103,6 +115,7 @@ export const SelectedSpotProvider: React.FC<SelectedSpotProviderProps> = ({ chil
   // Spot data
   const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null);
   const [sportRatings, setSportRatings] = useState<SportSpotRating[]>([]);
+  const [availableSports, setAvailableSports] = useState<SimpleSport[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [usersData, setUsersData] = useState<Map<string, User>>(new Map());
   
@@ -117,7 +130,7 @@ export const SelectedSpotProvider: React.FC<SelectedSpotProviderProps> = ({ chil
   /**
    * Carga las reviews de un spot y los datos de usuarios
    */
-  const loadReviews = useCallback(async (spotId: string) => {
+  const loadReviewsData = useCallback(async (spotId: string) => {
     setLoadingReviews(true);
     setReviewsError(null);
     
@@ -165,10 +178,24 @@ export const SelectedSpotProvider: React.FC<SelectedSpotProviderProps> = ({ chil
         throw new Error("Spot not found");
       }
       
-      const ratings = await spotRepository.getSportRatings(spotId);
+      const [ratings, sportsWithNames] = await Promise.all([
+        spotRepository.getSportRatings(spotId),
+        // Obtener deportes disponibles con detalles completos
+        spot.details.availableSports.length > 0
+          ? sportRepository.getSportsByIds(spot.details.availableSports).then(sports => 
+              sports.map(sport => ({
+                id: sport.id,
+                name: sport.details.name,
+                description: sport.details.description,
+                category: sport.details.category
+              }))
+            )
+          : Promise.resolve([])
+      ]);
       
       setSelectedSpot(spot);
       setSportRatings(ratings);
+      setAvailableSports(sportsWithNames);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to load spot";
       setSpotError(errorMessage);
@@ -181,9 +208,9 @@ export const SelectedSpotProvider: React.FC<SelectedSpotProviderProps> = ({ chil
 
   /**
    * Selecciona un spot (carga desde servidor si se pasa un ID)
-   * También carga sport ratings y reviews
+   * shouldLoadReviews: Si se pasa false, no carga las reviews automáticamente (para modal)
    */
-  const selectSpot = useCallback(async (spotOrId: Spot | string) => {
+  const selectSpot = useCallback(async (spotOrId: Spot | string, shouldLoadReviews: boolean = true) => {
     setSpotError(null);
     setReviewsError(null);
     
@@ -193,15 +220,22 @@ export const SelectedSpotProvider: React.FC<SelectedSpotProviderProps> = ({ chil
     if (typeof spotOrId === "object") {
       setSelectedSpot(spotOrId);
       spotId = spotOrId.id;
+      
+      // No cargar nada más si es un objeto (viene del modal del mapa)
+      if (!shouldLoadReviews) {
+        return;
+      }
     } else {
       // Si es un ID, cargar desde el servidor
       spotId = spotOrId;
       await loadSpotData(spotId);
     }
     
-    // Cargar reviews en paralelo
-    await loadReviews(spotId);
-  }, [loadSpotData, loadReviews]);
+    // Cargar reviews si se requiere
+    if (shouldLoadReviews) {
+      await loadReviewsData(spotId);
+    }
+  }, [loadSpotData, loadReviewsData]);
 
   /**
    * Refresca todos los datos del spot actual
@@ -214,9 +248,9 @@ export const SelectedSpotProvider: React.FC<SelectedSpotProviderProps> = ({ chil
     
     await Promise.all([
       loadSpotData(selectedSpot.id),
-      loadReviews(selectedSpot.id)
+      loadReviewsData(selectedSpot.id)
     ]);
-  }, [selectedSpot, loadSpotData, loadReviews]);
+  }, [selectedSpot, loadSpotData, loadReviewsData]);
 
   /**
    * Refresca solo el spot y sport ratings
@@ -239,15 +273,45 @@ export const SelectedSpotProvider: React.FC<SelectedSpotProviderProps> = ({ chil
       return;
     }
     
-    await loadReviews(selectedSpot.id);
-  }, [selectedSpot, loadReviews]);
+    await loadReviewsData(selectedSpot.id);
+  }, [selectedSpot, loadReviewsData]);
 
   /**
-   * Limpia la selección
+   * Refresca solo los contadores del spot (optimizado)
+   */
+  const refreshSpotCounters = useCallback(async () => {
+    if (!selectedSpot) {
+      console.warn("[SelectedSpotContext] No spot selected to refresh counters");
+      return;
+    }
+    
+    try {
+      const counters = await spotRepository.getSpotCounters(selectedSpot.id);
+      if (counters) {
+        // Solo actualizar los contadores del spot actual
+        setSelectedSpot(prev => prev ? {
+          ...prev,
+          activity: {
+            ...prev.activity,
+            favoritesCount: counters.favoritesCount,
+            visitedCount: counters.visitedCount,
+            wantToVisitCount: counters.wantToVisitCount,
+            reviewsCount: counters.reviewsCount,
+          }
+        } : null);
+      }
+    } catch (err) {
+      console.error("[SelectedSpotContext] Error refreshing spot counters:", err);
+    }
+  }, [selectedSpot]);
+
+  /**
+   * Limpia la selección actual
    */
   const clearSelection = useCallback(() => {
     setSelectedSpot(null);
     setSportRatings([]);
+    setAvailableSports([]);
     setReviews([]);
     setUsersData(new Map());
     setSpotError(null);
@@ -257,6 +321,7 @@ export const SelectedSpotProvider: React.FC<SelectedSpotProviderProps> = ({ chil
   const value: SelectedSpotContextValue = {
     selectedSpot,
     sportRatings,
+    availableSports,
     reviews,
     usersData,
     loadingSpot,
@@ -267,6 +332,7 @@ export const SelectedSpotProvider: React.FC<SelectedSpotProviderProps> = ({ chil
     refreshAll,
     refreshSpotData,
     refreshReviews,
+    refreshSpotCounters,
     clearSelection,
   };
 

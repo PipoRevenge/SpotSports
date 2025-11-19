@@ -1,14 +1,13 @@
 import { Box } from "@/src/components/ui/box";
 import { Button, ButtonText } from "@/src/components/ui/button";
-import { HStack } from "@/src/components/ui/hstack";
 import { Pressable } from "@/src/components/ui/pressable";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import React from "react";
-import { Modal, ScrollView } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, ScrollView, View } from "react-native";
 import {
-    ReviewSportFormData,
-    SimpleSport,
+  ReviewSportFormData,
+  SimpleSport,
 } from "../../types/review-types";
 
 interface SpotSportsSelectorProps {
@@ -34,6 +33,12 @@ export const SpotSportsSelector: React.FC<SpotSportsSelectorProps> = ({
   const availableSports = spotSports.filter(
     (sport) => !excludeSportIds.includes(sport.id)
   );
+
+  console.log("[SpotSportsSelector] Modal visible:", visible);
+  console.log("[SpotSportsSelector] spotSports received:", spotSports);
+  console.log("[SpotSportsSelector] excludeSportIds:", excludeSportIds);
+  console.log("[SpotSportsSelector] availableSports after filter:", availableSports);
+  console.log("[SpotSportsSelector] availableSports length:", availableSports.length);
 
   const handleSelectSport = (sport: SimpleSport) => {
     // Crear el deporte con valores por defecto
@@ -63,9 +68,13 @@ export const SpotSportsSelector: React.FC<SpotSportsSelectorProps> = ({
       transparent={true}
       onRequestClose={onClose}
     >
-      <Box className="flex-1 bg-black/50 justify-end">
-        <Box className="bg-white rounded-t-3xl max-h-[80%]">
-          <VStack className="gap-4">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1"
+      >
+        <Box className="flex-1 bg-black/50 justify-end">
+          <Box className="bg-white rounded-t-3xl max-h-[75%]">
+            <VStack className="gap-4">
             {/* Header */}
             <Box className="p-6 pb-4 border-b border-gray-200">
               <Text className="text-xl font-bold text-gray-900">
@@ -74,44 +83,58 @@ export const SpotSportsSelector: React.FC<SpotSportsSelectorProps> = ({
               <Text className="text-sm text-gray-600 mt-1">
                 {availableSports.length > 0
                   ? `${availableSports.length} sport${availableSports.length > 1 ? 's' : ''} available`
-                  : "All spot sports rated"}
+                  : `All spot sports rated (${spotSports.length} total sports)`}
               </Text>
             </Box>
 
             {/* Lista de deportes del spot */}
-            <ScrollView className="max-h-96">
-              <VStack className="px-6 gap-2">
+            <ScrollView className="h-auto"  >
+              <View className="px-6 py-2">
+                {(() => {
+                  console.log("[SpotSportsSelector] About to render list. Available sports:", availableSports);
+                  return null;
+                })()}
                 {availableSports.length > 0 ? (
-                  availableSports.map((sport) => (
+                  availableSports.map((sport, index) => {
+                    console.log(`[SpotSportsSelector] Rendering sport ${index}:`, sport);
+                    return (
                     <Pressable
                       key={sport.id}
-                      onPress={() => handleSelectSport(sport)}
-                      className="bg-white border-2 border-gray-200 rounded-xl p-4 active:bg-blue-50 active:border-blue-500"
+                      onPress={() => {
+                        console.log("[SpotSportsSelector] Sport selected:", sport);
+                        handleSelectSport(sport);
+                      }}
+                      className="bg-white border-2 border-gray-200 rounded-xl p-4 mb-2 active:bg-blue-50 active:border-blue-500"
                     >
-                      <HStack className="items-center justify-between">
-                        <VStack className="flex-1 pr-3">
+                      <View className="flex-row items-center justify-between">
+                        <View className="flex-1 pr-3">
                           <Text className="text-lg font-semibold text-gray-900">
                             {sport.name}
                           </Text>
-                          {sport.description && (
+                          {sport.description && sport.description.trim() && (
                             <Text className="text-sm text-gray-600 mt-1" numberOfLines={2}>
                               {sport.description}
                             </Text>
                           )}
-                          {sport.category && (
+                          {sport.category && sport.category.trim() && (
                             <Text className="text-xs text-blue-600 mt-1 font-medium">
                               {sport.category}
                             </Text>
                           )}
-                        </VStack>
-                        <Box className="w-8 h-8 rounded-full border-2 border-blue-500 items-center justify-center bg-blue-50">
+                        </View>
+                        <View className="w-8 h-8 rounded-full border-2 border-blue-500 items-center justify-center bg-blue-50">
                           <Text className="text-blue-600 font-bold text-lg">+</Text>
-                        </Box>
-                      </HStack>
+                        </View>
+                      </View>
                     </Pressable>
-                  ))
+                    );
+                  })
                 ) : (
-                  <Box className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                  <View className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                    {(() => {
+                      console.log("[SpotSportsSelector] Rendering empty state");
+                      return null;
+                    })()}
                     <Text className="text-center text-yellow-800 font-medium">
                       {excludeSportIds.length > 0
                         ? "✓ You&apos;ve rated all available sports at this spot!"
@@ -120,9 +143,9 @@ export const SpotSportsSelector: React.FC<SpotSportsSelectorProps> = ({
                     <Text className="text-center text-yellow-700 text-sm mt-2">
                       You can still add sports not listed here
                     </Text>
-                  </Box>
+                  </View>
                 )}
-              </VStack>
+              </View>
             </ScrollView>
 
             {/* Botón para añadir deporte personalizado */}
@@ -149,6 +172,7 @@ export const SpotSportsSelector: React.FC<SpotSportsSelectorProps> = ({
           </VStack>
         </Box>
       </Box>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

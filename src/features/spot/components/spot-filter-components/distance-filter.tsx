@@ -1,9 +1,9 @@
 import { Checkbox, CheckboxIcon, CheckboxIndicator, CheckboxLabel } from "@/src/components/ui/checkbox";
 import { HStack } from "@/src/components/ui/hstack";
-import { CheckIcon } from "@/src/components/ui/icon";
 import { Slider, SliderFilledTrack, SliderThumb, SliderTrack } from "@/src/components/ui/slider";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
+import { Check } from "lucide-react-native";
 import React, { useState } from "react";
 import { DISTANCE_CONFIG } from "../../types/spot-types";
 
@@ -55,7 +55,7 @@ export const DistanceFilter: React.FC<DistanceFilterProps> = ({
           aria-label="Activar filtro de distancia"
         >
           <CheckboxIndicator>
-            <CheckboxIcon as={CheckIcon} />
+            <CheckboxIcon as={Check} />
           </CheckboxIndicator>
           <CheckboxLabel>
             <Text className="font-semibold text-typography-900">

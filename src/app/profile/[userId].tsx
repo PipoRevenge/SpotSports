@@ -1,17 +1,24 @@
 import { Text } from '@/src/components/ui/text';
 import { View } from '@/src/components/ui/view';
 import { VStack } from '@/src/components/ui/vstack';
-
+import { useUser } from '@/src/entities/user/context/user-context';
 import { ProfileHeader } from '@/src/features/user/components/profile-header';
 import { useProfile } from '@/src/features/user/hooks/use-profile';
 import { ProfileActionType } from '@/src/features/user/types/profile-types';
-import { useLocalSearchParams } from "expo-router";
-import React from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useEffect } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
 
 export default function UserProfile() {
     const { userId } = useLocalSearchParams<{ userId: string }>();
+    const { user: currentUser } = useUser();
     
+    // Redirigir a my-profile si es el mismo usuario
+    useEffect(() => {
+        if (currentUser && userId === currentUser.id) {
+            router.push('/home-tabs/my-profile');
+        }
+    }, [userId, currentUser]);
     
     // Usar el hook de perfil
     const { user, isLoading, error, refetch } = useProfile(userId);

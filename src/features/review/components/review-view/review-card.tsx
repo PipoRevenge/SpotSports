@@ -72,6 +72,12 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   const [likesCount, setLikesCount] = useState(review.activity?.likesCount || 0);
   const [dislikesCount, setDislikesCount] = useState(review.activity?.dislikesCount || 0);
 
+  // Sincronizar contadores cuando cambia la review (ej: después de recargar)
+  React.useEffect(() => {
+    setLikesCount(review.activity?.likesCount || 0);
+    setDislikesCount(review.activity?.dislikesCount || 0);
+  }, [review.activity?.likesCount, review.activity?.dislikesCount]);
+
   // Callback para actualizar contadores cuando cambia un voto
   const handleVoteChange = (newLikes: number, newDislikes: number) => {
     setLikesCount(newLikes);
@@ -90,7 +96,13 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
    */
   const handleNavigateToProfile = () => {
     if (userId) {
-      router.push(`/profile/${userId}`);
+      // Si es el propio usuario, ir a my-profile
+      if (isOwnReview) {
+        router.push('/home-tabs/my-profile');
+      } else {
+        // Si es otro usuario, ir a su perfil
+        router.push(`/profile/${userId}`);
+      }
     }
   };
 

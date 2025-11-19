@@ -8,11 +8,11 @@ import {
     FormControlLabelText,
 } from "@/src/components/ui/form-control";
 import { HStack } from "@/src/components/ui/hstack";
-import { CloseIcon } from "@/src/components/ui/icon";
 import { Text } from "@/src/components/ui/text";
 import { Textarea, TextareaInput } from "@/src/components/ui/textarea";
 import { VStack } from "@/src/components/ui/vstack";
 import { numberToDifficulty } from "@/src/types/difficulty";
+import { X } from "lucide-react-native";
 import React from "react";
 import { Alert } from "react-native";
 import {
@@ -87,7 +87,7 @@ export const SportRatingItem: React.FC<SportRatingItemProps> = ({
             disabled={isLoading}
             className="p-2"
           >
-            <ButtonIcon as={CloseIcon} className="text-gray-500" />
+            <ButtonIcon as={X} className="text-gray-500" />
           </Button>
         </HStack>
 

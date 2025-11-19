@@ -20,6 +20,7 @@ export interface ReviewListProps {
   reviews: Review[];
   spotId: string; // ID del spot (necesario para votos)
   loading?: boolean;
+  isDeleting?: boolean; // Indica si se está eliminando una review
   error?: string | null;
   
   // Datos de usuarios (mapa de userId -> User)
@@ -88,6 +89,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
   reviews,
   spotId,
   loading = false,
+  isDeleting = false,
   error = null,
   usersData,
   availableSports,
@@ -346,6 +348,16 @@ export const ReviewList: React.FC<ReviewListProps> = ({
 
       {/* Espacio al final */}
       <View className="h-4" />
+      
+      {/* Overlay de carga durante eliminación */}
+      {isDeleting && (
+        <View className="absolute inset-0 bg-black/30 justify-center items-center">
+          <View className="bg-white p-6 rounded-lg items-center gap-3">
+            <ActivityIndicator size="large" color="#0000ff" />
+            <Text className="text-gray-700 font-medium">Eliminando review...</Text>
+          </View>
+        </View>
+      )}
     </VStack>
   );
 };

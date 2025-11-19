@@ -1,5 +1,6 @@
 import { Box } from "@/src/components/ui/box";
 import { Button, ButtonText } from "@/src/components/ui/button";
+import { ScrollView } from "@/src/components/ui/scroll-view";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { SportSearch } from "@/src/features/sport/components/sport-search/sport-search";
@@ -7,8 +8,8 @@ import { SportSimple } from "@/src/features/sport/types/sport-types";
 import React, { useState } from "react";
 import { Alert, Modal } from "react-native";
 import {
-    ReviewSportFormData,
-    SimpleSport,
+  ReviewSportFormData,
+  SimpleSport,
 } from "../../types/review-types";
 
 interface AddSportModalProps {
@@ -72,8 +73,10 @@ export const AddSportModal: React.FC<AddSportModalProps> = ({
       transparent={true}
       onRequestClose={handleCancel}
     >
+
       <Box className="flex-1 bg-black/50 justify-end">
         <Box className="bg-white rounded-t-3xl p-6 max-h-[80%]">
+          <ScrollView>
           <VStack className="gap-6">
             {/* Header */}
             <VStack className="gap-2">
@@ -120,8 +123,10 @@ export const AddSportModal: React.FC<AddSportModalProps> = ({
               </Button>
             </VStack>
           </VStack>
+          </ScrollView>
         </Box>
       </Box>
+
     </Modal>
   );
 };
