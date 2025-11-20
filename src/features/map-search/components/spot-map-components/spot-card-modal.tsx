@@ -59,7 +59,7 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
         <Pressable className="flex-1 justify-end bg-black/50" onPress={onClose}>
           <View className="bg-white rounded-t-3xl shadow-2xl h-[500px] justify-center items-center">
             <ActivityIndicator size="large" color="#3b82f6" />
-            <Text className="mt-4 text-gray-600">Cargando detalles del spot...</Text>
+            <Text className="pt-4 text-gray-600">Cargando detalles del spot...</Text>
           </View>
         </Pressable>
       </Modal>
@@ -138,7 +138,7 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
                           disabled 
                         />
                         {spot.activity?.reviewsCount !== undefined && (
-                          <Text className="text-typography-500 text-sm ml-1">
+                          <Text className="text-typography-500 text-sm pl-1">
                             ({spot.activity.reviewsCount})
                           </Text>
                         )}
@@ -237,6 +237,9 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
                   onPress={() => {
                     if (!isNavigating && spot) {
                       setIsNavigating(true);
+                      // Close the modal first to avoid leaving it open on back navigation
+                      onClose();
+                      // Navigate to the full spot page
                       onPress(spot);
                     }
                   }}

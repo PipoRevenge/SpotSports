@@ -57,8 +57,8 @@ export const SpotCollectionModal: React.FC<SpotCollectionModalProps> = ({
         >
           <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
             <VStack className="bg-white rounded-t-3xl p-6">
-              <Text className="text-xl font-bold mb-2">Guardar en colección</Text>
-              <Text className="text-gray-600 mb-6">
+              <Text className="text-xl font-bold pb-2">Guardar en colección</Text>
+              <Text className="text-gray-600 pb-6">
                 Selecciona donde quieres guardar este spot
               </Text>
 
@@ -102,7 +102,7 @@ export const SpotCollectionModal: React.FC<SpotCollectionModalProps> = ({
 
               <Pressable
                 onPress={onClose}
-                className="mt-6 p-4 bg-gray-100 rounded-lg items-center"
+                className="pt-6 p-4 bg-gray-100 rounded-lg items-center"
               >
                 <Text className="text-gray-700 font-medium">Cancelar</Text>
               </Pressable>

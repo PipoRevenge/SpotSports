@@ -274,7 +274,7 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
                 Your Review
               </FormControlLabelText>
             </FormControlLabel>
-            <Textarea className="mt-2">
+            <Textarea className="pt-2">
               <TextareaInput
                 value={formData.content}
                 onChangeText={handleContentChange}
@@ -285,7 +285,7 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
                 className="text-gray-900"
               />
             </Textarea>
-            <HStack className="justify-between items-center mt-1">
+            <HStack className="justify-between items-center pt-1">
               {formErrors.content ? (
                 <FormControlError>
                   <FormControlErrorText>
@@ -330,7 +330,7 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
               </FormControlLabelText>
             </FormControlLabel>
 
-            <VStack className="mt-2 gap-4">
+            <VStack className="pt-2 gap-4">
               {/* Lista de deportes */}
               {formData.reviewSports.length > 0 ? (
                 formData.reviewSports.map((sport, index) => (
@@ -360,7 +360,7 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
                 }
                 className="border-blue-500"
               >
-                <ButtonIcon as={Plus} className="text-blue-600 mr-2" />
+                <ButtonIcon as={Plus} className="text-blue-600 pr-2" />
                 <ButtonText className="text-blue-600 font-medium">
                   Add Sport ({formData.reviewSports.length} /{" "}
                   {REVIEW_VALIDATION_LIMITS.MAX_SPORTS_COUNT})
@@ -378,7 +378,7 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
           </FormControl>
 
           {/* Botones de acción */}
-          <VStack className="mt-6 pb-8 gap-4">
+          <VStack className="pt-6 pb-8 gap-4">
             <Button
               className="bg-blue-600"
               onPress={handleSubmit}

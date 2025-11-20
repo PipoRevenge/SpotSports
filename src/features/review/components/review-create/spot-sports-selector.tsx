@@ -6,8 +6,8 @@ import { VStack } from "@/src/components/ui/vstack";
 import React from "react";
 import { KeyboardAvoidingView, Modal, Platform, ScrollView, View } from "react-native";
 import {
-  ReviewSportFormData,
-  SimpleSport,
+    ReviewSportFormData,
+    SimpleSport,
 } from "../../types/review-types";
 
 interface SpotSportsSelectorProps {
@@ -80,7 +80,7 @@ export const SpotSportsSelector: React.FC<SpotSportsSelectorProps> = ({
               <Text className="text-xl font-bold text-gray-900">
                 Rate Sports at this Spot
               </Text>
-              <Text className="text-sm text-gray-600 mt-1">
+              <Text className="text-sm text-gray-600 pt-1">
                 {availableSports.length > 0
                   ? `${availableSports.length} sport${availableSports.length > 1 ? 's' : ''} available`
                   : `All spot sports rated (${spotSports.length} total sports)`}
@@ -104,7 +104,7 @@ export const SpotSportsSelector: React.FC<SpotSportsSelectorProps> = ({
                         console.log("[SpotSportsSelector] Sport selected:", sport);
                         handleSelectSport(sport);
                       }}
-                      className="bg-white border-2 border-gray-200 rounded-xl p-4 mb-2 active:bg-blue-50 active:border-blue-500"
+                      className="bg-white border-2 border-gray-200 rounded-xl p-4 pb-2 active:bg-blue-50 active:border-blue-500"
                     >
                       <View className="flex-row items-center justify-between">
                         <View className="flex-1 pr-3">
@@ -112,12 +112,12 @@ export const SpotSportsSelector: React.FC<SpotSportsSelectorProps> = ({
                             {sport.name}
                           </Text>
                           {sport.description && sport.description.trim() && (
-                            <Text className="text-sm text-gray-600 mt-1" numberOfLines={2}>
+                            <Text className="text-sm text-gray-600 pt-1" numberOfLines={2}>
                               {sport.description}
                             </Text>
                           )}
                           {sport.category && sport.category.trim() && (
-                            <Text className="text-xs text-blue-600 mt-1 font-medium">
+                            <Text className="text-xs text-blue-600 pt-1 font-medium">
                               {sport.category}
                             </Text>
                           )}
@@ -140,7 +140,7 @@ export const SpotSportsSelector: React.FC<SpotSportsSelectorProps> = ({
                         ? "✓ You&apos;ve rated all available sports at this spot!"
                         : "No sports available at this spot"}
                     </Text>
-                    <Text className="text-center text-yellow-700 text-sm mt-2">
+                      <Text className="text-center text-yellow-700 text-sm pt-2">
                       You can still add sports not listed here
                     </Text>
                   </View>
@@ -151,10 +151,10 @@ export const SpotSportsSelector: React.FC<SpotSportsSelectorProps> = ({
             {/* Botón para añadir deporte personalizado */}
             <Box className="p-6 pt-4 border-t border-gray-200">
               <VStack className="gap-3">
-                <Text className="text-xs text-gray-500 text-center mb-1">
+                <Text className="text-xs text-gray-500 text-center pb-1">
                   Can&apos;t find the sport you&apos;re looking for?
                 </Text>
-                <Button
+                  <Button
                   variant="outline"
                   onPress={handleAddCustomSport}
                   className="border-blue-500 bg-blue-50"

@@ -11,7 +11,7 @@ import { Review } from "@/src/entities/review/review";
 import { useUser } from "@/src/entities/user/context/user-context";
 import { User } from "@/src/entities/user/model/user";
 import { formatDate, getInitials } from "@/src/utils/date-utils";
-import { router } from "expo-router";
+// Import router is not allowed inside feature components; navigation must be handled by the app
 import { Edit, MessageCircle, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react-native";
 import React, { useState } from "react";
 import { Alert, View } from "react-native";
@@ -29,6 +29,7 @@ export interface ReviewCardProps {
   onReply?: (reviewId: string) => void;
   onEdit?: (reviewId: string) => void; // Callback para editar review
   onDelete?: (reviewId: string) => void; // Callback para eliminar review
+  onNavigateToProfile?: (userId: string) => void;
 }
 
 /**
@@ -61,6 +62,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   onReply,
   onEdit,
   onDelete,
+  onNavigateToProfile,
 }) => {
   const { user: currentUser } = useUser();
   const userName = user?.userDetails?.userName || user?.userDetails?.fullName || "Usuario Anónimo";
@@ -96,15 +98,12 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
    * Navegar al perfil del usuario
    */
   const handleNavigateToProfile = () => {
-    if (userId) {
-      // Si es el propio usuario, ir a my-profile
-      if (isOwnReview) {
-        router.push('/home-tabs/my-profile');
-      } else {
-        // Si es otro usuario, ir a su perfil
-        router.push(`/profile/${userId}`);
-      }
+    if (!userId) return;
+    if (onNavigateToProfile) {
+      onNavigateToProfile(userId);
+      return;
     }
+    // Fallback: no-op if no navigation handler is provided
   };
 
   /**
@@ -188,7 +187,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
 
         {/* Carrusel de media (imágenes y videos) */}
         {review.details.media && review.details.media.length > 0 && (
-          <View className="mt-3">
+          <View className="pt-3">
             <MediaCarousel
               media={review.details.media}
               altText={`Review de ${userName}`}
@@ -201,9 +200,9 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
 
         {/* Tabla de deportes calificados */}
         {review.details.reviewSports && review.details.reviewSports.length > 0 && (
-          <VStack className="gap-2 mt-2">
+          <VStack className="gap-2 w-full">
             <Text className="text-sm font-semibold text-gray-700">Deportes calificados:</Text>
-            <View className="border border-gray-200 rounded-lg overflow-hidden">
+              <View className="border border-gray-200 rounded-lg overflow-hidden w-full">
               <SportsRatingTable
                 sports={review.details.reviewSports.map(sport => ({
                   sportId: sport.sportId,
@@ -212,7 +211,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
                   difficulty: sport.difficulty,
                   sportComment: sport.comment, // Pasar el comentario del deporte
                 }))}
-                variant="expandable"
+                variant="compact"
                 expandableContent="comment"
                 showHeader={true}
                 size="sm"
@@ -308,6 +307,8 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
         <ReviewComments
           reviewId={review.id}
           initialCommentsCount={review.activity?.commentsCount || 0}
+          // Pasamos la función de navegación si está disponible
+          onNavigateToProfile={onNavigateToProfile}
         />
       </VStack>
     </Card>

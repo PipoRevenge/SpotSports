@@ -128,18 +128,18 @@ export const RatingDifficulty: React.FC<RatingDifficultyProps> = ({
    * Renderiza como badge (chip)
    */
   const renderBadge = () => (
-      <View className={`rounded-full ${config.bgColor} ${config.borderColor} border ${sizeClasses[size].badge}`}>
-        <Text className={`font-medium ${config.textColor}`}>
-          {showLabel ? config.label : typeof difficulty === "number" ? `${difficulty}/10` : ""}
-        </Text>
-        {showValue && (
-        <Text className={`${sizeClasses[size].text} ${config.textColor} font-semibold`}>
-          {numericValue.toFixed(1)}
+    <View className={`align-middle items-center justify-center rounded-full ${config.bgColor} ${config.borderColor} border ${sizeClasses[size].badge}`}>
+      {showLabel && (
+      <Text className={`font-medium ${config.textColor}`}>
+        {config.label}
+      </Text>
+      )}
+      {showValue && (
+        <Text className={`${sizeClasses[size].text} ${config.textColor} font-semibold self-center`}>
+          {numericValue.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}/10
         </Text>
       )}
     </View>
-      
-    
   );
 
   /**
@@ -152,8 +152,8 @@ export const RatingDifficulty: React.FC<RatingDifficultyProps> = ({
           <Text className={`font-medium ${config.textColor} ${sizeClasses[size].text}`}>
             {config.label}
           </Text>
-          <Text className={`${sizeClasses[size].text} text-gray-600`}>
-            {typeof difficulty === "number" ? `${difficulty}/10` : `${config.maxValue}/10`}
+          <Text className={`${sizeClasses[size].text} text-gray-600`}> 
+            {typeof difficulty === "number" ? `${difficulty.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}/10` : `${config.maxValue}/10`}
           </Text>
         </HStack>
       )}

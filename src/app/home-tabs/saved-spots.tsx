@@ -1,58 +1,35 @@
-import { spotRepository } from "@/src/api/repositories";
 import { HStack } from "@/src/components/ui/hstack";
 import { Icon } from "@/src/components/ui/icon";
 import { Pressable } from "@/src/components/ui/pressable";
 import { SafeAreaView } from "@/src/components/ui/safe-area-view";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
-import { Spot } from "@/src/entities/spot/model/spot";
 import { useUser } from "@/src/entities/user/context/user-context";
 import { SpotCategory } from "@/src/entities/user/model/spot-collection";
-import { SpotListCard } from "@/src/features/spot";
+import { SpotListCard, useSpotsByIds } from '@/src/features/spot';
+
 import { SPOT_CATEGORIES, useSpotCollection } from "@/src/features/spot-collection";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, View } from "react-native";
 
 export default function SavedSpotsScreen() {
   const { user } = useUser();
-  const { savedSpots, loadSavedSpots } = useSpotCollection();
+  const { savedSpots, loadSavedSpots, isLoading: isCollectionLoading } = useSpotCollection();
   const [selectedTab, setSelectedTab] = useState<SpotCategory>('Favorites');
-  const [spots, setSpots] = useState<Spot[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Derived from the useSpotsByIds hook
+  // Remove local loading state - use collection loading and hook loading instead
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   /**
    * Cargar detalles de los spots cuando cambien los savedSpots
    */
-  useEffect(() => {
-    const loadSpotDetails = async () => {
-      if (savedSpots.length === 0) {
-        setSpots([]);
-        setLoading(false);
-        return;
-      }
+  // Usar el hook useSpotsByIds para evitar llamadas directas a repositorios desde la app
+  const spotIds = useMemo(() => savedSpots.map(ss => ss.spotId), [savedSpots]);
+  const { spots: fetchedSpots, loading: spotsLoading } = useSpotsByIds(spotIds);
 
-      try {
-        // Obtener detalles de cada spot
-        const spotIds = savedSpots.map(ss => ss.spotId);
-        const spotsPromises = spotIds.map(id => spotRepository.getSpotById(id));
-        const spotsData = await Promise.all(spotsPromises);
-        
-        // Filtrar spots que no existan (por si fueron eliminados)
-        const validSpots = spotsData.filter(spot => spot !== null) as Spot[];
-        
-        setSpots(validSpots);
-      } catch (err) {
-        console.error("Error loading spot details:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadSpotDetails();
-  }, [savedSpots]);
+  // No local state required; use `fetchedSpots` directly
 
   /**
    * Efecto para cargar spots cuando cambia el tab seleccionado
@@ -61,7 +38,6 @@ export default function SavedSpotsScreen() {
     if (!user?.id) return;
 
     const loadCategorySpots = async () => {
-      setLoading(true);
       setError(null);
       
       try {
@@ -69,7 +45,6 @@ export default function SavedSpotsScreen() {
       } catch (err) {
         console.error("Error loading spots:", err);
         setError("Error al cargar spots");
-        setLoading(false);
       }
     };
 
@@ -120,23 +95,16 @@ export default function SavedSpotsScreen() {
     );
   };
 
-  if (loading && !refreshing) {
-    return (
-      <SafeAreaView className="flex-1 bg-white">
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#0000ff" />
-          <Text className="mt-4 text-gray-600">Cargando...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const isLoading = isCollectionLoading || spotsLoading;
+
+  // We display a loading indicator inline in the tabs area instead of blocking full page
 
   if (error) {
     return (
       <SafeAreaView className="flex-1 bg-white">
         <View className="flex-1 justify-center items-center p-6">
           <Text className="text-red-600 text-lg font-semibold">Error</Text>
-          <Text className="mt-2 text-gray-600 text-center">{error}</Text>
+          <Text className="pt-2 text-gray-600 text-center">{error}</Text>
         </View>
       </SafeAreaView>
     );
@@ -148,8 +116,8 @@ export default function SavedSpotsScreen() {
         {/* Header */}
         <View className="px-6 py-4 border-b border-gray-200">
           <Text className="text-2xl font-bold">Mis Colecciones</Text>
-          <Text className="text-gray-600 mt-1">
-            {spots.length} {spots.length === 1 ? 'spot' : 'spots'}
+          <Text className="text-gray-600 pt-1">
+            {fetchedSpots.length} {fetchedSpots.length === 1 ? 'spot' : 'spots'}
           </Text>
         </View>
 
@@ -159,24 +127,29 @@ export default function SavedSpotsScreen() {
         </HStack>
 
         {/* Lista de spots */}
-        {spots.length === 0 ? (
+        {isLoading && !refreshing ? (
+          <View className="flex-1 justify-center items-center p-6">
+            <ActivityIndicator size="large" color="#0000ff" />
+            <Text className="pt-4 text-gray-600">Cargando spots...</Text>
+          </View>
+        ) : fetchedSpots.length === 0 ? (
           <View className="flex-1 justify-center items-center p-6">
             <Icon 
               as={SPOT_CATEGORIES.find(t => t.type === selectedTab)?.icon} 
               size={60} 
               color="#d1d5db" 
-              className="mb-4"
+              className="pb-4"
             />
             <Text className="text-gray-600 text-center font-semibold text-lg">
               No tienes spots en {SPOT_CATEGORIES.find(t => t.type === selectedTab)?.label}
             </Text>
-            <Text className="text-gray-500 text-center text-sm mt-2">
+            <Text className="text-gray-500 text-center text-sm pt-2">
               Explora y guarda spots para verlos aquí
             </Text>
           </View>
         ) : (
           <FlatList
-            data={spots}
+            data={fetchedSpots}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <SpotListCard

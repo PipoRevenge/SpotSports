@@ -1,4 +1,4 @@
-import { useSelectedSpot } from "@/src/features/spot";
+import { useSelectedSpot } from "@/src/context/selected-spot-context";
 import {
   SpotCollectionButton,
   SpotCollectionModal,

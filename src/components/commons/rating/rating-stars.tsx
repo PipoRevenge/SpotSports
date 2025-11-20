@@ -105,7 +105,7 @@ const RatingStars: React.FC<RatingStarsProps> = ({
         );
       })}
       {showValue && (
-        <Text className="text-sm text-typography-600 ml-1">
+        <Text className="text-sm text-typography-600 pl-1">
           ({clampedValue.toFixed(1)})
         </Text>
       )}

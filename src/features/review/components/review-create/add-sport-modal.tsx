@@ -8,8 +8,8 @@ import { SportSimple } from "@/src/features/sport/types/sport-types";
 import React, { useState } from "react";
 import { Alert, Modal } from "react-native";
 import {
-  ReviewSportFormData,
-  SimpleSport,
+    ReviewSportFormData,
+    SimpleSport,
 } from "../../types/review-types";
 
 interface AddSportModalProps {
@@ -108,7 +108,7 @@ export const AddSportModal: React.FC<AddSportModalProps> = ({
             )}
 
             {/* Botones */}
-            <VStack className="mt-4 gap-4">
+            <VStack className="pt-4 gap-4">
               <Button
                 className="bg-blue-600"
                 onPress={handleAdd}

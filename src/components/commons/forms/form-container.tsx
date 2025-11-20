@@ -27,10 +27,10 @@ export const FormContainer = ({
     
     <VStack className="w-full p-4  rounded-md border border-background-200 self-center"
       space="md">
-      <Text className="text-xl font-bold text-center mb-4">{title}</Text>
+      <Text className="text-xl font-bold text-center pb-4">{title}</Text>
 
       {error ? (
-        <Text className="text-red-500 text-center mb-2">{error}</Text>
+        <Text className="text-red-500 text-center pb-2">{error}</Text>
       ) : null}
 
       {children}

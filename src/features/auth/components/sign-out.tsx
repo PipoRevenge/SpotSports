@@ -16,6 +16,7 @@ interface SignOutProps {
   isOpen?: boolean;
   onClose?: () => void;
   showTrigger?: boolean;
+  onSignOutComplete?: () => void;
 }
 
 export const SignOut: React.FC<SignOutProps> = ({ 
@@ -38,6 +39,9 @@ export const SignOut: React.FC<SignOutProps> = ({
       onCloseProp();
     } else {
       setInternalShowDialog(false);
+    }
+    if (onSignOutComplete) {
+      onSignOutComplete();
     }
   };
 

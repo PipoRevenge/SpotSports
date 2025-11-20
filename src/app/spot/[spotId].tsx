@@ -1,3 +1,5 @@
+import { MapMarker, MapView } from '@/src/components/commons/map';
+import { useUser } from '@/src/entities/user/context/user-context';
 import {
     ReviewList,
     useReviewDelete
@@ -114,13 +116,34 @@ export const SpotPage = () => {
             console.error('Error deleting review:', error);
         }
     };
+    
+    const handleCreateReview = () => {
+        if (!spotId) return;
+        router.push({
+            pathname: `/spot/review/[spotId]/create-review`,
+            params: {
+                spotId,
+                spotSports: JSON.stringify(availableSports),
+            },
+        });
+    };
+
+    const { user } = useUser();
+    const handleNavigateToProfile = (userIdToNavigate: string) => {
+        if (!userIdToNavigate) return;
+        if (userIdToNavigate === user?.id) {
+            router.push('/home-tabs/my-profile');
+        } else {
+            router.push(`/profile/${userIdToNavigate}`);
+        }
+    };
 
     if (loadingSpot) {
         return (
-            <SafeAreaView>
+            <SafeAreaView className="flex-1 bg-white">
                 <View className="flex-1 justify-center items-center p-6">
                     <ActivityIndicator size="large" color="#0000ff" />
-                    <Text className="mt-4 text-gray-600">Loading spot details...</Text>
+                    <Text className="pt-4 text-gray-600">Loading spot details...</Text>
                 </View>
             </SafeAreaView>
         );
@@ -128,10 +151,10 @@ export const SpotPage = () => {
 
     if (spotError) {
         return (
-            <SafeAreaView>
+            <SafeAreaView className="flex-1 bg-white">
                 <View className="flex-1 justify-center items-center p-6">
                     <Text className="text-red-600 text-lg font-semibold">Error</Text>
-                    <Text className="mt-2 text-gray-600 text-center">{spotError}</Text>
+                    <Text className="pt-2 text-gray-600 text-center">{spotError}</Text>
                 </View>
             </SafeAreaView>
         );
@@ -139,10 +162,10 @@ export const SpotPage = () => {
 
     if (!selectedSpot) {
         return (
-            <SafeAreaView>
+            <SafeAreaView className="flex-1 bg-white">
                 <View className="flex-1 justify-center items-center p-6">
                     <Text className="text-gray-600 text-lg">Spot not found</Text>
-                    <Text className="text-gray-500 text-sm mt-2">
+                      <Text className="text-gray-500 text-sm pt-2">
                         {spotId ? `ID: ${spotId}` : 'No spot ID provided'}
                     </Text>
                 </View>
@@ -167,7 +190,7 @@ export const SpotPage = () => {
                         <SpotDataDetails
                             spot={selectedSpot}
                             collectionSlot={
-                                <>
+                                <View>
                                     <SpotCollectionButton
                                         hasCategories={categories.length > 0}
                                         onPress={handleCollectionButtonPress}
@@ -180,126 +203,149 @@ export const SpotPage = () => {
                                         onToggleCategory={handleToggleCategory}
                                         onClose={() => setModalVisible(false)}
                                     />
-                                </>
+                                </View>
+                                
+                            }
+                            sportsSlot={
+                                
+                                    <VStack className="w-full pt-2 ">
+                                        <Pressable onPress={toggleSportsTableVisibility}>
+                                            <HStack className="flex-row justify-between items-center py-3 border-b border-gray-300">
+                                                <Text className="text-xl font-bold">Available Sports</Text>
+                                                <Icon
+                                                    as={isSportsTableVisible ? ChevronUp : ChevronDown}
+                                                    className="text-gray-600 w-6 h-6"
+                                                />
+                                            </HStack>
+                                        </Pressable>
+
+                                        {isSportsTableVisible && (
+                                            <View className="pt-4">
+                                                {sportRatings.length > 0 ? (
+                                                    <SpotSportsTable sports={sportRatings} />
+                                                ) : (
+                                                    <Text className="text-gray-500 text-center py-4">
+                                                        No sports information available
+                                                    </Text>
+                                                )}
+                                            </View>
+                                        )}
+                                    </VStack>
+                                
+                            }
+                            locationSlot={
+                                selectedSpot.details.location && selectedSpot.details.location.latitude && selectedSpot.details.location.longitude && (
+                                    <VStack className="w-full pt-4 pb-6">
+                                        <Text className="text-xl font-bold pb-2">Location</Text>
+                                        <View className="w-full h-48 overflow-hidden rounded-lg">
+                                            <MapView
+                                                initialRegion={{
+                                                    latitude: selectedSpot.details.location.latitude,
+                                                    longitude: selectedSpot.details.location.longitude,
+                                                    latitudeDelta: 0.005,
+                                                    longitudeDelta: 0.005,
+                                                }}
+                                                containerStyle={{ height: 192 }}
+                                                mapStyle={{ height: 192 }}
+                                                scrollEnabled={false}
+                                                zoomEnabled={false}
+                                                rotateEnabled={false}
+                                                pitchEnabled={false}
+                                            >
+                                                <MapMarker
+                                                  coordinate={{
+                                                    latitude: selectedSpot.details.location.latitude,
+                                                    longitude: selectedSpot.details.location.longitude,
+                                                  }}
+                                                  data={selectedSpot}
+                                                  onPress={() => {}}
+                                                />
+                                            </MapView>
+                                        </View>
+                                    </VStack>
+                                )
+                            }
+                            interactionsSlot={
+                                <VStack className="w-full ">
+                                    <HStack className="flex-row justify-between items-center py-3 border-b border-gray-300">
+                                        <Text className="text-xl font-bold">Interactions</Text>
+                                    </HStack>
+
+                                    <View className="flex-row justify-around py-4 bg-gray-50 rounded-lg">
+                                        <View className="flex-1 items-center">
+                                            <View className="flex-row items-center pb-1">
+                                                <Heart size={18} color="#FF6B6B" fill="#FF6B6B" />
+                                                <Text className="pl-1 text-lg font-semibold text-gray-800">
+                                                    {selectedSpot.activity.favoritesCount || 0}
+                                                </Text>
+                                            </View>
+                                            <Text className="text-xs text-gray-600 text-center">Favorites</Text>
+                                        </View>
+                                        
+                                        <View className="flex-1 items-center">
+                                            <View className="flex-row items-center pb-1">
+                                                <CheckCircle size={18} color="#4ECDC4" fill="#4ECDC4" />
+                                                <Text className="pl-1 text-lg font-semibold text-gray-800">
+                                                    {selectedSpot.activity.visitedCount || 0}
+                                                </Text>
+                                            </View>
+                                            <Text className="text-xs text-gray-600 text-center">Visited</Text>
+                                        </View>
+                                        
+                                        <View className="flex-1 items-center">
+                                            <View className="flex-row items-center pb-1">
+                                                <Target size={18} color="#45B7D1" fill="#45B7D1" />
+                                                <Text className="pl-1 text-lg font-semibold text-gray-800">
+                                                    {selectedSpot.activity.wantToVisitCount || 0}
+                                                </Text>
+                                            </View>
+                                            <Text className="text-xs text-gray-600 text-center">Want to Visit</Text>
+                                        </View>
+                                        
+                                        <View className="flex-1 items-center">
+                                            <View className="flex-row items-center pb-1">
+                                                <MessageSquare size={18} color="#9B59B6" fill="#9B59B6" />
+                                                <Text className="pl-1 text-lg font-semibold text-gray-800">
+                                                    {selectedSpot.activity.reviewsCount || 0}
+                                                </Text>
+                                            </View>
+                                            <Text className="text-xs text-gray-600 text-center">Reviews</Text>
+                                        </View>
+                                    </View>
+                                </VStack>
+                            }
+                            reviewsSlot={
+                                <ReviewList
+                                    reviews={reviews}
+                                    spotId={spotId || ""}
+                                    totalReviews={reviews.length}
+                                    usersData={usersData}
+                                    loading={loadingReviews}
+                                    isDeleting={isDeleting}
+                                    error={reviewsError || undefined}
+                                    availableSports={availableSports}
+                                    selectedSportId={sportFilter}
+                                    onSportFilterChange={setSportFilter}
+                                    getSportName={getSportName}
+                                    sortBy={sortBy}
+                                    onSortChange={setSortBy}
+                                    emptyMessage="Sé el primero en escribir una review"
+                                    onEdit={handleEditReview}
+                                    onCreate={handleCreateReview}
+                                    onDelete={handleDeleteReview}
+                                    onNavigateToProfile={handleNavigateToProfile}
+                                />
                             }
                         />
                     </View>
                     
                 </View>
 
-                {/* Sección de deportes disponibles */}
-                <VStack className="w-full px-6 mt-6 mb-4">
-                    <Pressable onPress={toggleSportsTableVisibility}>
-                        <HStack className="flex-row justify-between items-center py-3 border-b border-gray-300">
-                            <Text className="text-xl font-bold">Available Sports</Text>
-                            <Icon
-                                as={isSportsTableVisible ? ChevronUp : ChevronDown}
-                                className="text-gray-600 w-6 h-6"
-                            />
-                        </HStack>
-                    </Pressable>
-
-                    {isSportsTableVisible && (
-                        <View className="mt-4">
-                            {sportRatings.length > 0 ? (
-                                <SpotSportsTable sports={sportRatings} />
-                            ) : (
-                                <Text className="text-gray-500 text-center py-4">
-                                    No sports information available
-                                </Text>
-                            )}
-                        </View>
-                    )}
-                </VStack>
-
-                {/* Sección de ubicación */}
-                {selectedSpot.details.location && selectedSpot.details.location.latitude && selectedSpot.details.location.longitude && (
-                    <VStack className="w-full px-6 mt-4 mb-6">
-                        <Text className="text-xl font-bold mb-2">Location</Text>
-                        <Text className="text-gray-600">
-                            Latitude: {selectedSpot.details.location.latitude.toFixed(6)}
-                        </Text>
-                        <Text className="text-gray-600">
-                            Longitude: {selectedSpot.details.location.longitude.toFixed(6)}
-                        </Text>
-                    </VStack>
-                )}
-
-                {/* Separador antes de reviews */}
-                <View className="h-2 bg-gray-100" />
-
-                {/* Contadores de interacción */}
-                <VStack className="w-full px-6 mb-4">
-                    <HStack className="flex-row justify-between items-center py-3 border-b border-gray-300">
-                        <Text className="text-xl font-bold">Interactions</Text>
-                    </HStack>
-
-                    <View className="flex-row justify-around mt-4 py-4 bg-gray-50 rounded-lg">
-                        <View className="flex-1 items-center">
-                            <View className="flex-row items-center mb-1">
-                                <Heart size={18} color="#FF6B6B" fill="#FF6B6B" />
-                                <Text className="ml-1 text-lg font-semibold text-gray-800">
-                                    {selectedSpot.activity.favoritesCount || 0}
-                                </Text>
-                            </View>
-                            <Text className="text-xs text-gray-600 text-center">Favorites</Text>
-                        </View>
-                        
-                        <View className="flex-1 items-center">
-                            <View className="flex-row items-center mb-1">
-                                <CheckCircle size={18} color="#4ECDC4" fill="#4ECDC4" />
-                                <Text className="ml-1 text-lg font-semibold text-gray-800">
-                                    {selectedSpot.activity.visitedCount || 0}
-                                </Text>
-                            </View>
-                            <Text className="text-xs text-gray-600 text-center">Visited</Text>
-                        </View>
-                        
-                        <View className="flex-1 items-center">
-                            <View className="flex-row items-center mb-1">
-                                <Target size={18} color="#45B7D1" fill="#45B7D1" />
-                                <Text className="ml-1 text-lg font-semibold text-gray-800">
-                                    {selectedSpot.activity.wantToVisitCount || 0}
-                                </Text>
-                            </View>
-                            <Text className="text-xs text-gray-600 text-center">Want to Visit</Text>
-                        </View>
-                        
-                        <View className="flex-1 items-center">
-                            <View className="flex-row items-center mb-1">
-                                <MessageSquare size={18} color="#9B59B6" fill="#9B59B6" />
-                                <Text className="ml-1 text-lg font-semibold text-gray-800">
-                                    {selectedSpot.activity.reviewsCount || 0}
-                                </Text>
-                            </View>
-                            <Text className="text-xs text-gray-600 text-center">Reviews</Text>
-                        </View>
-                    </View>
-                </VStack>
-
-                {/* Lista de reviews */}
-                <ReviewList
-                    reviews={reviews}
-                    spotId={spotId || ""}
-                    totalReviews={reviews.length}
-                    usersData={usersData}
-                    loading={loadingReviews}
-                    isDeleting={isDeleting}
-                    error={reviewsError || undefined}
-                    availableSports={availableSports}
-                    selectedSportId={sportFilter}
-                    onSportFilterChange={setSportFilter}
-                    getSportName={getSportName}
-                    sortBy={sortBy}
-                    onSortChange={setSortBy}
-                    emptyMessage="Sé el primero en escribir una review"
-                    onEdit={handleEditReview}
-                    onDelete={handleDeleteReview}
-                />
+                {/* Close scroll and layout containers - sports, location, interactions and reviews are passed as slots to SpotDataDetails */}
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
-    );
-};
+        );
+    };
 
-export default SpotPage;
+    export default SpotPage;

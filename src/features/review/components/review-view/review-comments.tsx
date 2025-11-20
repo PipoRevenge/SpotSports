@@ -6,7 +6,7 @@ import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { useUser } from "@/src/entities/user/context/user-context";
 import { formatDate, getInitials } from "@/src/utils/date-utils";
-import { router } from "expo-router";
+// No router import inside feature. Navigation should be handled by the app and passed via props.
 import { ChevronDown, ChevronUp, MessageCircle, Send, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react-native";
 import React, { useState } from "react";
 import { ActivityIndicator, Alert, Pressable, View } from "react-native";
@@ -16,6 +16,7 @@ import { CommentWithUser } from "../../types/comment-types";
 interface ReviewCommentsProps {
   reviewId: string;
   initialCommentsCount?: number;
+  onNavigateToProfile?: (userId: string) => void;
 }
 
 /**
@@ -25,6 +26,7 @@ interface ReviewCommentsProps {
 export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   reviewId,
   initialCommentsCount = 0,
+  onNavigateToProfile,
 }) => {
   const { user: currentUser } = useUser();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -94,9 +96,9 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   if (displayCount === 0 && !isExpanded) {
     return (
       <Pressable
-        onPress={() => setIsExpanded(true)}
-        className="mt-3 py-2 px-3 bg-gray-50 rounded-lg"
-      >
+          onPress={() => setIsExpanded(true)}
+          className="pt-3 py-2 px-3 bg-gray-50 rounded-lg"
+        >
         <HStack className="items-center gap-2">
           <MessageCircle size={16} color="#6B7280" />
           <Text className="text-sm text-gray-600">Añadir comentario</Text>
@@ -106,7 +108,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   }
 
   return (
-    <VStack className="mt-3 gap-2">
+    <VStack className="pt-3 gap-2">
       {/* Header con contador de comentarios */}
       {displayCount > 0 && (
         <Pressable
@@ -190,6 +192,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                   onVote={voteComment}
                   onRemoveVote={removeCommentVote}
                   onGetVote={getCommentVote}
+                  onNavigateToProfile={onNavigateToProfile}
                 />
               ))}
 
@@ -227,6 +230,7 @@ interface CommentItemProps {
   onVote: (commentId: string, isLike: boolean) => Promise<void>;
   onRemoveVote: (commentId: string) => Promise<void>;
   onGetVote: (commentId: string) => Promise<boolean | null>;
+  onNavigateToProfile?: (userId: string) => void;
 }
 
 const CommentItem: React.FC<CommentItemProps> = ({
@@ -236,6 +240,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
   onVote,
   onRemoveVote,
   onGetVote,
+  onNavigateToProfile,
 }) => {
   const { user: currentUser } = useUser();
   const [localLikesCount, setLocalLikesCount] = useState(comment.likesCount || 0);
@@ -257,14 +262,12 @@ const CommentItem: React.FC<CommentItemProps> = ({
     }
   }, [comment.id, currentUser, onGetVote]);
 
-  const handleNavigateToProfile = () => {
-    // Si es el propio usuario, ir a my-profile
-    if (currentUser?.id === comment.createdBy) {
-      router.push('/home-tabs/my-profile');
-    } else {
-      // Si es otro usuario, ir a su perfil
-      router.push(`/profile/${comment.createdBy}`);
+  const handleNavigateToProfile = (targetUserId?: string) => {
+    if (!targetUserId) return;
+    if (onNavigateToProfile) {
+      onNavigateToProfile(targetUserId);
     }
+    // If no navigation handler is provided, do nothing (app code should provide it)
   };
 
   /**
@@ -343,7 +346,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
         <Text className="text-sm text-gray-700">{comment.content}</Text>
         
         {/* Votación y timestamp */}
-        <HStack className="items-center gap-3 mt-1">
+          <HStack className="items-center gap-3 pt-1">
           <Text className="text-xs text-gray-500">
             {formatDate(comment.createdAt)}
           </Text>

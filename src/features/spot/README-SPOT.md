@@ -96,6 +96,28 @@ const handleCreate = async (formData) => {
 };
 ```
 
+### 🧩 Patrón de composición (Slots)
+
+La UI de detalles del spot (`SpotDataDetails`) ahora expone varios "slots" para que la capa `app/` pueda componer la página completa: `sportsSlot`, `locationSlot`, `interactionsSlot` y `reviewsSlot`.
+
+- Estos slots son ReactNode opcionales y permiten que `app/` pase componentes UI o features (por ejemplo, `SpotSportsTable`, secciones de interacción o `ReviewList`) sin que la feature `spot` conozca la navegación o haga llamadas a rutas.
+- La capa `app/` es la responsable de pasar los datos (vía hooks) y las funciones de navegación a las features mediante props/callbacks.
+
+Ejemplo de uso en `app/spot/[spotId]`:
+
+```tsx
+<SpotDataDetails
+  spot={spot}
+  collectionSlot={<SpotCollectionButton ... />}
+  sportsSlot={<SpotSportsTable sports={spotRatings} />}
+  locationSlot={<LocationBlock spot={spot} />}
+  interactionsSlot={<InteractionsBlock spot={spot} />}
+  reviewsSlot={<ReviewList reviews={reviews} onEdit={onEdit} onCreate={onCreate} />}
+ />
+```
+
+Con esto la feature `spot` se mantiene independiente y no necesita conocer rutas ni la lógica de navegación.
+
 #### Validar datos manualmente
 ```tsx
 import { validateSpotCreateForm } from '@/src/features/spot';

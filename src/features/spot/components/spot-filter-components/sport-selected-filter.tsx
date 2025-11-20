@@ -157,7 +157,7 @@ export const SportSelectedFilter: React.FC<SportSelectedFilterProps> = ({
                   >
                     <SelectTrigger variant="outline" size="md">
                       <SelectInput placeholder="Seleccionar dificultad" />
-                      <SelectIcon className="mr-3" as={ChevronDownIcon} />
+                      <SelectIcon className="pr-3" as={ChevronDownIcon} />
                     </SelectTrigger>
                     <SelectPortal>
                       <SelectBackdrop />

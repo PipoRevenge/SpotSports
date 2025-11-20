@@ -180,7 +180,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             {error && (
               <View className="bg-yellow-50 p-3 rounded-md">
                 <Text className="text-yellow-800 text-sm">{error}</Text>
-                <Text className="text-yellow-700 text-xs mt-1">
+                  <Text className="text-yellow-700 text-xs pt-1">
                   Puedes seleccionar una ubicación manualmente en el mapa
                 </Text>
               </View>
@@ -190,8 +190,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             {showLoader ? (
               <View className="h-96 items-center justify-center bg-gray-100 rounded-lg">
                 <ActivityIndicator size="large" color="#007AFF" />
-                <Text className="mt-4 text-gray-600">Obteniendo tu ubicación...</Text>
-                <Text className="mt-2 text-xs text-gray-500">Esto puede tardar unos segundos</Text>
+                  <Text className="pt-4 text-gray-600">Obteniendo tu ubicación...</Text>
+                  <Text className="pt-2 text-xs text-gray-500">Esto puede tardar unos segundos</Text>
               </View>
             ) : (
               <View className="h-96 rounded-lg overflow-hidden">
@@ -225,13 +225,13 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 
             {/* Botón flotante para centrar en ubicación del usuario (fuera del mapa) */}
             {userLocation && !isLoading && (
-              <View className="flex-row justify-end mt-2 mb-2">
+                <View className="flex-row justify-end py-2">
                 <Pressable
                   style={styles.locationButton}
                   onPress={centerOnUserLocation}
                 >
                   <Locate size={20} color="#007AFF" />
-                  <Text className="text-xs text-blue-600 ml-1 font-medium">
+                    <Text className="text-xs text-blue-600 pl-1 font-medium">
                     Mi ubicación
                   </Text>
                 </Pressable>
@@ -248,7 +248,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                       <Text className="text-sm text-blue-900 font-semibold">
                         Tu ubicación:
                       </Text>
-                      <Text className="text-xs text-blue-700 mt-1">
+                      <Text className="text-xs text-blue-700 pt-1">
                         Lat: {userLocation.latitude.toFixed(6)}, Lng: {userLocation.longitude.toFixed(6)}
                       </Text>
                     </VStack>
@@ -265,7 +265,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                   <Text className="text-sm text-red-900 font-semibold">
                     Ubicación seleccionada:
                   </Text>
-                  <Text className="text-xs text-red-700 mt-1">
+                  <Text className="text-xs text-red-700 pt-1">
                     Lat: {selectedLocation.latitude.toFixed(6)}, Lng: {selectedLocation.longitude.toFixed(6)}
                   </Text>
                 </View>

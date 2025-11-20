@@ -118,7 +118,7 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
         {/* Header con foto de perfil */}
         <View className="items-center">
           <TouchableOpacity onPress={handlePickImage} testID="profile-photo-selector">
-            <Avatar size="xl" className="mb-2">
+            <Avatar size="xl" className="pb-2">
               {formData.photoURL ? (
                 <AvatarImage source={{ uri: formData.photoURL }} />
               ) : (
@@ -145,7 +145,7 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
         <VStack space="md">
           {/* Nombre completo */}
           <View>
-            <Text className="font-medium mb-2">Nombre completo *</Text>
+            <Text className="font-medium pb-2">Nombre completo *</Text>
             <Input>
               <InputField
                 value={formData.fullName}
@@ -154,13 +154,13 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
               />
             </Input>
             {formErrors.fullName && (
-              <Text className="text-red-500 text-sm mt-1">{formErrors.fullName}</Text>
+              <Text className="text-red-500 text-sm pt-1">{formErrors.fullName}</Text>
             )}
           </View>
 
           {/* Biografía */}
           <View>
-            <Text className="font-medium mb-2">Biografía</Text>
+            <Text className="font-medium pb-2">Biografía</Text>
             <Textarea size="lg" className="min-h-24">
               <TextareaInput
                 value={formData.bio}
@@ -171,17 +171,17 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
                 style={{ textAlignVertical: 'top' }}
               />
             </Textarea>
-            <Text className="text-gray-500 text-sm mt-1">
+            <Text className="text-gray-500 text-sm pt-1">
               {formData.bio?.length || 0}/500 caracteres
             </Text>
             {formErrors.bio && (
-              <Text className="text-red-500 text-sm mt-1">{formErrors.bio}</Text>
+              <Text className="text-red-500 text-sm pt-1">{formErrors.bio}</Text>
             )}
           </View>
 
           {/* Teléfono */}
           <View>
-            <Text className="font-medium mb-2">Teléfono</Text>
+            <Text className="font-medium pb-2">Teléfono</Text>
             <Input>
               <InputField
                 value={formData.phoneNumber}
@@ -191,7 +191,7 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
               />
             </Input>
             {formErrors.phoneNumber && (
-              <Text className="text-red-500 text-sm mt-1">{formErrors.phoneNumber}</Text>
+              <Text className="text-red-500 text-sm pt-1">{formErrors.phoneNumber}</Text>
             )}
           </View>
 
@@ -205,7 +205,7 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
         )}
 
         {/* Botones de acción */}
-        <HStack className="mt-6" space="md">
+        <HStack className="pt-6" space="md">
           <Button 
             variant="outline" 
             className="flex-1"

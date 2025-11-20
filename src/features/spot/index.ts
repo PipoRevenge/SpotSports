@@ -34,6 +34,7 @@ export {
 
 // Hooks
 export { useCreateSpot } from './hooks/use-create-spot';
+export { useSpotsByIds } from './hooks/use-spots';
 
 
 // Utils

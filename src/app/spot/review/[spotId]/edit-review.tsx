@@ -1,6 +1,7 @@
 import { Button } from "@/src/components/ui/button";
 import { HStack } from "@/src/components/ui/hstack";
 import { Pressable } from "@/src/components/ui/pressable";
+import { SafeAreaView } from "@/src/components/ui/safe-area-view";
 import { Text } from "@/src/components/ui/text";
 import { useUser } from "@/src/entities/user/context/user-context";
 import { CreateReviewForm } from "@/src/features/review";
@@ -11,7 +12,7 @@ import { useSelectedSpot } from "@/src/features/spot";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, View } from "react-native";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 
 /**
  * Página de edición de review
@@ -121,7 +122,7 @@ export const EditReviewPage = () => {
             <SafeAreaView className="flex-1 bg-white">
                 <View className="flex-1 justify-center items-center">
                     <ActivityIndicator size="large" color="#0000ff" />
-                    <Text className="mt-4 text-gray-600">Cargando review...</Text>
+                    <Text className="pt-4 text-gray-600">Cargando review...</Text>
                 </View>
             </SafeAreaView>
         );
@@ -132,10 +133,10 @@ export const EditReviewPage = () => {
             <SafeAreaView className="flex-1 bg-white">
                 <View className="flex-1 justify-center items-center p-6">
                     <Text className="text-red-600 text-lg font-semibold">Error</Text>
-                    <Text className="mt-2 text-gray-600 text-center">
+                    <Text className="pt-2 text-gray-600 text-center">
                         {loadError || "No se pudo cargar la review"}
                     </Text>
-                    <Button onPress={handleCancel} className="mt-4">
+                    <Button onPress={handleCancel} className="pt-4">
                         <Text>Volver</Text>
                     </Button>
                 </View>
@@ -166,7 +167,7 @@ export const EditReviewPage = () => {
                 >
                     <View className="p-6">
                         {updateError && (
-                            <View className="bg-red-50 p-4 rounded-lg mb-4">
+                            <View className="bg-red-50 p-4 rounded-lg pb-4">
                                 <Text className="text-red-700">{updateError}</Text>
                             </View>
                         )}

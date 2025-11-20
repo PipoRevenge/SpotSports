@@ -1,6 +1,5 @@
 import { authRepository } from '@/src/api/repositories';
 import { useUser } from '@/src/entities/user/context/user-context';
-import { router } from 'expo-router';
 import { useState } from 'react';
 
 export const useSignOut = () => {
@@ -17,14 +16,11 @@ export const useSignOut = () => {
       // Clear user data
       setUser(null);
       
-      // Navigate to authentication screen
-      router.replace('/auth/authentication');
-      
     } catch (error) {
       console.error('Error signing out:', error);
-      // Even if there's an error, we should still navigate to auth
+      // Even if there's an error, we clear the user locally.
       setUser(null);
-      router.replace('/auth/authentication');
+      // DO NOT navigate here. Navigation should be handled by the app layer.
     } finally {
       setIsSigningOut(false);
       setIsLoading(false);

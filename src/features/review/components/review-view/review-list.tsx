@@ -5,7 +5,6 @@ import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { Review } from "@/src/entities/review/review";
 import { User } from "@/src/entities/user/model/user";
-import { router } from "expo-router";
 import { ChevronDown } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
@@ -41,7 +40,9 @@ export interface ReviewListProps {
   // Interacciones
   onReply?: (reviewId: string) => void;
   onEdit?: (reviewId: string) => void;
+  onCreate?: () => void;
   onDelete?: (reviewId: string) => void;
+  onNavigateToProfile?: (userId: string) => void;
   
   // Personalización
   emptyMessage?: string;
@@ -100,13 +101,16 @@ export const ReviewList: React.FC<ReviewListProps> = ({
   onSortChange,
   onReply,
   onEdit,
+  onCreate,
   onDelete,
+  onNavigateToProfile,
   emptyMessage = "No hay reviews disponibles",
   listHeaderComponent,
   totalReviews = 0,
 }) => {
   // Estado local para detectar si usuario tiene review
   const [hasUserReview, setHasUserReview] = useState(false);
+  const [userReviewId, setUserReviewId] = useState<string | null>(null);
   const { loadReview } = useReviewLoad();
   
   // Verificar si el usuario ya tiene una review (SOLO una vez al montar)
@@ -116,6 +120,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
       const existingReview = await loadReview(spotId);
       if (mounted) {
         setHasUserReview(!!existingReview);
+        setUserReviewId(existingReview?.id ?? null);
       }
     };
     checkUserReview();
@@ -135,7 +140,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
     return (
       <VStack className="flex-1 items-center justify-center p-8">
         <ActivityIndicator size="large" color="#3b82f6" />
-        <Text className="mt-4 text-gray-600">Cargando reviews...</Text>
+        <Text className="pt-4 text-gray-600">Cargando reviews...</Text>
       </VStack>
     );
   }
@@ -149,7 +154,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
         <Text className="text-red-600 text-center font-semibold">
           ⚠️ Error al cargar reviews
         </Text>
-        <Text className="mt-2 text-gray-600 text-center">{error}</Text>
+        <Text className="pt-2 text-gray-600 text-center">{error}</Text>
       </VStack>
     );
   }
@@ -164,7 +169,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
         {listHeaderComponent}
 
         {/* Filtros y contador de reviews */}
-        <VStack className="gap-3 px-6 mb-4">
+        <VStack className="gap-3 px-6 pb-4">
           {/* Contador de reviews y botón de escribir */}
           <HStack className="justify-between items-center">
             <Text className="text-lg font-bold text-gray-900">
@@ -175,24 +180,10 @@ export const ReviewList: React.FC<ReviewListProps> = ({
               className="bg-blue-600"
               onPress={() => {
                 if (hasUserReview) {
-                  // Navegar a editar
-                  router.push({
-                    pathname: `/spot/review/[spotId]/edit-review`,
-                    params: {
-                      spotId,
-                      spotSports: JSON.stringify(availableSports || []),
-                    },
-                  });
-                } else {
-                  // Navegar a crear
-                  router.push({
-                    pathname: `/spot/review/[spotId]/create-review`,
-                    params: {
-                      spotId,
-                      spotSports: JSON.stringify(availableSports || []),
-                    },
-                  });
+                  if (onEdit && userReviewId) onEdit(userReviewId);
+                  return;
                 }
+                if (onCreate) onCreate();
               }}
             >
               <ButtonText className="text-white font-semibold">
@@ -204,7 +195,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
 
         {/* Mensaje vacío */}
         <VStack className="items-center justify-center p-8">
-          <Text className="text-gray-400 text-6xl mb-4">💬</Text>
+          <Text className="text-gray-400 text-6xl pb-4">💬</Text>
           <Text className="text-gray-600 text-center">{emptyMessage}</Text>
         </VStack>
       </VStack>
@@ -220,7 +211,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
       {listHeaderComponent}
 
       {/* Filtros y contador de reviews */}
-      <VStack className="gap-3 px-6 mb-4">
+      <VStack className="gap-3 px-6 pb-4">
         {/* Contador de reviews y botón de escribir */}
         <HStack className="justify-between items-center">
           <Text className="text-lg font-bold text-gray-900">
@@ -231,24 +222,10 @@ export const ReviewList: React.FC<ReviewListProps> = ({
             className="bg-blue-600"
             onPress={() => {
               if (hasUserReview) {
-                // Navegar a editar
-                router.push({
-                  pathname: `/spot/review/[spotId]/edit-review`,
-                  params: {
-                    spotId,
-                    spotSports: JSON.stringify(availableSports || []),
-                  },
-                });
-              } else {
-                // Navegar a crear
-                router.push({
-                  pathname: `/spot/review/[spotId]/create-review`,
-                  params: {
-                    spotId,
-                    spotSports: JSON.stringify(availableSports || []),
-                  },
-                });
+                if (onEdit && userReviewId) onEdit(userReviewId);
+                return;
               }
+              if (onCreate) onCreate();
             }}
           >
             <ButtonText className="text-white font-semibold">
@@ -267,7 +244,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
             >
               <SelectTrigger variant="outline" size="sm" className="min-w-[160px]">
                 <SelectInput placeholder="Todos los deportes" />
-                <SelectIcon className="mr-3" as={ChevronDown} />
+                <SelectIcon className="pr-3" as={ChevronDown} />
               </SelectTrigger>
               <SelectPortal>
                 <SelectBackdrop />
@@ -291,7 +268,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
           >
             <SelectTrigger variant="outline" size="sm" className="min-w-[160px]">
               <SelectInput placeholder="Ordenar por" />
-              <SelectIcon className="mr-3" as={ChevronDown} />
+              <SelectIcon className="pr-3" as={ChevronDown} />
             </SelectTrigger>
             <SelectPortal>
               <SelectBackdrop />
@@ -311,11 +288,11 @@ export const ReviewList: React.FC<ReviewListProps> = ({
       {/* Reviews o mensaje de sin resultados */}
       {hasNoMatchingReviews ? (
         <VStack className="items-center justify-center p-8">
-          <Text className="text-gray-400 text-5xl mb-4">🔍</Text>
+          <Text className="text-gray-400 text-5xl pb-4">🔍</Text>
           <Text className="text-gray-600 text-center font-semibold">
             No se encontraron reviews con los filtros aplicados
           </Text>
-          <Text className="text-gray-500 text-center text-sm mt-2">
+          <Text className="text-gray-500 text-center text-sm pt-2">
             Intenta cambiar los filtros para ver más resultados
           </Text>
         </VStack>
@@ -334,10 +311,11 @@ export const ReviewList: React.FC<ReviewListProps> = ({
                   onReply={onReply}
                   onEdit={onEdit}
                   onDelete={onDelete}
+                  onNavigateToProfile={onNavigateToProfile}
                 />
                 {index < reviews.length - 1 && (
                   <View className="px-6">
-                    <View className="h-px bg-gray-200 my-4" />
+                    <View className="h-px bg-gray-200 py-4" />
                   </View>
                 )}
               </React.Fragment>

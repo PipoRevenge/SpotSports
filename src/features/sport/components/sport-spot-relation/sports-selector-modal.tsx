@@ -4,12 +4,12 @@ import { Heading } from "@/src/components/ui/heading";
 import { HStack } from "@/src/components/ui/hstack";
 import { Icon } from "@/src/components/ui/icon";
 import {
-    Modal,
-    ModalBackdrop,
-    ModalBody,
-    ModalCloseButton,
-    ModalContent,
-    ModalHeader
+  Modal,
+  ModalBackdrop,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalHeader
 } from "@/src/components/ui/modal";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
@@ -152,7 +152,7 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
             <ScrollView 
               horizontal 
               showsHorizontalScrollIndicator={false}
-              className="mt-2"
+              className="pt-2"
             >
               <HStack space="xs" className="py-1">
                 {sportOptions
@@ -172,7 +172,7 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
           )}
           
           {errorMessage && (
-            <Text className="text-red-600 text-sm mt-1">{errorMessage}</Text>
+            <Text className="text-red-600 text-sm pt-1">{errorMessage}</Text>
           )}
         </Box>
 
@@ -183,7 +183,7 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
           className="p-2"
         >
           <ModalBackdrop />
-          <ModalContent className=" w-fit h-fit m-6 border-2 border-gray-300 rounded-2xl shadow-lg bg-white p-2">
+          <ModalContent className=" w-fit h-fit p-6 border-2 border-gray-300 rounded-2xl shadow-lg bg-white">
             <ModalHeader className="border-b border-gray-400 px-4 py-3">
               <HStack className="items-center justify-between">
                 <Heading size="xl" >
@@ -201,7 +201,7 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
                   <Box className="p-4">
                     {/* Vista de Selección */}
                     {viewMode === 'select' && (
-                      <VStack space="lg">
+                        <VStack space="lg">
                         {/* Buscador principal */}
                         <SportSearch
                           onSportSelect={handleSportSelect}
@@ -213,7 +213,7 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
                         />
 
                         {/* Lista de deportes seleccionados */}
-                        <VStack space="md" className="mt-6 border border-gray-400 rounded-lg p-4 bg-gray-50">
+                        <VStack space="md" className="pt-6 border border-gray-400 rounded-lg p-4 bg-gray-50">
                           <Text className="text-sm text-gray-600 font-medium">
                             Deportes seleccionados ({selectedCount})
                           </Text>
@@ -262,7 +262,7 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
                               setViewMode('create');
                               clearCreateError();
                             }}
-                            className="mt-4"
+                            className="pt-4"
                           >
                             <ButtonText className="text-blue-600 font-medium">
                               + Crear nuevo deporte

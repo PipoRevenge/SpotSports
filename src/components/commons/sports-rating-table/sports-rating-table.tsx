@@ -1,5 +1,6 @@
 import { RatingDifficulty } from "@/src/components/commons/rating/rating-difficulty";
 import { RatingStars } from "@/src/components/commons/rating/rating-stars";
+import SingleStar from "@/src/components/commons/rating/single-star";
 import { HStack } from "@/src/components/ui/hstack";
 import { Icon } from "@/src/components/ui/icon";
 import { Popover, PopoverArrow, PopoverBody, PopoverContent, PopoverHeader } from "@/src/components/ui/popover";
@@ -123,12 +124,12 @@ export const SportsRatingTable: React.FC<SportsRatingTableProps> = ({
               {sportLabel}
             </Text>
           </View>
-          <View className="w-32">
+          <View className={`flex-shrink-0 ${variant === "compact" ? "w-20" : "w-32"}`}>
             <Text className="text-xs font-semibold text-gray-600 text-center">
               {ratingLabel}
             </Text>
           </View>
-          <View className="w-32">
+          <View className={`flex-shrink-0 ${variant === "compact" ? "w-20" : "w-32"}`}>
             <Text className="text-xs font-semibold text-gray-600 text-center">
               {difficultyLabel}
             </Text>
@@ -139,7 +140,7 @@ export const SportsRatingTable: React.FC<SportsRatingTableProps> = ({
       {/* Filas de deportes */}
       {sports.map((sport, index) => {
         const isExpanded = expandedRows.has(index);
-        const hasExpandableContent = variant === "expandable" && (
+        const hasExpandableContent = Boolean(expandableContent) && (
           (expandableContent === "description" && sport.sportDescription) ||
           (expandableContent === "comment" && sport.sportComment)
         );
@@ -209,28 +210,49 @@ export const SportsRatingTable: React.FC<SportsRatingTableProps> = ({
               </HStack>
 
               {/* Columna de rating */}
-              <View className="w-36 items-center justify-center flex-shrink-0 ">
+              <View className={`${variant === "compact" ? "w-20" : "w-36"} items-center justify-center flex-shrink-0 `}>
                 {sport.rating !== undefined ? (
-                  <RatingStars
-                    rating={sport.rating}
-                    maxStars={5}
-                    size={15}
-                    showValue={true}
-                    disabled={true}
-                  />
+                  variant === "compact" ? (
+                    <HStack className="items-center justify-center">
+                      <SingleStar
+                        fillLevel={Math.max(0, Math.min(1, (sport.rating ?? 0) / 5))}
+                        size={16}
+                      />
+                      <Text className="text-sm text-gray-700 pl-2">{(sport.rating ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</Text>
+                    </HStack>
+                  ) : (
+                    <RatingStars
+                      rating={sport.rating}
+                      maxStars={5}
+                      size={15}
+                      showValue={true}
+                      disabled={true}
+                    />
+                  )
                 ) : (
                   <Text className="text-xs text-gray-400">N/A</Text>
                 )}
               </View>
 
               {/* Columna de dificultad */}
-              <View className="w-32 items-center justify-center flex-shrink-0  ">
-                <RatingDifficulty
-                  difficulty={sport.difficulty}
-                  variant="badge"
-                  size={size}
-                  showValue={true}
-                />
+              <View className={`${variant === "compact" ? "w-20" : "w-32"} items-center justify-center flex-shrink-0  `}>
+                {variant === "compact" ? (
+                  <RatingDifficulty
+                    difficulty={sport.difficulty}
+                    variant="badge"
+                    size={size}
+                    showValue={true}
+                    showLabel={false}
+                  />
+                ) : (
+                  <RatingDifficulty
+                    difficulty={sport.difficulty}
+                    variant="badge"
+                    size={size}
+                    showValue={true}
+                    showLabel={true}
+                  />
+                )}
               </View>
             </HStack>
 

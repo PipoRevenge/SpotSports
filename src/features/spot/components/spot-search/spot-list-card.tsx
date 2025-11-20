@@ -33,7 +33,7 @@ export const SpotListCard: React.FC<SpotListCardProps> = ({
 
   return (
     <Pressable onPress={onPress}>
-      <Card className="mb-3 overflow-hidden border border-background-200">
+      <Card className="pb-3 overflow-hidden border border-background-200">
         <HStack className="gap-3">
           {/* Imagen */}
           <Image
@@ -70,7 +70,7 @@ export const SpotListCard: React.FC<SpotListCardProps> = ({
             </VStack>
 
             {/* Rating y distancia */}
-            <HStack className="items-center justify-between mt-2">
+            <HStack className="items-center justify-between pt-2">
               <RatingStars rating={spot.details.overallRating} size="sm" showValue={true} />
               
               {showDistance && distance !== undefined && (
@@ -82,7 +82,7 @@ export const SpotListCard: React.FC<SpotListCardProps> = ({
 
             {/* Deportes disponibles */}
             {spot.details.availableSports.length > 0 && (
-              <HStack className="gap-1 mt-2 flex-wrap">
+              <HStack className="gap-1 pt-2 flex-wrap">
                 {spot.details.availableSports.slice(0, 3).map((sportId) => (
                   <Badge
                     key={sportId}

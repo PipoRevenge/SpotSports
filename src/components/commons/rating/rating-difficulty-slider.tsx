@@ -3,11 +3,11 @@ import { Slider, SliderFilledTrack, SliderThumb, SliderTrack } from "@/src/compo
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import {
-  DIFFICULTY_CONFIG,
-  DIFFICULTY_MARKERS,
-  DIFFICULTY_RANGE,
-  DifficultyLevel,
-  numberToDifficulty,
+    DIFFICULTY_CONFIG,
+    DIFFICULTY_MARKERS,
+    DIFFICULTY_RANGE,
+    DifficultyLevel,
+    numberToDifficulty,
 } from "@/src/types/difficulty";
 import React, { useState } from "react";
 import { View } from "react-native";
@@ -149,7 +149,7 @@ export const RatingDifficultySlider: React.FC<RatingDifficultySliderProps> = ({
           </View>
 
           {/* Marcadores en el centro de cada franja */}
-          <View className="w-full mt-3 relative" style={{ height: 60 }}>
+          <View className="w-full pt-3 relative" style={{ height: 60 }}>
             {DIFFICULTY_MARKERS.map((marker) => {
               const markerConfig = DIFFICULTY_CONFIG[marker.level];
               const isActive = difficulty === marker.level;
@@ -168,14 +168,14 @@ export const RatingDifficultySlider: React.FC<RatingDifficultySliderProps> = ({
                   <View className={`w-0.5 h-2 ${isActive ? markerConfig.barColor : 'bg-gray-300'}`} />
                   
                   {/* Label del nivel */}
-                  <Text className={`${sizeClasses[size].text} mt-1 text-center ${
+                  <Text className={`${sizeClasses[size].text} pt-1 text-center ${
                     isActive ? `${markerConfig.textColor} font-bold` : 'text-gray-500'
                   }`}>
                     {marker.label}
                   </Text>
                   
                   {/* Rango numérico */}
-                  <Text className="text-xs text-gray-400 mt-0.5">
+                  <Text className="text-xs text-gray-400 pt-0.5">
                     {marker.subLabel}
                   </Text>
                 </View>
@@ -224,7 +224,7 @@ export const RatingDifficultySlider: React.FC<RatingDifficultySliderProps> = ({
         </Slider>
 
         {/* Marcadores en el centro de cada franja */}
-        <View className="w-full mt-3 relative" style={{ height: 60 }}>
+        <View className="w-full pt-3 relative" style={{ height: 60 }}>
           {DIFFICULTY_MARKERS.map((marker) => {
             const markerConfig = DIFFICULTY_CONFIG[marker.level];
             const isActive = difficulty === marker.level;
@@ -240,14 +240,14 @@ export const RatingDifficultySlider: React.FC<RatingDifficultySliderProps> = ({
                 }}
               >
                 {/* Label del nivel */}
-                <Text className={`${sizeClasses[size].text} mt-1 text-center ${
+                <Text className={`${sizeClasses[size].text} pt-1 text-center ${
                   isActive ? `${markerConfig.textColor} font-bold` : 'text-gray-500'
                 }`}>
                   {marker.label}
                 </Text>
                 
                 {/* Rango numérico */}
-                <Text className="text-xs text-gray-400 mt-0.5">
+                <Text className="text-xs text-gray-400 pt-0.5">
                   {marker.subLabel}
                 </Text>
               </View>
@@ -256,7 +256,7 @@ export const RatingDifficultySlider: React.FC<RatingDifficultySliderProps> = ({
         </View>
 
         {/* Guía visual de rangos - Barra dividida en 4 segmentos */}
-        <View className="w-full mt-2 flex-row h-1.5 rounded-full overflow-hidden">
+        <View className="w-full pt-2 flex-row h-1.5 rounded-full overflow-hidden">
           <View className="flex-1 bg-emerald-500" style={{ width: '25%' }} />
           <View className="flex-1 bg-yellow-500" style={{ width: '25%' }} />
           <View className="flex-1 bg-orange-500" style={{ width: '25%' }} />

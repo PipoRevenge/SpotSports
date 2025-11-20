@@ -42,7 +42,7 @@ export const MapSearchBar: React.FC<MapSearchBarProps> = ({
   return (
     <HStack className="w-full items-center gap-2 px-4 py-3 bg-white">
       {/* Icono izquierdo opcional */}
-      {leftIcon && <View className="mr-1">{leftIcon}</View>}
+      {leftIcon && <View className="pr-1">{leftIcon}</View>}
 
       {/* Input de búsqueda */}
       <View className="flex-1">

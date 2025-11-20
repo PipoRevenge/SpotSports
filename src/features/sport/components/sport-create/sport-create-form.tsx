@@ -115,7 +115,7 @@ export const CreateSportForm: React.FC<CreateSportFormProps> = ({
   return (
     <Box className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
       {/* Header */}
-      <HStack className="items-center justify-between mb-4">
+      <HStack className="items-center justify-between pb-4">
         <Text className="text-lg font-semibold text-gray-900">
           Create New Sport
         </Text>
@@ -145,7 +145,7 @@ export const CreateSportForm: React.FC<CreateSportFormProps> = ({
               Sport Name
             </FormControlLabelText>
           </FormControlLabel>
-          <Input className="mt-1">
+          <Input className="pt-1">
             <InputField
               value={formData.name}
               onChangeText={(value) => updateField('name', value)}
@@ -171,7 +171,7 @@ export const CreateSportForm: React.FC<CreateSportFormProps> = ({
               Description
             </FormControlLabelText>
           </FormControlLabel>
-          <Textarea className="mt-1">
+          <Textarea className="pt-1">
             <TextareaInput
               value={formData.description}
               onChangeText={(value) => updateField('description', value)}
@@ -201,7 +201,7 @@ export const CreateSportForm: React.FC<CreateSportFormProps> = ({
           </FormControlLabel>
           
           {/* Selector de categorías */}
-          <Box className="mt-1">
+          <Box className="pt-1">
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <HStack space="xs" className="py-2">
                 {/* Option to remove category */}
@@ -258,7 +258,7 @@ export const CreateSportForm: React.FC<CreateSportFormProps> = ({
         </FormControl>
 
         {/* Buttons */}
-        <HStack className="mt-6" space="md">
+        <HStack className="pt-6" space="md">
           <Button 
             variant="outline" 
             className="flex-1"

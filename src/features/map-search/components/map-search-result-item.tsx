@@ -67,7 +67,7 @@ export const MapSearchResultItem = <T,>({
 
         {/* Acciones opcionales */}
         {renderActions && (
-          <HStack className="mt-3 pt-3 border-t border-gray-100 justify-end">
+          <HStack className="pt-3 border-t border-gray-100 justify-end">
             {renderActions(item)}
           </HStack>
         )}

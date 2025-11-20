@@ -54,7 +54,7 @@ export default function MyProfile() {
         return (
             <View className="flex-1 justify-center items-center">
                 <ActivityIndicator size="large" />
-                <Text className="mt-2">Cargando perfil...</Text>
+                <Text className="pt-2">Cargando perfil...</Text>
             </View>
         );
     }
@@ -62,7 +62,7 @@ export default function MyProfile() {
     if (error) {
         return (
             <View className="flex-1 justify-center items-center px-4">
-                <Text className="text-red-500 text-center mb-4">{error}</Text>
+                <Text className="text-red-500 text-center pb-4">{error}</Text>
                 <Text 
                     className="text-blue-500" 
                     onPress={handleRefresh}
@@ -103,7 +103,7 @@ export default function MyProfile() {
                 {/* Sección de spots favoritos */}
                 {user.activity.favoriteSpotsCount > 0 && (
                     <View>
-                        <Text className="text-lg font-bold mb-2">Spots favoritos</Text>
+                        <Text className="text-lg font-bold pb-2">Spots favoritos</Text>
                         <Text className="text-gray-500">
                             {user.activity.favoriteSpotsCount} spots guardados
                         </Text>
@@ -115,7 +115,7 @@ export default function MyProfile() {
                 {/* Sección de actividad reciente */}
                 {user.activity.reviewsCount > 0 && (
                     <View>
-                        <Text className="text-lg font-bold mb-2">Actividad reciente</Text>
+                        <Text className="text-lg font-bold pb-2">Actividad reciente</Text>
                         <Text className="text-gray-500">
                             {user.activity.reviewsCount} reseñas • {user.activity.commentsCount} comentarios
                         </Text>
@@ -127,7 +127,7 @@ export default function MyProfile() {
                 {/* Sección de seguidores */}
                 {(user.activity.followersCount > 0 || user.activity.followingCount > 0) && (
                     <View>
-                        <Text className="text-lg font-bold mb-2">Conexiones</Text>
+                        <Text className="text-lg font-bold pb-2">Conexiones</Text>
                         <Text className="text-gray-500">
                             {user.activity.followersCount} seguidores • {user.activity.followingCount} siguiendo
                         </Text>
@@ -137,7 +137,7 @@ export default function MyProfile() {
 
                 {/* Mensaje cuando no hay actividad */}
                 {user.activity.reviewsCount === 0 && user.activity.favoriteSpotsCount === 0 && (
-                    <View className="mt-8">
+                    <View className="pt-8">
                         <Text className="text-gray-500 text-center italic">
                             Aún no tienes actividad. ¡Empieza explorando spots y dejando reseñas!
                         </Text>
@@ -153,6 +153,7 @@ export default function MyProfile() {
                 isOpen={showSignOutDialog}
                 onClose={handleCloseSignOutDialog}
                 showTrigger={false}
+                onSignOutComplete={() => router.replace('/auth/authentication')}
             />
         </ScrollView>
     );

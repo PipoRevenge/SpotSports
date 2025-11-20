@@ -175,7 +175,7 @@ export const NuevaFeatureCard: React.FC<NuevaFeatureCardProps> = ({
       <Text className="text-lg font-bold">{feature.name}</Text>
       <Text className="text-gray-600">{feature.description}</Text>
       {showActions && (
-        <View className="mt-2">
+        <View className="pt-2">
           {/* Botones de acción */}
         </View>
       )}

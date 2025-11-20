@@ -41,13 +41,13 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             }}
           >
             {menuOptions.map((option) => (
-              <MenuItem 
+                <MenuItem 
                 key={option.key} 
                 textValue={option.label} 
                 onPress={option.onPress}
                 disabled={option.disabled}
               >
-                <Icon as={option.icon} size="sm" className="mr-2" />
+                <Icon as={option.icon} size="sm" className="pr-2" />
                 <MenuItemLabel size="sm">{option.label}</MenuItemLabel>
               </MenuItem>
             ))}
@@ -67,16 +67,16 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             );
           }}
         >
-          <MenuItem key="edit" textValue="Editar perfil" onPress={onEditPress}>
-            <Icon as={Edit} size="sm" className="mr-2" />
+            <MenuItem key="edit" textValue="Editar perfil" onPress={onEditPress}>
+            <Icon as={Edit} size="sm" className="pr-2" />
             <MenuItemLabel size="sm">Editar perfil</MenuItemLabel>
           </MenuItem>
           <MenuItem key="settings" textValue="Configuración">
-            <Icon as={Settings} size="sm" className="mr-2" />
+            <Icon as={Settings} size="sm" className="pr-2" />
             <MenuItemLabel size="sm">Configuración</MenuItemLabel>
           </MenuItem>
           <MenuItem key="logout" textValue="Cerrar sesión">
-            <Icon as={LogOut} size="sm" className="mr-2" />
+            <Icon as={LogOut} size="sm" className="pr-2" />
             <MenuItemLabel size="sm">Cerrar sesión</MenuItemLabel>
           </MenuItem>
         </Menu>
@@ -124,12 +124,12 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   return (
     <ScrollView className="">
       
-      <View className="justify-end items-end mb-2  top-0 right-0">
+      <View className="justify-end items-end pb-2  top-0 right-0">
         {renderActionButtons()}
       </View>
       {/* Foto de perfil y información básica */}
-      <View className="flex-row items-center mb-4">
-        <Avatar size="xl" className="mr-4">
+      <View className="flex-row items-center pb-4">
+            <Avatar size="xl" className="pr-4">
           {user.userDetails.photoURL ? (
             <AvatarImage source={{ uri: user.userDetails.photoURL }} />
           ) : (
@@ -171,7 +171,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       </View>
 
       {/* Estadísticas del usuario */}
-      <HStack className="mb-4 justify-end" space="lg">
+      <HStack className="pb-4 justify-end" space="lg">
         <VStack className="items-center">
           <Text className="font-bold text-lg">{user.activity.reviewsCount}</Text>
           <Text className="text-gray-500 text-sm">Reseñas</Text>
@@ -184,8 +184,8 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       </HStack>
 
       {/* Biografía */}
-      <View className="mb-4">
-        <Text className="text-gray-800 font-medium mb-1">Biografía</Text>
+      <View className="pb-4">
+        <Text className="text-gray-800 font-medium pb-1">Biografía</Text>
         {user.userDetails.bio ? (
           <Text className="text-gray-700">{user.userDetails.bio}</Text>
         ) : (
@@ -197,15 +197,15 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 
       {/* Información adicional */}
       {isOwn && user.userDetails.phoneNumber && (
-        <View className="mb-3">
-          <Text className="text-gray-800 font-medium mb-1">Teléfono</Text>
+        <View className="pb-3">
+          <Text className="text-gray-800 font-medium pb-1">Teléfono</Text>
           <Text className="text-gray-700">{user.userDetails.phoneNumber}</Text>
         </View>
       )}
 
       {user.userDetails.birthDate && (
-        <View className="mb-3">
-          <Text className="text-gray-800 font-medium mb-1">
+        <View className="pb-3">
+          <Text className="text-gray-800 font-medium pb-1">
             {isOwn ? 'Fecha de nacimiento' : 'Edad'}
           </Text>
           <Text className="text-gray-700">
@@ -218,7 +218,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       )}
 
       {user.metadata.isVerified && (
-        <View className="mt-2">
+        <View className="pt-2">
           <Text className="text-blue-600 text-sm">✓ Usuario verificado</Text>
         </View>
       )}

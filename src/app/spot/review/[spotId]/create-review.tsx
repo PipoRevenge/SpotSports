@@ -1,5 +1,6 @@
 import { HStack } from "@/src/components/ui/hstack";
 import { Pressable } from "@/src/components/ui/pressable";
+import { SafeAreaView } from "@/src/components/ui/safe-area-view";
 import { Text } from "@/src/components/ui/text";
 import { CreateReviewForm } from "@/src/features/review";
 import { useReviewCreate } from "@/src/features/review/hooks/use-review-create";
@@ -8,7 +9,7 @@ import { useSelectedSpot } from "@/src/features/spot";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import React, { useMemo } from "react";
-import { KeyboardAvoidingView, Platform, SafeAreaView, ScrollView } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 
 /**
  * Página de creación de review

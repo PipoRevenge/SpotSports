@@ -75,7 +75,7 @@ export const MapSearchResultList = <T,>({
     return (
       <VStack className="flex-1 items-center justify-center p-8">
         <ActivityIndicator size="large" color="#3b82f6" />
-        <Text className="mt-4 text-gray-600">Buscando...</Text>
+        <Text className="pt-4 text-gray-600">Buscando...</Text>
       </VStack>
     );
   }
@@ -89,7 +89,7 @@ export const MapSearchResultList = <T,>({
         <Text className="text-red-600 text-center font-semibold">
           ⚠️ Error
         </Text>
-        <Text className="mt-2 text-gray-600 text-center">{error}</Text>
+        <Text className="pt-2 text-gray-600 text-center">{error}</Text>
       </VStack>
     );
   }
@@ -100,7 +100,7 @@ export const MapSearchResultList = <T,>({
   if (results.length === 0) {
     return (
       <VStack className="flex-1 items-center justify-center p-8">
-        <Text className="text-gray-400 text-6xl mb-4">🔍</Text>
+        <Text className="text-gray-400 text-6xl pb-4">🔍</Text>
         <Text className="text-gray-600 text-center">{emptyMessage}</Text>
       </VStack>
     );

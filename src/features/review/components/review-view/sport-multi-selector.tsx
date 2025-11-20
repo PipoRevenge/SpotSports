@@ -127,7 +127,7 @@ export const SportMultiSelector: React.FC<SportMultiSelectorProps> = ({
         <View className="flex-1 bg-white">
           {/* Header */}
           <View className="border-b border-gray-200 px-4 py-4">
-            <HStack className="justify-between items-center mb-4">
+            <HStack className="justify-between items-center pb-4">
               <Text className="text-xl font-bold text-gray-900">
                 Filtrar por deportes
               </Text>

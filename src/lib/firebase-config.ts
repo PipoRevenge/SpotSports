@@ -10,13 +10,13 @@ import {
   initializeAuth,
 } from "firebase/auth";
 import { connectDatabaseEmulator, getDatabase } from "firebase/database";
-import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
+// CAMBIO 1: Importamos initializeFirestore en lugar de getFirestore
+import { connectFirestoreEmulator, initializeFirestore } from "firebase/firestore";
 import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
 import { connectStorageEmulator, getStorage } from "firebase/storage";
 import { Platform } from "react-native";
 
 // Your web app's Firebase configuration
-// Consider using a more secure way to handle environment variables if needed
 export const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -30,6 +30,7 @@ export const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 console.log('Firebase initialized:', app.name);
+
 // Initialize auth with persistence
 const auth =
   Platform.OS === "web"
@@ -40,21 +41,22 @@ const auth =
         persistence: getReactNativePersistence(AsyncStorage),
       });
 
-// Initialize services
-const firestore = getFirestore(app);
+// CAMBIO 2: Inicialización de Firestore con Long Polling para evitar el error de WebChannelConnection
+const firestore = initializeFirestore(app, {
+  experimentalForceLongPolling: true, // <--- ESTA ES LA SOLUCIÓN
+});
+
+// Initialize other services
 const database = getDatabase(app);
-const functions = getFunctions(app, 'europe-west1'); // Importante: especificar la región
+const functions = getFunctions(app, 'europe-west1');
 const storage = getStorage(app);
 
 // Replace 'YOUR_LOCAL_IP' with the actual IP address of your machine
-// Or use environment variables for configuration
-const localIp = process.env.EXPO_PUBLIC_EMULATOR_IP || "10.0.2.2"; // Default for Android emulator
+const localIp = process.env.EXPO_PUBLIC_EMULATOR_IP || "10.0.2.2"; 
 
 // Connect to emulators in development environment
-// Use __DEV__ global variable provided by React Native/Expo
 if (__DEV__) {
   try {
-    // Use try-catch for emulator connections as they might fail
     connectAuthEmulator(auth, `http://${localIp}:9099`, {
       disableWarnings: false,
     });
@@ -70,4 +72,3 @@ if (__DEV__) {
 
 // Export the services
 export { app, auth, database, firestore, functions, localIp, storage };
-

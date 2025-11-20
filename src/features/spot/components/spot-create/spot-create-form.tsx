@@ -205,7 +205,7 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
             <FormControlLabel>
               <FormControlLabelText>Deportes Disponibles</FormControlLabelText>
             </FormControlLabel>
-            <Text className="text-gray-600 text-sm mt-2">
+            <Text className="text-gray-600 text-sm pt-2">
               No se ha proporcionado un selector de deportes.
             </Text>
             {formErrors.availableSports && (
@@ -239,7 +239,7 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
           <FormControlLabel>
             <FormControlLabelText>Ubicación</FormControlLabelText>
           </FormControlLabel>
-          <Text className="text-sm text-gray-600 mb-2">
+          <Text className="text-sm text-gray-600 pb-2">
             Selecciona la ubicación del spot en el mapa
           </Text>
           
@@ -256,7 +256,7 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
                     <Text className="font-semibold text-gray-900">
                       Ubicación seleccionada
                     </Text>
-                    <Text className="text-xs text-gray-600 mt-1">
+                    <Text className="text-xs text-gray-600 pt-1">
                       Lat: {formData.location.latitude.toFixed(6)}, Lng: {formData.location.longitude.toFixed(6)}
                     </Text>
                   </>
@@ -337,7 +337,7 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
         </FormControl>
 
         {/* Botones de acción */}
-        <HStack className="mt-6" space="md">
+        <HStack className="pt-6" space="md">
           {onCancel && (
             <Button 
               variant="outline" 

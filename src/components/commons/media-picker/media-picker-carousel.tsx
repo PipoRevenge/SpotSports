@@ -7,14 +7,14 @@ import { VideoView, useVideoPlayer } from "expo-video";
 import { Image as ImageIcon, Trash2, Video as VideoIcon, X } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  FlatList,
-  Image,
-  Modal,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    FlatList,
+    Image,
+    Modal,
+    TouchableOpacity,
+    View
 } from "react-native";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -350,7 +350,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
           {/* Botón de eliminar */}
           <TouchableOpacity
             onPress={() => removeMedia(index)}
-            className="absolute top-2 right-2 bg-red-500 p-2 mr-4 rounded-full"
+            className="absolute top-2 right-2 bg-red-500 p-2 pr-4 rounded-full"
           >
             <X size={16} color="#FFF" />
           </TouchableOpacity>
@@ -375,7 +375,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
         setCurrentIndex(index);
         carouselRef.current?.scrollToIndex({ index, animated: true });
       }}
-      className={`mr-2 rounded-lg overflow-hidden border-2 ${
+      className={`pr-2 rounded-lg overflow-hidden border-2 ${
         index === currentIndex ? "border-blue-500" : "border-transparent"
       }`}
       style={{ width: THUMBNAIL_SIZE, height: THUMBNAIL_SIZE }}
@@ -465,8 +465,8 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
         </VStack>
       ) : (
         <View className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-8 items-center justify-center">
-          <ImageIcon size={48} color="#9CA3AF" className="mb-4" />
-          <Text className="text-gray-600 text-center mb-2">
+          <ImageIcon size={48} color="#9CA3AF" className="pb-4" />
+          <Text className="text-gray-600 text-center pb-2">
             {emptyMessage}
           </Text>
           <Text className="text-gray-500 text-sm text-center">
@@ -476,7 +476,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
       )}
 
       {/* Botones de acción */}
-      <HStack className="mt-2 gap-4">
+      <HStack className="pt-2 gap-4">
         <Button
           onPress={showMediaOptions}
           className="flex-1"
@@ -486,7 +486,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
             <ActivityIndicator color="#FFF" />
           ) : (
             <>
-              <ButtonIcon as={ImageIcon} className="mr-2" />
+              <ButtonIcon as={ImageIcon} className="pr-2" />
               <ButtonText>
                 {media.length === 0 ? "Añadir Archivos" : "Añadir Más"}
               </ButtonText>

@@ -5,20 +5,20 @@ import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { Spot } from "@/src/entities/spot/model/spot";
 import {
-    formatDistance,
-    MapSearchBar,
-    MapSearchMap,
-    MapSearchResult,
-    MapSearchResultItem,
-    MapSearchResultList,
-    SpotCardModal,
-    SpotMarker,
-    spotsToMapResults,
-    useMapSpotSearch,
+  formatDistance,
+  MapSearchBar,
+  MapSearchMap,
+  MapSearchResult,
+  MapSearchResultItem,
+  MapSearchResultList,
+  SpotCardModal,
+  SpotMarker,
+  spotsToMapResults,
+  useMapSpotSearch,
 } from "@/src/features/map-search";
 import {
-    SpotSearchFilterModal,
-    useSelectedSpot,
+  SpotSearchFilterModal,
+  useSelectedSpot,
 } from "@/src/features/spot";
 import { useUserLocation } from "@/src/hooks/use-user-location";
 import { GeoPoint } from "@/src/types/geopoint";
@@ -239,7 +239,7 @@ export default function SearchMapScreen() {
             </Text>
             <Text className="text-yellow-500">⭐</Text>
             {spot.metadata.isVerified && (
-              <HStack className="items-center gap-1 ml-2">
+              <HStack className="items-center gap-1 pl-2">
                 <Text className="text-sm text-blue-600">✓</Text>
                 <Text className="text-sm text-blue-600">Verificado</Text>
               </HStack>
@@ -256,7 +256,7 @@ export default function SearchMapScreen() {
 
           {/* Deportes disponibles (primeros 3) */}
           {spot.details.availableSports.length > 0 && (
-            <HStack className="flex-wrap gap-1 mt-1">
+            <HStack className="flex-wrap gap-1 pt-1">
               {spot.details.availableSports.slice(0, 3).map((sportId: string) => (
                 <View
                   key={sportId}
@@ -365,13 +365,15 @@ export default function SearchMapScreen() {
           <View className="w-full h-full pb-24">
             {/* Indicador de carga de ubicación */}
             {isLoadingLocation && (
-              <View className="absolute top-4 left-1/2 -ml-32 z-10 bg-blue-500 rounded-lg px-4 py-3 shadow-lg">
-                <HStack className="items-center gap-2">
-                  <View className="w-3 h-3 bg-white rounded-full animate-pulse" />
-                  <Text className="text-white font-semibold">
-                    Obteniendo tu ubicación...
-                  </Text>
-                </HStack>
+              <View className="absolute top-4 left-0 right-0 z-10 items-center">
+                <View className="bg-blue-500 rounded-lg px-4 py-3 shadow-lg">
+                  <HStack className="items-center gap-2">
+                    <View className="w-3 h-3 bg-white rounded-full animate-pulse" />
+                    <Text className="text-white font-semibold">
+                      Obteniendo tu ubicación...
+                    </Text>
+                  </HStack>
+                </View>
               </View>
             )}
             
