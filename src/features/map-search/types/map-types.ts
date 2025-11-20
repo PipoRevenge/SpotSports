@@ -211,6 +211,7 @@ export interface MapSearchMapProps<T> {
   userLocation?: GeoPoint;
   onMarkerPress?: (item: T) => void;
   onCalloutPress?: (item: T) => void;
+  onMapPress?: (coordinate: GeoPoint) => void;
   onRegionChangeComplete?: (region: Region) => void;
   initialRegion?: Region;
   config?: Partial<MapSearchConfig>;
@@ -228,6 +229,7 @@ export interface MapSearchMapProps<T> {
     onPress: () => void,
     onCalloutPress: () => void
   ) => ReactNode;
+  children?: ReactNode;
 }
 
 /**

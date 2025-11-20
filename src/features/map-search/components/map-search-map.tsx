@@ -1,8 +1,8 @@
 import {
-  MapCircle,
-  MapMarker,
-  MapView,
-  UserLocationMarker,
+    MapCircle,
+    MapMarker,
+    MapView,
+    UserLocationMarker,
 } from "@/src/components/commons/map";
 
 import { VStack } from "@/src/components/ui/vstack";
@@ -10,8 +10,8 @@ import React, { useEffect, useMemo, useRef } from "react";
 import MapViewRef from "react-native-maps";
 import { DEFAULT_MAP_CONFIG, MapSearchMapProps, MapSearchResult } from "../types/map-types";
 import {
-  calculateRegionForDistance,
-  calculateRegionForLocations,
+    calculateRegionForDistance,
+    calculateRegionForLocations,
 } from "../utils/map-helpers";
 
 /**
@@ -48,6 +48,7 @@ export const MapSearchMap = <T,>({
   selectedItemId,
   onMarkerPress,
   onCalloutPress,
+  onMapPress,
   onRegionChangeComplete,
   initialRegion: providedInitialRegion,
   config: userConfig = {},
@@ -58,6 +59,7 @@ export const MapSearchMap = <T,>({
   renderCustomMarker,
   renderCustomCallout,
   renderCompleteMarker,
+  children,
 }: MapSearchMapProps<T>): React.ReactElement => {
   const mapRef = useRef<MapViewRef>(null);
 
@@ -163,6 +165,14 @@ export const MapSearchMap = <T,>({
         ref={mapRef}
         initialRegion={initialRegion}
         onRegionChangeComplete={onRegionChangeComplete}
+        onPress={(e) => {
+          if (onMapPress && e.nativeEvent.coordinate) {
+            onMapPress({
+              latitude: e.nativeEvent.coordinate.latitude,
+              longitude: e.nativeEvent.coordinate.longitude,
+            });
+          }
+        }}
         showsUserLocation={config.showUserLocation}
         showsMyLocationButton={config.showMyLocationButton}
         followsUserLocation={config.followsUserLocation}
@@ -238,6 +248,9 @@ export const MapSearchMap = <T,>({
             />
           );
         })}
+        
+        {/* Contenido adicional (marcadores extra, etc.) */}
+        {children}
       </MapView>
 
       

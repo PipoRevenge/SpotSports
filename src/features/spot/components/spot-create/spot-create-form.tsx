@@ -29,6 +29,7 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
   onSuccess,
   onCancel,
   initialData,
+  initialLocation,
   sportsSlot: SportsSlot
 }) => {
   // Hook para crear spot
@@ -40,7 +41,7 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
     description: initialData?.description || "",
     availableSports: initialData?.availableSports || [],
     media: initialData?.media || [],
-    location: initialData?.location || null,
+    location: initialLocation || initialData?.location || null,
     contactPhone: initialData?.contactPhone || "",
     contactEmail: initialData?.contactEmail || "",
     contactWebsite: initialData?.contactWebsite || "",

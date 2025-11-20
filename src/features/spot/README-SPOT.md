@@ -4,7 +4,9 @@
 
 ### 🎯 Descripción General
 
-La feature `spot` implementa toda la funcionalidad relacionada con la creación, gestión y visualización de spots deportivos en SpotsSports. Esta feature sigue los principios de Bullet-Proof React y encapsula toda la lógica de negocio relacionada con spots deportivos.
+La feature `spot` implementa toda la funcionalidad relacionada con la creación, gestión y visualización de spots deportivos en SpotsSports. Esta feature sigue los principios de Bulletproof React y encapsula toda la lógica de negocio relacionada con spots deportivos.
+
+> **🏗 Arquitectura**: Esta feature es **independiente** y NO importa de otras features. Usa el **patrón Repository** para acceder a Firebase a través de hooks. La composición con otras features (ej: reviews, collections) ocurre en `src/app/`. Ver [`ARCHITECTURE.md`](file:///c:/Users/aleja/OneDrive/Escritorio/Temporal/SpotSport/rehecho/SpotsSports/src/ARCHITECTURE.md).
 
 ### 📁 Estructura de Archivos
 

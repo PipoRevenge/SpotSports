@@ -1,25 +1,27 @@
+import { MapMarker } from "@/src/components/commons/map";
 import { HStack } from "@/src/components/ui/hstack";
 import { SafeAreaView } from "@/src/components/ui/safe-area-view";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { Spot } from "@/src/entities/spot/model/spot";
 import {
-  formatDistance,
-  MapSearchBar,
-  MapSearchMap,
-  MapSearchResult,
-  MapSearchResultItem,
-  MapSearchResultList,
-  SpotCardModal,
-  SpotMarker,
-  spotsToMapResults,
-  useMapSpotSearch,
+    formatDistance,
+    MapSearchBar,
+    MapSearchMap,
+    MapSearchResult,
+    MapSearchResultItem,
+    MapSearchResultList,
+    SpotCardModal,
+    SpotMarker,
+    spotsToMapResults,
+    useMapSpotSearch,
 } from "@/src/features/map-search";
 import {
-  SpotSearchFilterModal,
-  useSelectedSpot,
+    SpotSearchFilterModal,
+    useSelectedSpot,
 } from "@/src/features/spot";
 import { useUserLocation } from "@/src/hooks/use-user-location";
+import { GeoPoint } from "@/src/types/geopoint";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import { List as ListIcon, Map as MapIcon } from "lucide-react-native";
@@ -44,6 +46,7 @@ export default function SearchMapScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedSpotId, setSelectedSpotId] = useState<string | undefined>();
   const [showSpotCard, setShowSpotCard] = useState(false);
+  const [createSpotLocation, setCreateSpotLocation] = useState<GeoPoint | null>(null);
   const hasSearchedRef = useRef(false);
   const shouldSearchAfterFiltersRef = useRef(false);
 
@@ -155,16 +158,14 @@ export default function SearchMapScreen() {
    * Maneja el press en un spot desde la lista o el card
    * Navega a la página del spot
    */
-  const handleSpotPress = useCallback(async (spot: Spot) => {
-    // Seleccionar el spot en el contexto con loadReviews: true (para la página completa)
-    await selectSpot(spot, true);
-    
-    // Navegar a la página del spot
+  const handleSpotPress = useCallback((spot: Spot) => {
+    // Navegar inmediatamente a la página del spot
+    // La página se encargará de cargar los datos completos
     router.push({
       pathname: '/spot/[spotId]',
       params: { spotId: spot.id }
     });
-  }, [selectSpot]);
+  }, []);
 
   /**
    * Cierra el card del spot
@@ -174,6 +175,34 @@ export default function SearchMapScreen() {
     setSelectedSpotId(undefined);
     // No limpiar selectedSpot del contexto para mantener la sincronización
   }, []);
+
+  /**
+   * Maneja el press en el mapa para crear un nuevo spot
+   */
+  const handleMapPress = useCallback((coordinate: GeoPoint) => {
+    // Cerrar el card si está abierto
+    setShowSpotCard(false);
+    setSelectedSpotId(undefined);
+    // Establecer la ubicación para crear spot
+    setCreateSpotLocation(coordinate);
+  }, []);
+
+  /**
+   * Navega a la página de creación de spot con la ubicación seleccionada
+   */
+  const handleCreateSpotPress = useCallback(() => {
+    if (createSpotLocation) {
+      router.push({
+        pathname: '/spot/create-spot',
+        params: {
+          latitude: createSpotLocation.latitude.toString(),
+          longitude: createSpotLocation.longitude.toString(),
+        },
+      });
+      // Limpiar el marcador después de navegar
+      setCreateSpotLocation(null);
+    }
+  }, [createSpotLocation]);
 
   /**
    * Renderiza el contenido de un item de spot
@@ -352,6 +381,7 @@ export default function SearchMapScreen() {
               selectedItemId={selectedSpotId}
               onMarkerPress={handleMarkerPress}
               onCalloutPress={handleCalloutPress}
+              onMapPress={handleMapPress}
               onRegionChangeComplete={setMapRegion}
               initialRegion={mapRegion}
               getItemId={(spot) => spot.id}
@@ -385,7 +415,40 @@ export default function SearchMapScreen() {
                   autoCenterOnResults: false,
                 },
               }}
-            />
+            >
+              {/* Marcador de creación de spot */}
+              {createSpotLocation && (
+                <MapMarker
+                  coordinate={{
+                    latitude: createSpotLocation.latitude,
+                    longitude: createSpotLocation.longitude,
+                  }}
+                  data={null}
+                  color="#22c55e"
+                  size={40}
+                  onPress={handleCreateSpotPress}
+                  calloutConfig={{
+                    showDefault: true,
+                    tooltip: false,
+                  }}
+                  renderCallout={() => (
+                    <Pressable
+                      onPress={handleCreateSpotPress}
+                      className="bg-white rounded-lg p-3 shadow-lg min-w-[150px]"
+                    >
+                      <VStack className="gap-1 items-center">
+                        <Text className="text-base font-bold text-green-600">
+                          ➕ Crear Spot
+                        </Text>
+                        <Text className="text-xs text-gray-600 text-center">
+                          Toca para crear un spot aquí
+                        </Text>
+                      </VStack>
+                    </Pressable>
+                  )}
+                />
+              )}
+            </MapSearchMap>
             
             {/* Card modal del spot seleccionado */}
             <SpotCardModal

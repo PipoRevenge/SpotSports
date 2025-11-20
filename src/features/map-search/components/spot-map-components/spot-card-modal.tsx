@@ -35,6 +35,13 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
 }) => {
   const [isNavigating, setIsNavigating] = useState(false);
   
+  // Resetear estado cuando el modal se cierra
+  React.useEffect(() => {
+    if (!visible) {
+      setIsNavigating(false);
+    }
+  }, [visible]);
+  
   // No renderizar nada si no está visible
   if (!visible) {
     return null;
@@ -227,12 +234,10 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
 
                 {/* Botón para ver más detalles */}
                 <Pressable
-                  onPress={async () => {
+                  onPress={() => {
                     if (!isNavigating && spot) {
                       setIsNavigating(true);
                       onPress(spot);
-                      // Reset después de un delay para permitir la navegación
-                      setTimeout(() => setIsNavigating(false), 2000);
                     }
                   }}
                   disabled={isNavigating}
@@ -244,7 +249,7 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
                     <HStack className="items-center gap-2">
                       <ActivityIndicator size="small" color="white" />
                       <Text className="text-white font-semibold">
-                        Cargando...
+                        Abriendo...
                       </Text>
                     </HStack>
                   ) : (

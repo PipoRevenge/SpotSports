@@ -81,5 +81,6 @@ export interface SpotCreateFormProps {
   onSuccess?: (spotId: string) => void;
   onCancel?: () => void;
   initialData?: Partial<SpotCreateFormData>;
+  initialLocation?: GeoPoint;
   sportsSlot?: React.ComponentType<SportsSlotProps>;
 }
