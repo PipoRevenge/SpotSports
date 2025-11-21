@@ -1,5 +1,5 @@
 import { reviewRepository } from "@/src/api/repositories";
-import { useUser } from "@/src/entities/user/context/user-context";
+import { useUser } from "@/src/context/user-context";
 import { useState } from "react";
 import { Alert } from "react-native";
 

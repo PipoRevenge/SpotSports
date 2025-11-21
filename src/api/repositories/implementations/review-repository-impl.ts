@@ -1,31 +1,31 @@
 import { Comment } from "@/src/entities/review/comment";
-import { Review, ReviewDetails, ReviewSport } from "@/src/entities/review/review";
+import { Review, ReviewDetails, ReviewSport } from "@/src/entities/review/model/review";
 import { firestore, storage } from "@/src/lib/firebase-config";
 import { ref as dbRef, getDatabase, push } from "firebase/database";
 import {
-  addDoc,
-  collection,
-  doc,
-  limit as firestoreLimit,
-  getDoc,
-  getDocs,
-  increment,
-  orderBy,
-  query,
-  runTransaction,
-  Timestamp,
-  updateDoc,
-  where,
-  writeBatch
+    addDoc,
+    collection,
+    doc,
+    limit as firestoreLimit,
+    getDoc,
+    getDocs,
+    increment,
+    orderBy,
+    query,
+    runTransaction,
+    Timestamp,
+    updateDoc,
+    where,
+    writeBatch
 } from "firebase/firestore";
 import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { IReviewRepository } from "../interfaces/i-review-repository";
 import {
-  createFirestoreReviewData,
-  FirestoreReviewData,
-  FirestoreSportRating,
-  FirestoreSpotSportMetrics,
-  mapFirestoreToReview
+    createFirestoreReviewData,
+    FirestoreReviewData,
+    FirestoreSportRating,
+    FirestoreSpotSportMetrics,
+    mapFirestoreToReview
 } from "../mappers/review-mapper";
 
 /**

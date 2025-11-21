@@ -1,5 +1,5 @@
 import { reviewRepository, sportRepository, spotRepository, userRepository } from "@/src/api/repositories";
-import { Review } from "@/src/entities/review/review";
+import { Review } from "@/src/entities/review/model/review";
 import { SportSpotRating, Spot } from "@/src/entities/spot/model/spot";
 import { User } from "@/src/entities/user/model/user";
 import { SimpleSport } from "@/src/features/review/types/review-types";

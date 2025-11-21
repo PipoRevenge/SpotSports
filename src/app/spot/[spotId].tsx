@@ -1,5 +1,5 @@
 import { MapMarker, MapView } from '@/src/components/commons/map';
-import { useUser } from '@/src/entities/user/context/user-context';
+import { useUser } from '@/src/context/user-context';
 import {
     ReviewList,
     useReviewDelete

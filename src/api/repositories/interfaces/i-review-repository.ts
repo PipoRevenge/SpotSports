@@ -1,5 +1,5 @@
 import { Comment } from "@/src/entities/review/comment";
-import { Review, ReviewDetails } from "@/src/entities/review/review";
+import { Review, ReviewDetails } from "@/src/entities/review/model/review";
 
 /**
  * Interfaz del repositorio de reviews

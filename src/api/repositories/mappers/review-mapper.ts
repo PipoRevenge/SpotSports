@@ -1,4 +1,4 @@
-import { Review, ReviewActivity, ReviewDetails, ReviewMetadata, ReviewSport } from "@/src/entities/review/review";
+import { Review, ReviewActivity, ReviewDetails, ReviewMetadata, ReviewSport } from "@/src/entities/review/model/review";
 import { DocumentReference, Timestamp } from "firebase/firestore";
 
 /**

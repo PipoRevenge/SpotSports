@@ -1,6 +1,6 @@
 import { reviewRepository } from "@/src/api/repositories";
-import { ReviewDetails } from "@/src/entities/review/review";
-import { useUser } from "@/src/entities/user/context/user-context";
+import { useUser } from "@/src/context/user-context";
+import { ReviewDetails } from "@/src/entities/review/model/review";
 import { useState } from "react";
 import { Alert } from "react-native";
 import { CreateReviewData } from "../types/review-types";

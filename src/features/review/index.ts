@@ -6,6 +6,7 @@ export { SportRatingItem } from './components/review-create/sport-rating-item';
 export { ReviewCard } from './components/review-view/review-card';
 export { ReviewComments } from './components/review-view/review-comments';
 export { ReviewList } from './components/review-view/review-list';
+export { UserReviewList } from './components/review-view/user-review-list';
 
 // Hooks
 export { useReviewComments } from './hooks/use-review-comments';
@@ -15,6 +16,7 @@ export { useReviewLoad } from './hooks/use-review-load';
 export { useReviewUpdate } from './hooks/use-review-update';
 export { useReviewVote } from './hooks/use-review-vote';
 export { useSpotReviews } from './hooks/use-spot-reviews';
+export { useUserReviews } from './hooks/use-user-reviews';
 
 // Types
 export type { ReviewCardProps } from './components/review-view/review-card';

@@ -1,5 +1,5 @@
 import { userRepository } from '@/src/api/repositories';
-import { useUser } from '@/src/entities/user/context/user-context';
+import { useUser } from '@/src/context/user-context';
 import { User } from '@/src/entities/user/model/user';
 import { useCallback, useState } from 'react';
 import { ProfileUpdateData } from '../types/profile-types';

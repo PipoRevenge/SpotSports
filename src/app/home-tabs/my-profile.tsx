@@ -1,9 +1,10 @@
 import { Text } from '@/src/components/ui/text';
 import { View } from '@/src/components/ui/view';
 import { VStack } from '@/src/components/ui/vstack';
-import { useUser } from '@/src/entities/user/context/user-context';
+import { useUser } from '@/src/context/user-context';
 import { SignOut } from '@/src/features/auth';
-import { ProfileHeader } from '@/src/features/user/components/profile-header';
+import { UserReviewList } from '@/src/features/review';
+import { ProfileActivityTabs, ProfileHeader } from '@/src/features/user';
 import { useProfile } from '@/src/features/user/hooks/use-profile';
 import { MenuOption, ProfileActionType } from '@/src/features/user/types/profile-types';
 import { router } from "expo-router";
@@ -32,6 +33,15 @@ export default function MyProfile() {
 
     const handleRefresh = () => {
         refetch();
+    };
+
+    const handleNavigateToProfile = (userIdToNavigate: string) => {
+        if (!userIdToNavigate) return;
+        if (userIdToNavigate === currentUser?.id) {
+            router.push('/home-tabs/my-profile');
+        } else {
+            router.push(`/profile/${userIdToNavigate}`);
+        }
     };
 
     // Opciones del menú personalizadas
@@ -99,6 +109,30 @@ export default function MyProfile() {
                     isOwn={true}
                     menuOptions={menuOptions}
                 />
+
+                        {/* Activity tabs */}
+                        <ProfileActivityTabs
+                            user={user}
+                            userId={user?.id}
+                            reviewsSlot={(
+                                <UserReviewList
+                                    userId={user?.id}
+                                    profileUser={user}
+                                    onNavigateToProfile={handleNavigateToProfile}
+                                    onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
+                                    onEdit={(reviewId, spotId, spotSports) => {
+                                        if (!spotId) return;
+                                        router.push({
+                                            pathname: `/spot/review/[spotId]/edit-review`,
+                                            params: {
+                                                spotId,
+                                                spotSports: spotSports ? JSON.stringify(spotSports) : JSON.stringify([]),
+                                            }
+                                        });
+                                    }}
+                                />
+                            )}
+                        />
 
                 {/* Sección de spots favoritos */}
                 {user.activity.favoriteSpotsCount > 0 && (

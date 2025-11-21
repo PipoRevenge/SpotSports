@@ -4,7 +4,7 @@ import { Pressable } from "@/src/components/ui/pressable";
 import { SafeAreaView } from "@/src/components/ui/safe-area-view";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
-import { useUser } from "@/src/entities/user/context/user-context";
+import { useUser } from "@/src/context/user-context";
 import { SpotCategory } from "@/src/entities/user/model/spot-collection";
 import { SpotListCard, useSpotsByIds } from '@/src/features/spot';
 

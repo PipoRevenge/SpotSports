@@ -3,7 +3,7 @@ import { HStack } from "@/src/components/ui/hstack";
 import { Select, SelectBackdrop, SelectContent, SelectDragIndicator, SelectDragIndicatorWrapper, SelectIcon, SelectInput, SelectItem, SelectPortal, SelectTrigger } from "@/src/components/ui/select";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
-import { Review } from "@/src/entities/review/review";
+import { Review } from "@/src/entities/review/model/review";
 import { User } from "@/src/entities/user/model/user";
 import { ChevronDown } from "lucide-react-native";
 import React, { useEffect, useState } from "react";

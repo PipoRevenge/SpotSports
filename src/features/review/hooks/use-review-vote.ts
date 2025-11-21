@@ -1,5 +1,5 @@
 import { reviewRepository } from "@/src/api/repositories";
-import { useUser } from "@/src/entities/user/context/user-context";
+import { useUser } from "@/src/context/user-context";
 import { useCallback, useEffect, useState } from "react";
 
 /**

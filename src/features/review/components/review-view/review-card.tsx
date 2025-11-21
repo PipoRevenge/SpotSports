@@ -7,14 +7,16 @@ import { HStack } from "@/src/components/ui/hstack";
 import { Pressable } from "@/src/components/ui/pressable";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
-import { Review } from "@/src/entities/review/review";
-import { useUser } from "@/src/entities/user/context/user-context";
+import { useUser } from "@/src/context/user-context";
+import { Review } from "@/src/entities/review/model/review";
+import { Spot } from '@/src/entities/spot/model/spot';
 import { User } from "@/src/entities/user/model/user";
 import { formatDate, getInitials } from "@/src/utils/date-utils";
+import { Alert, Image, View } from 'react-native';
 // Import router is not allowed inside feature components; navigation must be handled by the app
 import { Edit, MessageCircle, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react-native";
 import React, { useState } from "react";
-import { Alert, View } from "react-native";
+
 import { useReviewVote } from "../../hooks/use-review-vote";
 import { ReviewComments } from "./review-comments";
 
@@ -25,6 +27,8 @@ export interface ReviewCardProps {
   review: Review;
   spotId: string; // ID del spot (necesario para votos)
   user?: User; // Información del usuario que creó la review
+  spot?: Spot; // Información del spot (opcional). Si se proporciona, se muestra en el header
+  onNavigateToSpot?: (spotId: string) => void;
   getSportName?: (sportId: string) => string; // Función para obtener nombre del deporte
   onReply?: (reviewId: string) => void;
   onEdit?: (reviewId: string) => void; // Callback para editar review
@@ -58,6 +62,8 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   review,
   spotId,
   user,
+  spot,
+  onNavigateToSpot,
   getSportName,
   onReply,
   onEdit,
@@ -134,6 +140,33 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   return (
     <Card className="bg-white px-6 border border-gray-500 shadow-sm">
       <VStack className="gap-3">
+        {/* Optional spot header for context when reviews are shown in user's activity lists */}
+        {spot && (
+          <Pressable onPress={() => onNavigateToSpot && onNavigateToSpot(spot.id)}>
+            <HStack className="items-center gap-3 py-2">
+              {/* Optionally display a small thumbnail if spot has media */}
+              {spot.details.media && spot.details.media.length > 0 ? (
+                <View className="w-12 h-12 rounded-lg overflow-hidden">
+                  {/* Use Image from react-native for a simple thumbnail */}
+                  <Image
+                    source={{ uri: spot.details.media[0] }}
+                    style={{ width: 48, height: 48 }}
+                    resizeMode="cover"
+                  />
+                </View>
+              ) : (
+                <View className="w-12 h-12 rounded-lg bg-gray-100 items-center justify-center">
+                  <Text className="text-sm text-gray-600">SP</Text>
+                </View>
+              )}
+
+              <VStack className="flex-1">
+                <Text className="font-semibold text-gray-900">{spot.details.name}</Text>
+                <Text className="text-sm text-gray-500">{spot.details.location?.latitude ? `${spot.details.location.latitude.toFixed(3)}, ${spot.details.location.longitude.toFixed(3)}` : ''}</Text>
+              </VStack>
+            </HStack>
+          </Pressable>
+        )}
         {/* Header: Avatar + Nombre + Rating */}
         <HStack className="justify-between items-start gap-2">
           

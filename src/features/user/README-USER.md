@@ -250,3 +250,11 @@ const updatedUser = await userRepository.updateUserProfile(user.id, updateData);
 - [x] ~~Implementar llamadas reales a la API~~ ✅ **COMPLETADO**
 - [x] ~~Añadir soporte para cambio de foto de perfil~~ ✅ **COMPLETADO**
 - [ ] Implementar sistema de seguimiento (follow/unfollow)
+
+## 📝 Activity Tabs
+
+- `ProfileActivityTabs`: Small component to render activity tabs under the profile header. Currently contains:
+  - `Reseñas` (Reviews): Shows the user's reviews ordered by fecha (más recientes primero) using `useUserReviews` and `UserReviewList` from the Review feature. Each review includes quick info of the spot reviewed and a callback to navigate to its page.
+
+Implementación recomendada: App pages pass navigation callbacks (router) into components to handle navigation (no direct router usage inside features). 
+

@@ -389,6 +389,8 @@ export const UserProvider: React.FC = ({ children }) => {
 
 ## 🎨 Styling Conventions
 
+Don't use margins, only padding 
+
 Using **NativeWind** (Tailwind CSS for React Native):
 
 ```tsx
@@ -502,7 +504,7 @@ npx expo start --clear
 3. Handle navigation callbacks
 4. Inject dependencies via props
 5. Manage page-level state
-6. Wrap in `SafeAreaView`
+6. Wrap in `SafeAreaView`, and import from components
 
 **When accessing Firebase:**
 1. Create repository function in `src/api/repositories/`

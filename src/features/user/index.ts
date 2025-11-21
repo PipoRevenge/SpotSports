@@ -1,4 +1,5 @@
 // Componentes
+export { ProfileActivityTabs } from './components/profile-activity-tabs';
 export { ProfileEditForm } from './components/profile-edit-form';
 export { ProfileHeader } from './components/profile-header';
 

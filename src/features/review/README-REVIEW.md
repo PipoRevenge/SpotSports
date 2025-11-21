@@ -209,6 +209,12 @@ const createReview = async (reviewData: CreateReviewData) => {
 };
 ```
 
+## 📌 Nuevas utilidades agregadas
+
+- `useUserReviews(userId)`: Hook para recuperar las reviews de un usuario junto con los datos de los spots referenciados. Ideal para mostrar la actividad de un perfil.
+- `UserReviewList`: Componente de lista que renderiza las reviews de un usuario y muestra información del spot en la cabecera de cada review; permite navegación hacia el spot (a través de callbacks) y eliminación de la review si corresponde.
+
+
 ## 🚀 Próximos Pasos
 
 1. Implementar el repositorio de Firebase

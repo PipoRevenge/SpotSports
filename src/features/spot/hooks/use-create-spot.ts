@@ -1,6 +1,6 @@
 import { spotRepository } from "@/src/api/repositories";
+import { useUser } from "@/src/context/user-context";
 import { SpotDetails } from "@/src/entities/spot/model/spot";
-import { useUser } from "@/src/entities/user/context/user-context";
 import { useState } from "react";
 import { SpotCreateFormData, SpotFormState } from "../types/spot-types";
 import { validateSpotCreateForm } from "../utils/spot-validations";

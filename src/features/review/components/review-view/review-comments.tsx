@@ -4,7 +4,7 @@ import { HStack } from "@/src/components/ui/hstack";
 import { Input, InputField } from "@/src/components/ui/input";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
-import { useUser } from "@/src/entities/user/context/user-context";
+import { useUser } from "@/src/context/user-context";
 import { formatDate, getInitials } from "@/src/utils/date-utils";
 // No router import inside feature. Navigation should be handled by the app and passed via props.
 import { ChevronDown, ChevronUp, MessageCircle, Send, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react-native";

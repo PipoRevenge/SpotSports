@@ -1,5 +1,5 @@
 import { userRepository } from "@/src/api/repositories";
-import { useUser } from "@/src/entities/user/context/user-context";
+import { useUser } from "@/src/context/user-context";
 import { SavedSpot, SpotCategory } from "@/src/entities/user/model/spot-collection";
 import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";

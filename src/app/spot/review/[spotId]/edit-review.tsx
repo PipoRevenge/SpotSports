@@ -3,7 +3,7 @@ import { HStack } from "@/src/components/ui/hstack";
 import { Pressable } from "@/src/components/ui/pressable";
 import { SafeAreaView } from "@/src/components/ui/safe-area-view";
 import { Text } from "@/src/components/ui/text";
-import { useUser } from "@/src/entities/user/context/user-context";
+import { useUser } from "@/src/context/user-context";
 import { CreateReviewForm } from "@/src/features/review";
 import { useReviewLoad } from "@/src/features/review/hooks/use-review-load";
 import { useReviewUpdate } from "@/src/features/review/hooks/use-review-update";
