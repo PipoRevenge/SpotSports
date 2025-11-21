@@ -8,7 +8,7 @@ import { View } from '@/src/components/ui/view';
 import { VStack } from '@/src/components/ui/vstack';
 import { Edit, LogOut, MoreVertical, Settings } from 'lucide-react-native';
 import React from 'react';
-import { ScrollView } from 'react-native';
+import { Pressable, ScrollView } from 'react-native';
 import { FollowStatus, ProfileActionType, ProfileHeaderProps } from '../types/profile-types';
 import { formatProfileDate } from '../utils/profile-date-utils';
 
@@ -20,6 +20,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   followStatus = FollowStatus.NOT_FOLLOWING,
   isOwn = false,
   menuOptions
+  ,onFollowersPress, onFollowingPress
 }) => {
   if (!user) {
     return null;
@@ -154,14 +155,18 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                 )}
               </VStack>
               <HStack space="lg">
-              <VStack className="items-center">
-                <Text className="font-bold text-lg">{user.activity.followersCount}</Text>
-                <Text className="text-gray-500 text-sm">Seguidores</Text>
-              </VStack>
-              <VStack className="items-center">
-                <Text className="font-bold text-lg">{user.activity.followingCount}</Text>
-                <Text className="text-gray-500 text-sm">Siguiendo</Text>
-              </VStack>
+              <Pressable onPress={() => onFollowersPress && onFollowersPress()}>
+                <VStack className="items-center">
+                  <Text className="font-bold text-lg">{typeof displayFollowersCount !== 'undefined' ? displayFollowersCount : user.activity.followersCount}</Text>
+                  <Text className="text-gray-500 text-sm">Seguidores</Text>
+                </VStack>
+              </Pressable>
+              <Pressable onPress={() => onFollowingPress && onFollowingPress()}>
+                <VStack className="items-center">
+                  <Text className="font-bold text-lg">{user.activity.followingCount}</Text>
+                  <Text className="text-gray-500 text-sm">Siguiendo</Text>
+                </VStack>
+              </Pressable>
               </HStack>
               
             </HStack>

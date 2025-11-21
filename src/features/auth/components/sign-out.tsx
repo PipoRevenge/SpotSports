@@ -26,6 +26,7 @@ export const SignOut: React.FC<SignOutProps> = ({
   isOpen: isOpenProp,
   onClose: onCloseProp,
   showTrigger = true
+  ,onSignOutComplete
 }) => {
   const [internalShowDialog, setInternalShowDialog] = useState(false);
   const { signOut, isSigningOut } = useSignOut();
@@ -34,14 +35,19 @@ export const SignOut: React.FC<SignOutProps> = ({
   const showAlertDialog = isOpenProp !== undefined ? isOpenProp : internalShowDialog;
 
   const handleSignOut = async () => {
-    await signOut();
-    if (onCloseProp) {
-      onCloseProp();
-    } else {
-      setInternalShowDialog(false);
-    }
-    if (onSignOutComplete) {
-      onSignOutComplete();
+    try {
+      await signOut();
+    } catch (err) {
+      console.error('Error on sign out action in UI:', err);
+    } finally {
+      if (onCloseProp) {
+        onCloseProp();
+      } else {
+        setInternalShowDialog(false);
+      }
+      if (onSignOutComplete) {
+        try { onSignOutComplete(); } catch (err) { console.warn('onSignOutComplete threw:', err); }
+      }
     }
   };
 

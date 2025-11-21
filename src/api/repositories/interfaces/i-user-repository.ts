@@ -20,4 +20,7 @@ export interface IUserRepository {
   removeFavoriteSport(userId: string, sportId: string): Promise<void>;
   
   checkUserNameExists(userName: string, excludeUserId?: string): Promise<boolean>;
+  getUserByUserName(userName: string): Promise<User | null>;
+  getAllUsers(options?: { limit?: number; startAfter?: any }): Promise<{ items: User[]; lastVisible?: any }>;
+  getUserByUserName(userName: string): Promise<User | null>;
 }

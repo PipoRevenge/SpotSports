@@ -9,6 +9,8 @@ interface UserContextType {
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
   isAuthenticated: boolean;
+  subscribeToFollowEvents?: (listener: (payload: { targetUserId: string; followerId: string; isFollowing: boolean; }) => void) => () => void;
+  emitFollowEvent?: (payload: { targetUserId: string; followerId: string; isFollowing: boolean; }) => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -72,12 +74,44 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
+  const followListenersRef = React.useRef(new Set<(payload: { targetUserId: string; followerId: string; isFollowing: boolean; }) => void>());
+
+  const subscribeToFollowEvents = (listener: (payload: { targetUserId: string; followerId: string; isFollowing: boolean; }) => void) => {
+    followListenersRef.current.add(listener);
+    return () => followListenersRef.current.delete(listener);
+  };
+
+  const emitFollowEvent = (payload: { targetUserId: string; followerId: string; isFollowing: boolean; }) => {
+    // Update current user counters if needed
+    setUser(prev => {
+      if (!prev) return prev;
+      if (prev.id === payload.followerId) {
+        const updatedFollowing = Math.max(0, prev.activity.followingCount + (payload.isFollowing ? 1 : -1));
+        return {
+          ...prev,
+          activity: {
+            ...prev.activity,
+            followingCount: updatedFollowing
+          }
+        } as User;
+      }
+      return prev;
+    });
+
+    // Notify all listeners
+    followListenersRef.current.forEach((fn) => {
+      try { fn(payload); } catch (e) { console.warn('Follow listener threw', e); }
+    });
+  };
+
   const value = {
     user,
     setUser,
     isLoading,
     setIsLoading,
     isAuthenticated,
+    subscribeToFollowEvents,
+    emitFollowEvent
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

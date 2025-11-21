@@ -47,6 +47,9 @@ export interface ProfileHeaderProps {
   followStatus?: FollowStatus;
   isOwn?: boolean;
   menuOptions?: MenuOption[]; // Opciones personalizadas del menú
+  onFollowersPress?: () => void; // Callback when followers count pressed
+  onFollowingPress?: () => void; // Callback when following count pressed
+  displayFollowersCount?: number; // optional override to display alternative followers count
 }
 
 // Props para componente de perfil completo

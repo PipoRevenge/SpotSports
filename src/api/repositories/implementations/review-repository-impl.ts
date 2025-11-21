@@ -1,4 +1,4 @@
-import { Comment } from "@/src/entities/review/comment";
+import { Comment } from "@/src/entities/review/model/comment";
 import { Review, ReviewDetails, ReviewSport } from "@/src/entities/review/model/review";
 import { firestore, storage } from "@/src/lib/firebase-config";
 import { ref as dbRef, getDatabase, push } from "firebase/database";
@@ -78,11 +78,11 @@ export class ReviewRepositoryImpl implements IReviewRepository {
         } catch (uploadError) {
           console.error('[ReviewRepository] Media upload failed:', uploadError);
           throw new Error(`Failed to upload media files. Please check:
-1. Firebase Storage emulator is running
-2. Network connection is stable
-3. File permissions are correct
+              1. Firebase Storage emulator is running
+              2. Network connection is stable
+              3. File permissions are correct
 
-Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
+              Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
         }
       }
       

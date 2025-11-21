@@ -1,9 +1,11 @@
 import { AuthRepositoryImpl } from "./implementations/auth-repository-impl";
+import { RelationshipRepositoryImpl } from './implementations/relationship-repository-impl';
 import { ReviewRepositoryImpl } from "./implementations/review-repository-impl";
 import { SportRepositoryImpl } from "./implementations/sport-repository-impl";
 import { SpotRepositoryImpl } from "./implementations/spot-repository-impl";
 import { UserRepositoryImpl } from "./implementations/user-repository-impl";
 import { IAuthRepository } from "./interfaces/i-auth-repository";
+import { IRelationshipRepository } from './interfaces/i-relationship-repository';
 import { IReviewRepository } from "./interfaces/i-review-repository";
 import { ISportRepository } from "./interfaces/i-sport-repository";
 import { ISpotRepository } from "./interfaces/i-spot-repository";
@@ -23,3 +25,4 @@ export const authRepository: IAuthRepository = new AuthRepositoryImpl();
 export const spotRepository: ISpotRepository = new SpotRepositoryImpl();
 export const sportRepository: ISportRepository = new SportRepositoryImpl();
 export const reviewRepository: IReviewRepository = new ReviewRepositoryImpl();
+export const relationshipRepository: IRelationshipRepository = new RelationshipRepositoryImpl();

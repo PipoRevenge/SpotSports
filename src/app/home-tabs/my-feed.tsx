@@ -12,6 +12,10 @@ export default function MyFeedScreen() {
         <ButtonText>Crear Spot</ButtonText>
       </Button>
 
+      <Button variant="outline" onPress={() => { router.push('/users'); }}>
+        <ButtonText>Ver todos los usuarios</ButtonText>
+      </Button>
+
 
     </VStack>
   );

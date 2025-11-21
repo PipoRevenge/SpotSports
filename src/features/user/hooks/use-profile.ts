@@ -1,3 +1,4 @@
+import { userRepository } from '@/src/api/repositories';
 import { useUser } from '@/src/context/user-context';
 import { User } from '@/src/entities/user/model/user';
 import { useEffect, useState } from 'react';
@@ -28,16 +29,21 @@ export const useProfile = (userId?: string): UseProfileReturn => {
     setError(null);
     
     try {
-      // TODO: Implementar llamada real a la API
-      // Por ahora simularemos con un delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // TODO: Aquí iría la llamada real a la API para obtener el perfil de otro usuario
-      // const response = await profileApi.getUserById(targetUserId);
-      // setViewingUser(response.user);
-      
-      // Por ahora, devolvemos error para usuarios no encontrados
-      throw new Error('Usuario no encontrado');
+      // Intentar obtener el usuario por ID desde el repo
+      try {
+        const foundUser = await userRepository.getUserById(targetUserId);
+        setViewingUser(foundUser);
+        return;
+      } catch (firstError) {
+        // If not found by ID, attempt to fetch by username
+        const byUsername = await userRepository.getUserByUserName(targetUserId);
+        if (byUsername) {
+          setViewingUser(byUsername);
+          return;
+        }
+        // else rethrow to be caught by outer catch
+        throw firstError;
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error al cargar el perfil';
       setError(errorMessage);

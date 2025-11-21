@@ -44,6 +44,16 @@ export default function MyProfile() {
         }
     };
 
+    const handleFollowersPress = () => {
+        if (!user?.id) return;
+        router.push(`/profile/${user.id}/followers`);
+    };
+
+    const handleFollowingPress = () => {
+        if (!user?.id) return;
+        router.push(`/profile/${user.id}/following`);
+    };
+
     // Opciones del menú personalizadas
     const menuOptions: MenuOption[] = [
         {
@@ -108,6 +118,8 @@ export default function MyProfile() {
                     onEditPress={handleEditPress}
                     isOwn={true}
                     menuOptions={menuOptions}
+                    onFollowersPress={handleFollowersPress}
+                    onFollowingPress={handleFollowingPress}
                 />
 
                         {/* Activity tabs */}

@@ -2,12 +2,13 @@ import { Text } from '@/src/components/ui/text';
 import { View } from '@/src/components/ui/view';
 import { VStack } from '@/src/components/ui/vstack';
 import { useUser } from '@/src/context/user-context';
+import { useFollow } from '@/src/features/relationships';
 import { UserReviewList } from '@/src/features/review';
 import { ProfileActivityTabs, ProfileHeader } from '@/src/features/user';
 import { useProfile } from '@/src/features/user/hooks/use-profile';
-import { ProfileActionType } from '@/src/features/user/types/profile-types';
+import { FollowStatus, ProfileActionType } from '@/src/features/user/types/profile-types';
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
 
 export default function UserProfile() {
@@ -21,15 +22,55 @@ export default function UserProfile() {
         }
     }, [userId, currentUser]);
     
-    // Usar el hook de perfil
-    const { user, isLoading, error, refetch } = useProfile(userId);
+        // Usar el hook de perfil
+        const { user, isLoading, error, refetch } = useProfile(userId);
+        // Local optimistic followers counter
+        const [localFollowersCount, setLocalFollowersCount] = useState<number | null>(null);
+        const { subscribeToFollowEvents } = useUser();
+        useEffect(() => {
+            if (!subscribeToFollowEvents) return;
+            const unsub = subscribeToFollowEvents((payload) => {
+                // If the event affects this profile, update local counter
+                if (payload.targetUserId === user?.id) {
+                    setLocalFollowersCount(prev => (prev ?? 0) + (payload.isFollowing ? 1 : -1));
+                }
+                // If the current user is the follower, their following count is updated via userContext
+            });
+            return unsub;
+        }, [subscribeToFollowEvents, user]);
+        useEffect(() => {
+            if (user) setLocalFollowersCount(user.activity.followersCount);
+        }, [user]);
 
 
 
-    const handleFollowPress = () => {
-        // TODO: Implementar lógica de seguir/no seguir
-        console.log('Follow/Unfollow user');
+    const { toggleFollow, isFollowing } = useFollow(user?.id);
+    const displayedUser = user ? { ...user, activity: { ...user.activity, followersCount: localFollowersCount ?? user.activity.followersCount } } : user;
+    const handleFollowPress = async () => {
+        if (!user) return;
+        try {
+            const newState = await toggleFollow();
+            if (typeof newState === 'boolean') {
+                setLocalFollowersCount(prev => {
+                    if (prev == null) return prev;
+                    return newState ? prev + 1 : prev - 1;
+                });
+            }
+        } catch (err) {
+            console.error('Error toggling follow:', err);
+        } finally {
+            // Ensure final data is consistent with server
+            refetch();
+        }
     };
+      const handleFollowersPress = () => {
+          if (!user?.id) return;
+          router.push(`/profile/${user.id}/followers`);
+      };
+      const handleFollowingPress = () => {
+          if (!user?.id) return;
+          router.push(`/profile/${user.id}/following`);
+      };
 
 
     const handleRefresh = () => {
@@ -88,10 +129,14 @@ export default function UserProfile() {
         >
             <VStack className="p-4" space="lg">
                 <ProfileHeader
-                    user={user}
+                    user={displayedUser as any}
                     actionType={ProfileActionType.VIEW_OTHER}
                     onFollowPress={handleFollowPress}
                     isOwn={false}
+                    followStatus={isFollowing ? FollowStatus.FOLLOWING : FollowStatus.NOT_FOLLOWING}
+                    onFollowersPress={handleFollowersPress}
+                    onFollowingPress={handleFollowingPress}
+                    displayFollowersCount={localFollowersCount ?? user.activity.followersCount}
                 />
 
                 {/* Activity tabs */}

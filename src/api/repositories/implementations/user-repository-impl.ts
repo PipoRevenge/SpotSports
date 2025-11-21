@@ -7,9 +7,11 @@ import {
     collection,
     deleteDoc,
     doc,
+    limit as firestoreLimit,
     getDoc,
     getDocs,
     increment,
+    orderBy,
     query,
     setDoc,
     Timestamp,
@@ -134,6 +136,21 @@ export class UserRepositoryImpl implements IUserRepository {
             }
             
             throw new Error('No se pudo obtener el usuario');
+        }
+    }
+
+    async getUserByUserName(userName: string): Promise<User | null> {
+        try {
+            const usersRef = collection(firestore, this.USERS_COLLECTION);
+            const q = query(usersRef, where('userName', '==', userName), firestoreLimit(1));
+            const snapshot = await getDocs(q);
+            if (snapshot.empty) return null;
+            const docSnap = snapshot.docs[0];
+            const firebaseUser = docSnap.data() as UserFirebase;
+            return UserMapper.fromFirebase(firebaseUser, docSnap.id);
+        } catch (error) {
+            console.error('Error getting user by username:', error);
+            throw new Error('Unable to get user by username');
         }
     }
 
@@ -398,6 +415,28 @@ export class UserRepositoryImpl implements IUserRepository {
         } catch (error) {
             console.error('Error getting spot categories:', error);
             return [];
+        }
+    }
+
+    async getAllUsers(options?: { limit?: number; startAfter?: any }): Promise<{ items: User[]; lastVisible?: any }> {
+        try {
+            const usersRef = collection(firestore, this.USERS_COLLECTION);
+            // Order by creation date desc
+            const _limit = options?.limit || 50;
+            let qLimited = query(usersRef, orderBy('createdAt', 'desc'), firestoreLimit(_limit));
+            if (options?.startAfter) {
+                qLimited = query(usersRef, where('createdAt', '<', options.startAfter), orderBy('createdAt', 'desc'), firestoreLimit(_limit));
+            }
+            const querySnapshot = await getDocs(qLimited);
+            const items = querySnapshot.docs.map(docSnap => {
+                const firebaseUser = docSnap.data() as any;
+                return UserMapper.fromFirebase(firebaseUser, docSnap.id);
+            });
+            const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1]?.data().createdAt;
+            return { items, lastVisible };
+        } catch (error) {
+            console.error('Error getting all users:', error);
+            throw new Error('Unable to get users');
         }
     }
 
