@@ -1,8 +1,8 @@
 import { reviewRepository } from "@/src/api/repositories";
+import { useAppAlert } from '@/src/context/app-alert-context';
 import { useUser } from "@/src/context/user-context";
 import { ReviewDetails } from "@/src/entities/review/model/review";
 import { useState } from "react";
-import { Alert } from "react-native";
 import { CreateReviewData } from "../types/review-types";
 
 /**
@@ -13,6 +13,7 @@ export const useReviewUpdate = (onSuccess?: () => void) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useUser();
+  const { showError, showSuccess } = useAppAlert();
 
   /**
    * Actualiza una review existente
@@ -43,7 +44,7 @@ export const useReviewUpdate = (onSuccess?: () => void) => {
       const result = await reviewRepository.updateReview(reviewId, reviewData.spotId, updates);
       
       console.log("[useReviewUpdate] Review updated successfully:", result.id);
-      Alert.alert("Success", "Review updated successfully");
+      showSuccess("Review updated successfully", 'Success');
       
       if (onSuccess) {
         onSuccess();
@@ -55,7 +56,7 @@ export const useReviewUpdate = (onSuccess?: () => void) => {
         : "Failed to update review";
       
       setError(errorMessage);
-      Alert.alert("Error", errorMessage);
+      showError(errorMessage, 'Error');
       throw err;
     } finally {
       setIsLoading(false);

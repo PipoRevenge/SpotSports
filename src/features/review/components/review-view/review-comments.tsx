@@ -7,9 +7,10 @@ import { VStack } from "@/src/components/ui/vstack";
 import { useUser } from "@/src/context/user-context";
 import { formatDate, getInitials } from "@/src/utils/date-utils";
 // No router import inside feature. Navigation should be handled by the app and passed via props.
+import { useAppAlert } from '@/src/context/app-alert-context';
 import { ChevronDown, ChevronUp, MessageCircle, Send, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react-native";
 import React, { useState } from "react";
-import { ActivityIndicator, Alert, Pressable, View } from "react-native";
+import { ActivityIndicator, Pressable, View } from "react-native";
 import { useReviewComments } from "../../hooks/use-review-comments";
 import { CommentWithUser } from "../../types/comment-types";
 
@@ -50,6 +51,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   /**
    * Manejar envío de nuevo comentario
    */
+  const { showError, showConfirm } = useAppAlert();
   const handleSubmit = async () => {
     if (!newComment.trim() || isSubmitting) return;
 
@@ -59,7 +61,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
       setNewComment("");
     } catch (err) {
       console.error("Error adding comment:", err);
-      Alert.alert("Error", "No se pudo añadir el comentario");
+      showError("No se pudo añadir el comentario", 'Error');
     } finally {
       setIsSubmitting(false);
     }
@@ -69,25 +71,16 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
    * Manejar eliminación de comentario
    */
   const handleDelete = (commentId: string) => {
-    Alert.alert(
-      "Eliminar Comentario",
-      "¿Estás seguro de que quieres eliminar este comentario?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteComment(commentId);
-            } catch (err) {
-              console.error("Error deleting comment:", err);
-              Alert.alert("Error", "No se pudo eliminar el comentario");
-            }
-          },
-        },
-      ]
-    );
+    showConfirm('Eliminar Comentario', '¿Estás seguro de que quieres eliminar este comentario?', 'Eliminar', 'Cancelar')
+      .then(async (confirmed) => {
+        if (!confirmed) return;
+        try {
+          await deleteComment(commentId);
+        } catch (err) {
+          console.error("Error deleting comment:", err);
+          showError('No se pudo eliminar el comentario', 'Error');
+        }
+      });
   };
 
   const displayCount = totalComments || initialCommentsCount;
@@ -311,7 +304,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
       }
     } catch (err) {
       console.error("Error voting comment:", err);
-      Alert.alert("Error", "No se pudo registrar el voto");
+      showError("No se pudo registrar el voto", 'Error');
     } finally {
       setIsVoting(false);
     }

@@ -1,7 +1,7 @@
 import { reviewRepository } from "@/src/api/repositories";
+import { useAppAlert } from '@/src/context/app-alert-context';
 import { useUser } from "@/src/context/user-context";
 import { useState } from "react";
-import { Alert } from "react-native";
 
 /**
  * Hook para eliminar una review
@@ -11,6 +11,7 @@ export const useReviewDelete = (onSuccess?: () => void) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useUser();
+  const { showError, showSuccess } = useAppAlert();
 
   /**
    * Elimina una review existente
@@ -28,7 +29,7 @@ export const useReviewDelete = (onSuccess?: () => void) => {
       // Eliminar la review usando el repositorio
       await reviewRepository.deleteReview(reviewId, spotId);
       
-      Alert.alert("Success", "Review eliminada exitosamente");
+      showSuccess("Review eliminada exitosamente", 'Success');
       
       if (onSuccess) {
         onSuccess();
@@ -40,7 +41,7 @@ export const useReviewDelete = (onSuccess?: () => void) => {
         : "Failed to delete review";
       
       setError(errorMessage);
-      Alert.alert("Error", errorMessage);
+      showError(errorMessage, 'Error');
       throw err;
     } finally {
       setIsLoading(false);

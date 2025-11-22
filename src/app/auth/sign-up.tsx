@@ -5,15 +5,17 @@ import { VStack } from '@/src/components/ui/vstack';
 import { SignUpForm } from '@/src/features/auth/components/sign-up-form';
 import { useSignUp } from '@/src/features/auth/hooks/use-sign-up';
 
+import { useAppAlert } from '@/src/context/app-alert-context';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native';
 
 export default function SignUp() {
   const router = useRouter();
   const { signUp, isLoading, error } = useSignUp();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const { showError } = useAppAlert();
   const handleSubmit = async (
     email: string, 
     password: string, 
@@ -30,11 +32,7 @@ export default function SignUp() {
       // Navigation will be handled by UserContext after successful registration
     } catch (signUpError) {
       console.error('Error during sign up:', signUpError);
-      Alert.alert(
-        'Error de Registro',
-        error || 'Ocurrió un error durante el registro. Por favor, intenta de nuevo.',
-        [{ text: 'OK' }]
-      );
+      showError(error || 'Ocurrió un error durante el registro. Por favor, intenta de nuevo.', 'Error de Registro');
     } finally {
       setIsSubmitting(false);
     }

@@ -130,7 +130,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       </View>
       {/* Foto de perfil y información básica */}
       <View className="flex-row items-center pb-4">
-            <Avatar size="xl" className="pr-4">
+            <Avatar size="xl" >
           {user.userDetails.photoURL ? (
             <AvatarImage source={{ uri: user.userDetails.photoURL }} />
           ) : (
@@ -142,7 +142,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         
         <View className="flex-1">
           <VStack space="xs">
-            <HStack space="md" className="items-center">
+            <HStack space="md" className="items-center p-4">
               <VStack space="xs" className="flex-1">
                 <Text size="lg" className="font-bold">
                   {user.userDetails.fullName || "Nombre no disponible"}
@@ -157,7 +157,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
               <HStack space="lg">
               <Pressable onPress={() => onFollowersPress && onFollowersPress()}>
                 <VStack className="items-center">
-                  <Text className="font-bold text-lg">{typeof displayFollowersCount !== 'undefined' ? displayFollowersCount : user.activity.followersCount}</Text>
+                  <Text className="font-bold text-lg">{user.activity.followersCount}</Text>
                   <Text className="text-gray-500 text-sm">Seguidores</Text>
                 </VStack>
               </Pressable>
@@ -175,19 +175,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         
       </View>
 
-      {/* Estadísticas del usuario */}
-      <HStack className="pb-4 justify-end" space="lg">
-        <VStack className="items-center">
-          <Text className="font-bold text-lg">{user.activity.reviewsCount}</Text>
-          <Text className="text-gray-500 text-sm">Reseñas</Text>
-        </VStack>
-        <VStack className="items-center">
-          <Text className="font-bold text-lg">{user.activity.favoriteSpotsCount}</Text>
-          <Text className="text-gray-500 text-sm">Spots favoritos</Text>
-        </VStack>
-        
-      </HStack>
-
+      
       {/* Biografía */}
       <View className="pb-4">
         <Text className="text-gray-800 font-medium pb-1">Biografía</Text>

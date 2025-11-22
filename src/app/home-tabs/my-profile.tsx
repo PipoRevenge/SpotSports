@@ -146,52 +146,6 @@ export default function MyProfile() {
                             )}
                         />
 
-                {/* Sección de spots favoritos */}
-                {user.activity.favoriteSpotsCount > 0 && (
-                    <View>
-                        <Text className="text-lg font-bold pb-2">Spots favoritos</Text>
-                        <Text className="text-gray-500">
-                            {user.activity.favoriteSpotsCount} spots guardados
-                        </Text>
-                        {/* TODO: Mostrar lista de spots favoritos */}
-                        {/* Aquí puedes integrar componentes de la feature de spots */}
-                    </View>
-                )}
-
-                {/* Sección de actividad reciente */}
-                {user.activity.reviewsCount > 0 && (
-                    <View>
-                        <Text className="text-lg font-bold pb-2">Actividad reciente</Text>
-                        <Text className="text-gray-500">
-                            {user.activity.reviewsCount} reseñas • {user.activity.commentsCount} comentarios
-                        </Text>
-                        {/* TODO: Mostrar lista de actividad reciente */}
-                        {/* Aquí puedes integrar componentes de la feature de reviews */}
-                    </View>
-                )}
-
-                {/* Sección de seguidores */}
-                {(user.activity.followersCount > 0 || user.activity.followingCount > 0) && (
-                    <View>
-                        <Text className="text-lg font-bold pb-2">Conexiones</Text>
-                        <Text className="text-gray-500">
-                            {user.activity.followersCount} seguidores • {user.activity.followingCount} siguiendo
-                        </Text>
-                        {/* Aquí puedes integrar componentes de la feature de follows */}
-                    </View>
-                )}
-
-                {/* Mensaje cuando no hay actividad */}
-                {user.activity.reviewsCount === 0 && user.activity.favoriteSpotsCount === 0 && (
-                    <View className="pt-8">
-                        <Text className="text-gray-500 text-center italic">
-                            Aún no tienes actividad. ¡Empieza explorando spots y dejando reseñas!
-                        </Text>
-                    </View>
-                )}
-
-                {/* Aquí puedes agregar más secciones específicas de tu perfil */}
-                {/* Por ejemplo: configuraciones, estadísticas adicionales, etc. */}
             </VStack>
             
             {/* Diálogo de confirmación para cerrar sesión */}

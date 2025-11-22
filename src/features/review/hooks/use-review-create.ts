@@ -1,8 +1,8 @@
 import { reviewRepository } from "@/src/api/repositories";
+import { useAppAlert } from '@/src/context/app-alert-context';
 import { useUser } from "@/src/context/user-context";
 import { ReviewDetails } from "@/src/entities/review/model/review";
 import { useState } from "react";
-import { Alert } from "react-native";
 import { CreateReviewData } from "../types/review-types";
 import { REVIEW_ERROR_MESSAGES, REVIEW_SUCCESS_MESSAGES } from "../utils/review-constants";
 
@@ -16,6 +16,7 @@ export const useReviewCreate = (onSuccess?: () => void) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useUser();
+  const { showError, showSuccess } = useAppAlert();
 
   /**
    * Crea una nueva review
@@ -45,7 +46,7 @@ export const useReviewCreate = (onSuccess?: () => void) => {
       const result = await reviewRepository.createReview(user.id, reviewDetails);
       
       console.log("[useReviewCreate] Review created successfully:", result.id);
-      Alert.alert("Success", REVIEW_SUCCESS_MESSAGES.CREATED);
+      showSuccess(REVIEW_SUCCESS_MESSAGES.CREATED, 'Success');
       
       if (onSuccess) {
         onSuccess();
@@ -57,7 +58,7 @@ export const useReviewCreate = (onSuccess?: () => void) => {
         : REVIEW_ERROR_MESSAGES.CREATE_ERROR;
       
       setError(errorMessage);
-      Alert.alert("Error", errorMessage);
+      showError(errorMessage, 'Error');
       throw err;
     } finally {
       setIsLoading(false);

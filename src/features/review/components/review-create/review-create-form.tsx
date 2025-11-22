@@ -1,44 +1,45 @@
 import {
-    MediaItem,
-    MediaPickerCarousel,
+  MediaItem,
+  MediaPickerCarousel,
 } from "@/src/components/commons/media-picker/media-picker-carousel";
 import { RatingStars } from "@/src/components/commons/rating/rating-stars";
 import {
-    AlertDialog,
-    AlertDialogBackdrop,
-    AlertDialogBody,
-    AlertDialogContent,
-    AlertDialogFooter,
-    AlertDialogHeader,
+  AlertDialog,
+  AlertDialogBackdrop,
+  AlertDialogBody,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
 } from "@/src/components/ui/alert-dialog";
 import { Box } from "@/src/components/ui/box";
 import { Button, ButtonIcon, ButtonText } from "@/src/components/ui/button";
 import {
-    FormControl,
-    FormControlError,
-    FormControlErrorText,
-    FormControlLabel,
-    FormControlLabelText,
+  FormControl,
+  FormControlError,
+  FormControlErrorText,
+  FormControlLabel,
+  FormControlLabelText,
 } from "@/src/components/ui/form-control";
 import { HStack } from "@/src/components/ui/hstack";
 import { Text } from "@/src/components/ui/text";
 import { Textarea, TextareaInput } from "@/src/components/ui/textarea";
 import { VStack } from "@/src/components/ui/vstack";
+import { useAppAlert } from '@/src/context/app-alert-context';
 import { Plus, X } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
-import { Alert, ScrollView } from "react-native";
+import { ScrollView } from "react-native";
 import {
-    CreateReviewData,
-    ReviewFormData,
-    ReviewFormErrors,
-    ReviewSportFormData,
-    SimpleSport,
+  CreateReviewData,
+  ReviewFormData,
+  ReviewFormErrors,
+  ReviewSportFormData,
+  SimpleSport,
 } from "../../types/review-types";
 import {
-    REVIEW_ERROR_MESSAGES,
-    REVIEW_LOADING_STATES,
-    REVIEW_PLACEHOLDERS,
-    REVIEW_VALIDATION_LIMITS,
+  REVIEW_ERROR_MESSAGES,
+  REVIEW_LOADING_STATES,
+  REVIEW_PLACEHOLDERS,
+  REVIEW_VALIDATION_LIMITS,
 } from "../../utils/review-constants";
 import { validateReviewForm } from "../../utils/review-validation";
 import { AddSportModal } from "./add-sport-modal";
@@ -90,6 +91,7 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
   }, [initialData]);
 
   const [formErrors, setFormErrors] = useState<ReviewFormErrors>({});
+    const { showError } = useAppAlert();
   const [showSpotSportsSelector, setShowSpotSportsSelector] = useState(false);
   const [showAddSportModal, setShowAddSportModal] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -130,13 +132,13 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
   const handleAddSport = (sport: ReviewSportFormData) => {
     // Verificar que no esté duplicado
     if (formData.reviewSports.some((s) => s.sportId === sport.sportId)) {
-      Alert.alert("Error", REVIEW_ERROR_MESSAGES.DUPLICATE_SPORT);
+      showError(REVIEW_ERROR_MESSAGES.DUPLICATE_SPORT, 'Error');
       return;
     }
 
     // Verificar límite
     if (formData.reviewSports.length >= REVIEW_VALIDATION_LIMITS.MAX_SPORTS_COUNT) {
-      Alert.alert("Error", REVIEW_ERROR_MESSAGES.TOO_MANY_SPORTS);
+      showError(REVIEW_ERROR_MESSAGES.TOO_MANY_SPORTS, 'Error');
       return;
     }
 
@@ -179,7 +181,7 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
-      Alert.alert("Validation Error", "Please fix the errors before submitting");
+      showError('Please fix the errors before submitting', 'Validation Error');
       return;
     }
 

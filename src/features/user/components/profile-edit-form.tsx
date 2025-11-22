@@ -9,10 +9,11 @@ import { Text } from '@/src/components/ui/text';
 import { Textarea, TextareaInput } from '@/src/components/ui/textarea';
 import { View } from '@/src/components/ui/view';
 import { VStack } from '@/src/components/ui/vstack';
+import { useAppAlert } from '@/src/context/app-alert-context';
 import { useUser } from '@/src/context/user-context';
 import { Camera } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Alert, TouchableOpacity } from 'react-native';
+import { TouchableOpacity } from 'react-native';
 import { useUpdateProfile } from '../hooks/use-update-profile';
 import { ProfileEditProps, ProfileUpdateData } from '../types/profile-types';
 import { formatFullName, validateProfileData } from '../utils/profile-validation';
@@ -68,6 +69,7 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
     }
   };
 
+  const { showError, showSuccess } = useAppAlert();
   const handleSave = async () => {
     // Crear datos editables (sin fecha de nacimiento)
     const editableData = {
@@ -84,7 +86,7 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
         setFormErrors(validation.fieldErrors);
         return;
       }
-      Alert.alert('Error', validation.error || 'Datos inválidos');
+      showError(validation.error || 'Datos inválidos', 'Error');
       return;
     }
 
@@ -96,11 +98,8 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
 
     const success = await updateProfile(dataToSend);
     if (success) {
-      Alert.alert(
-        'Perfil actualizado',
-        'Los cambios se han guardado correctamente',
-        [{ text: 'OK', onPress: onSave }]
-      );
+      showSuccess('Los cambios se han guardado correctamente', 'Perfil actualizado');
+      onSave?.();
     }
   };
 
@@ -209,7 +208,7 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
           <Button 
             variant="outline" 
             className="flex-1"
-            onPress={onCancel}
+            onPress={() => onCancel?.()}
             disabled={isUpdating}
           >
             <ButtonText>Cancelar</ButtonText>

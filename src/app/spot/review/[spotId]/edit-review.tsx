@@ -3,6 +3,7 @@ import { HStack } from "@/src/components/ui/hstack";
 import { Pressable } from "@/src/components/ui/pressable";
 import { SafeAreaView } from "@/src/components/ui/safe-area-view";
 import { Text } from "@/src/components/ui/text";
+import { useAppAlert } from '@/src/context/app-alert-context';
 import { useUser } from "@/src/context/user-context";
 import { CreateReviewForm } from "@/src/features/review";
 import { useReviewLoad } from "@/src/features/review/hooks/use-review-load";
@@ -12,7 +13,7 @@ import { useSelectedSpot } from "@/src/features/spot";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 
 /**
  * Página de edición de review
@@ -43,6 +44,7 @@ export const EditReviewPage = () => {
     /**
      * Cargar la review existente al montar el componente
      */
+    const { showError } = useAppAlert();
     useEffect(() => {
         const loadExistingReview = async () => {
             if (!spotId || !user) {
@@ -53,11 +55,8 @@ export const EditReviewPage = () => {
             const existingReview = await loadReview(spotId);
             
             if (!existingReview) {
-                Alert.alert(
-                    "Error",
-                    "No se encontró la review para editar",
-                    [{ text: "OK", onPress: () => router.back() }]
-                );
+                showError('No se encontró la review para editar', 'Error');
+                router.back();
                 return;
             }
             
@@ -95,7 +94,7 @@ export const EditReviewPage = () => {
         };
         
         loadExistingReview();
-    }, [spotId, user, loadReview, spotSports]);
+    }, [spotId, user, loadReview, spotSports, showError]);
     
     /**
      * Manejar el envío del formulario

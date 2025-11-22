@@ -2,19 +2,19 @@ import { Button, ButtonIcon, ButtonText } from "@/src/components/ui/button";
 import { HStack } from "@/src/components/ui/hstack";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
+import { useAppAlert } from '@/src/context/app-alert-context';
 import * as ExpoImagePicker from "expo-image-picker";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { Image as ImageIcon, Trash2, Video as VideoIcon, X } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    FlatList,
-    Image,
-    Modal,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Image,
+  Modal,
+  TouchableOpacity,
+  View
 } from "react-native";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -117,19 +117,18 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
   /**
    * Solicita permisos para acceder a la galería
    */
+  const { showError, showInfo, showConfirm, showActionSheet, showSuccess } = useAppAlert();
+
   const requestPermissions = async (): Promise<boolean> => {
     try {
       const permissionResult = await ExpoImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        Alert.alert(
-          "Permiso Requerido",
-          "Necesitamos acceso a tu galería para seleccionar fotos y videos."
-        );
+        showError("Necesitamos acceso a tu galería para seleccionar fotos y videos.", 'Permiso Requerido');
         return false;
       }
       return true;
-    } catch {
-      Alert.alert("Error", "No se pudo solicitar el permiso");
+      } catch {
+      showError("No se pudo solicitar el permiso");
       return false;
     }
   };
@@ -141,15 +140,12 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
     try {
       const permissionResult = await ExpoImagePicker.requestCameraPermissionsAsync();
       if (!permissionResult.granted) {
-        Alert.alert(
-          "Permiso Requerido",
-          "Necesitamos acceso a tu cámara para tomar fotos."
-        );
+        showError("Necesitamos acceso a tu cámara para tomar fotos.", 'Permiso Requerido');
         return false;
       }
       return true;
-    } catch {
-      Alert.alert("Error", "No se pudo solicitar el permiso");
+      } catch {
+      showError("No se pudo solicitar el permiso");
       return false;
     }
   };
@@ -159,10 +155,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
    */
   const pickMedia = async () => {
     if (media.length >= maxCount) {
-      Alert.alert(
-        "Límite Alcanzado",
-        `Solo puedes subir un máximo de ${maxCount} archivos.`
-      );
+      showInfo(`Solo puedes subir un máximo de ${maxCount} archivos.`, 'Límite Alcanzado');
       return;
     }
 
@@ -193,14 +186,11 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
         onMediaChange([...media, ...newMedia]);
 
         if (result.assets.length > remainingSlots) {
-          Alert.alert(
-            "Límite Alcanzado",
-            `Solo se añadieron ${remainingSlots} archivos. Límite: ${maxCount}.`
-          );
+          showInfo(`Solo se añadieron ${remainingSlots} archivos. Límite: ${maxCount}.`, 'Límite Alcanzado');
         }
       }
     } catch {
-      Alert.alert("Error", "No se pudo seleccionar el archivo");
+      showError("No se pudo seleccionar el archivo");
     } finally {
       setIsLoading(false);
     }
@@ -211,10 +201,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
    */
   const takePhoto = async () => {
     if (media.length >= maxCount) {
-      Alert.alert(
-        "Límite Alcanzado",
-        `Solo puedes subir un máximo de ${maxCount} archivos.`
-      );
+      showInfo(`Solo puedes subir un máximo de ${maxCount} archivos.`, 'Límite Alcanzado');
       return;
     }
 
@@ -240,7 +227,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
         onMediaChange([...media, newMediaItem]);
       }
     } catch {
-      Alert.alert("Error", "No se pudo tomar la foto");
+      showError("No se pudo tomar la foto");
     } finally {
       setIsLoading(false);
     }
@@ -249,51 +236,29 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
   /**
    * Elimina un medio
    */
-  const removeMedia = (index: number) => {
-    Alert.alert(
-      "Eliminar Archivo",
-      "¿Estás seguro de que quieres eliminar este archivo?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: () => {
-            const newMedia = media.filter((_, i) => i !== index);
-            onMediaChange(newMedia);
-            
-            // Ajustar el índice actual si es necesario
-            if (currentIndex >= newMedia.length && newMedia.length > 0) {
-              setCurrentIndex(newMedia.length - 1);
-            }
-          },
-        },
-      ]
-    );
+  const removeMedia = async (index: number) => {
+    const confirmed = await showConfirm('Eliminar Archivo', '¿Estás seguro de que quieres eliminar este archivo?', 'Eliminar', 'Cancelar');
+    if (!confirmed) return;
+    const newMedia = media.filter((_, i) => i !== index);
+    onMediaChange(newMedia);
+    
+    // Ajustar el índice actual si es necesario
+    if (currentIndex >= newMedia.length && newMedia.length > 0) {
+      setCurrentIndex(newMedia.length - 1);
+    }
   };
 
   /**
    * Muestra las opciones para añadir medios
    */
-  const showMediaOptions = () => {
-    Alert.alert(
-      "Añadir Multimedia",
-      "Selecciona una opción",
-      [
-        {
-          text: "Tomar Foto",
-          onPress: takePhoto,
-        },
-        {
-          text: "Seleccionar de Galería",
-          onPress: pickMedia,
-        },
-        {
-          text: "Cancelar",
-          style: "cancel",
-        },
-      ]
-    );
+  const showMediaOptions = async () => {
+    const choice = await showActionSheet('Añadir Multimedia', 'Selecciona una opción', [
+      { key: 'camera', label: 'Tomar Foto' },
+      { key: 'gallery', label: 'Seleccionar de Galería' },
+    ]);
+    if (choice === 'camera') return takePhoto();
+    if (choice === 'gallery') return pickMedia();
+    return; // cancelled
   };
 
   /**
@@ -497,22 +462,11 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
         {media.length > 0 && (
           <Button
             variant="outline"
-            onPress={() => {
-              Alert.alert(
-                "Eliminar Todo",
-                "¿Estás seguro de que quieres eliminar todos los archivos?",
-                [
-                  { text: "Cancelar", style: "cancel" },
-                  {
-                    text: "Eliminar",
-                    style: "destructive",
-                    onPress: () => {
-                      onMediaChange([]);
-                      setCurrentIndex(0);
-                    },
-                  },
-                ]
-              );
+            onPress={async () => {
+              const confirmed = await showConfirm('Eliminar Todo', '¿Estás seguro de que quieres eliminar todos los archivos?', 'Eliminar', 'Cancelar');
+              if (!confirmed) return;
+              onMediaChange([]);
+              setCurrentIndex(0);
             }}
             disabled={isLoading}
           >

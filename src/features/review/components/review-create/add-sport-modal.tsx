@@ -3,13 +3,14 @@ import { Button, ButtonText } from "@/src/components/ui/button";
 import { ScrollView } from "@/src/components/ui/scroll-view";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
+import { useAppAlert } from '@/src/context/app-alert-context';
 import { SportSearch } from "@/src/features/sport/components/sport-search/sport-search";
 import { SportSimple } from "@/src/features/sport/types/sport-types";
 import React, { useState } from "react";
-import { Alert, Modal } from "react-native";
+import { Modal } from "react-native";
 import {
-    ReviewSportFormData,
-    SimpleSport,
+  ReviewSportFormData,
+  SimpleSport,
 } from "../../types/review-types";
 
 interface AddSportModalProps {
@@ -42,9 +43,11 @@ export const AddSportModal: React.FC<AddSportModalProps> = ({
     setSelectedSport(sport);
   };
 
+  const { showError } = useAppAlert();
+
   const handleAdd = () => {
     if (!selectedSport) {
-      Alert.alert("Error", "Please select a sport");
+      showError('Please select a sport', 'Error');
       return;
     }
 

@@ -1,3 +1,4 @@
+import { useAppAlert } from '@/src/context/app-alert-context';
 import { useSelectedSpot } from "@/src/context/selected-spot-context";
 import {
   SpotCollectionButton,
@@ -20,6 +21,7 @@ export const SpotCollectionSelector: React.FC<SpotCollectionSelectorProps> = ({ 
   const { refreshSpotCounters } = useSelectedSpot();
   const { categories, hasCategories, isLoading, toggleCategory } = useSpotCollection(spotId);
   const [modalVisible, setModalVisible] = useState(false);
+  const { showSuccess, showActionSheet } = useAppAlert();
 
   /**
    * Wrapper para toggle que también refresca contadores
@@ -37,7 +39,7 @@ export const SpotCollectionSelector: React.FC<SpotCollectionSelectorProps> = ({ 
    */
   const handlePress = () => {
     if (Platform.OS === 'ios') {
-      showSpotCollectionActionSheet(categories, handleToggle);
+      showSpotCollectionActionSheet(categories, handleToggle, showSuccess, showActionSheet);
     } else {
       setModalVisible(true);
     }

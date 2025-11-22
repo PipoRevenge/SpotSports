@@ -7,12 +7,13 @@ import { HStack } from "@/src/components/ui/hstack";
 import { Pressable } from "@/src/components/ui/pressable";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
+import { useAppAlert } from '@/src/context/app-alert-context';
 import { useUser } from "@/src/context/user-context";
 import { Review } from "@/src/entities/review/model/review";
 import { Spot } from '@/src/entities/spot/model/spot';
 import { User } from "@/src/entities/user/model/user";
 import { formatDate, getInitials } from "@/src/utils/date-utils";
-import { Alert, Image, View } from 'react-native';
+import { Image, View } from 'react-native';
 // Import router is not allowed inside feature components; navigation must be handled by the app
 import { Edit, MessageCircle, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react-native";
 import React, { useState } from "react";
@@ -115,26 +116,14 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   /**
    * Manejar eliminación de review con confirmación
    */
+  const { showConfirm } = useAppAlert();
+
   const handleDelete = () => {
-    Alert.alert(
-      "Eliminar Review",
-      "¿Estás seguro de que quieres eliminar esta review? Esta acción no se puede deshacer.",
-      [
-        {
-          text: "Cancelar",
-          style: "cancel",
-        },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: () => {
-            if (onDelete) {
-              onDelete(review.id);
-            }
-          },
-        },
-      ]
-    );
+    showConfirm('Eliminar Review', '¿Estás seguro de que quieres eliminar esta review? Esta acción no se puede deshacer.', 'Eliminar', 'Cancelar')
+      .then((confirmed) => {
+        if (!confirmed) return;
+        if (onDelete) onDelete(review.id);
+      });
   };
 
   return (
@@ -150,8 +139,8 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
                   {/* Use Image from react-native for a simple thumbnail */}
                   <Image
                     source={{ uri: spot.details.media[0] }}
-                    style={{ width: 48, height: 48 }}
-                    resizeMode="cover"
+                    className="w-12 h-12 rounded-s bg-black"
+                    resizeMode="contain"
                   />
                 </View>
               ) : (

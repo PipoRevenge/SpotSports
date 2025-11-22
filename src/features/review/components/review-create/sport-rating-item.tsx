@@ -1,23 +1,22 @@
-import { RatingDifficultySlider } from "@/src/components/commons/rating/rating-difficulty-slider";
-import { RatingStars } from "@/src/components/commons/rating/rating-stars";
-import { Box } from "@/src/components/ui/box";
-import { Button, ButtonIcon } from "@/src/components/ui/button";
+import { RatingDifficultySlider } from '@/src/components/commons/rating/rating-difficulty-slider';
+import { Box } from '@/src/components/ui/box';
+import { Button, ButtonIcon } from '@/src/components/ui/button';
 import {
-    FormControl,
-    FormControlLabel,
-    FormControlLabelText,
-} from "@/src/components/ui/form-control";
-import { HStack } from "@/src/components/ui/hstack";
-import { Text } from "@/src/components/ui/text";
-import { Textarea, TextareaInput } from "@/src/components/ui/textarea";
-import { VStack } from "@/src/components/ui/vstack";
-import { numberToDifficulty } from "@/src/types/difficulty";
-import { X } from "lucide-react-native";
-import React from "react";
-import { Alert } from "react-native";
+  FormControl,
+  FormControlLabel,
+  FormControlLabelText,
+} from '@/src/components/ui/form-control';
+import { HStack } from '@/src/components/ui/hstack';
+import { Text } from '@/src/components/ui/text';
+import { Textarea, TextareaInput } from '@/src/components/ui/textarea';
+import { VStack } from '@/src/components/ui/vstack';
+import { useAppAlert } from '@/src/context/app-alert-context';
+import { numberToDifficulty } from '@/src/types/difficulty';
+import { X } from 'lucide-react-native';
+import React from 'react';
 import {
-    ReviewSportFormData,
-} from "../../types/review-types";
+  ReviewSportFormData,
+} from '../../types/review-types';
 
 interface SportRatingItemProps {
   sport: ReviewSportFormData;
@@ -57,19 +56,17 @@ export const SportRatingItem: React.FC<SportRatingItemProps> = ({
     });
   };
 
-  const handleRemove = () => {
-    Alert.alert(
-      "Remove Sport",
-      `Are you sure you want to remove ${sport.name} from your review?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: onRemove,
-        },
-      ]
+  const { showConfirm } = useAppAlert();
+
+  const handleRemove = async () => {
+    const confirmed = await showConfirm(
+      'Eliminar deporte',
+      `¿Estás seguro que quieres eliminar ${sport.name} de la lista?`,
+      'Eliminar',
+      'Cancelar'
     );
+    if (!confirmed) return;
+    onRemove();
   };
 
   return (
@@ -90,22 +87,6 @@ export const SportRatingItem: React.FC<SportRatingItemProps> = ({
             <ButtonIcon as={X} className="text-gray-500" />
           </Button>
         </HStack>
-
-        {/* Rating */}
-        <FormControl isRequired>
-          <FormControlLabel>
-            <FormControlLabelText className="text-sm text-gray-700">
-              Quality Rating
-            </FormControlLabelText>
-          </FormControlLabel>
-          <RatingStars
-            rating={sport.sportRating}
-            onRatingChange={handleRatingChange}
-            size="lg"
-            editable={!isLoading}
-            allowHalf
-          />
-        </FormControl>
 
         {/* Dificultad */}
         <FormControl isRequired>

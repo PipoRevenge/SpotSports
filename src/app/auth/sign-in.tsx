@@ -4,35 +4,28 @@ import { VStack } from '@/src/components/ui/vstack';
 import { SignInForm } from '@/src/features/auth/components/sign-in-form';
 import { useSignIn } from '@/src/features/auth/hooks/use-sign-in';
 
+import { useAppAlert } from '@/src/context/app-alert-context';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert } from 'react-native';
 
 export default function SignIn() {
   const router = useRouter();
   const { signIn, isLoading, error } = useSignIn();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const { showError } = useAppAlert();
   const onSignInSubmit = async (email: string, password: string) => {
     try {
       setIsSubmitting(true);
       const result = await signIn(email, password);
       
       if (!result.success) {
-        Alert.alert(
-          'Error de Inicio de Sesión',
-          result.error || 'Email o contraseña incorrectos. Por favor, verifica tus credenciales.',
-          [{ text: 'OK' }]
-        );
+        showError(result.error || 'Email o contraseña incorrectos. Por favor, verifica tus credenciales.', 'Error de Inicio de Sesión');
       }
       // Si es success, el contexto maneja la navegación automáticamente
     } catch (signInError) {
       console.error('Sign in error:', signInError);
-      Alert.alert(
-        'Error',
-        error || 'Ocurrió un error inesperado. Por favor, intenta de nuevo.',
-        [{ text: 'OK' }]
-      );
+      showError(error || 'Ocurrió un error inesperado. Por favor, intenta de nuevo.', 'Error');
     } finally {
       setIsSubmitting(false);
     }

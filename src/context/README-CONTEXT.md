@@ -24,34 +24,36 @@ Para estado de features específicas, usar hooks locales en la feature.
 
 ```
 context/
-├── notification-context.tsx      # Sistema de notificaciones global
+├── app-alert-context.tsx      # Sistema de notificaciones global (notification / AppAlert)
 └── selected-spot-context.tsx     # Gestión del spot seleccionado en el mapa
 ```
 
 ## 🔔 Contexts Disponibles
 
-### **NotificationContext** 🔔
+### **Notification / AppAlert Context** 🔔
 
-**Archivo**: `notification-context.tsx`
+**Archivo**: `app-alert-context.tsx`
 
 Sistema de notificaciones global para mostrar mensajes de error, éxito e información en toda la aplicación.
 
 **Interfaz:**
 ```typescript
-interface NotificationContextType {
+interface AppAlertContextType {
   showError: (message: string, title?: string) => void;
   showSuccess: (message: string, title?: string) => void;
   showInfo: (message: string, title?: string) => void;
+  showConfirm: (title: string, message: string, confirmText?: string, cancelText?: string) => Promise<boolean>;
+  showActionSheet: (title: string | undefined, message: string | undefined, options: { key: string; label: string }[]) => Promise<string | null>;
 }
 ```
 
 **Uso:**
 
 ```typescript
-import { useNotification } from '@/src/context/notification-context';
+import { useAppAlert } from '@/src/context/app-alert-context';
 
 function MyComponent() {
-  const { showError, showSuccess, showInfo } = useNotification();
+  const { showError, showSuccess, showInfo, showConfirm, showActionSheet } = useAppAlert();
   
   const handleAction = async () => {
     try {
@@ -76,20 +78,23 @@ function MyComponent() {
 **Provider:**
 ```typescript
 // En src/app/_layout.tsx
-import { NotificationProvider } from '@/src/context/notification-context';
+import { AppAlertProvider } from '@/src/context/app-alert-context';
 
 export default function RootLayout() {
   return (
-    <NotificationProvider>
+    <AppAlertProvider>
       {/* App content */}
-    </NotificationProvider>
+    </AppAlertProvider>
   );
 }
 ```
 
 **Implementación Actual:**
-- Solo implementa `ErrorModal` actualmente
-- Future: Implementar modales de success e info
+- Implementa `AppAlertErrorModal`, toasts para success/info (`AppAlertToast`), `AppAlertConfirmDialog` y `AppAlertChoiceSheet`
+- `showError` -> Modal (AppAlertErrorModal)
+- `showSuccess` / `showInfo` -> toasts (`AppAlertToast`) (auto dismiss)
+- `showConfirm` -> AppAlertConfirmDialog (returns Promise<boolean>)
+- `showActionSheet` -> AppAlertChoiceSheet (returns selection or null)
 
 ### **SelectedSpotContext** 📍
 
@@ -284,10 +289,10 @@ const { spots } = useSpotList();
 - **Hook**: `usePascalCase`
 
 ```typescript
-// notification-context.tsx
-const NotificationContext = ...
-export const NotificationProvider = ...
-export const useNotification = ...
+// app-alert-context.tsx
+const AppAlertContext = ...
+export const AppAlertProvider = ...
+export const useAppAlert = ...
 ```
 
 ### Organización
@@ -300,15 +305,15 @@ Cada archivo de contexto debe incluir:
 ### Documentación
 ```typescript
 /**
- * NotificationContext provides global notification system
+ * AppAlertContext provides global notification system
  * 
  * @example
  * ```tsx
- * const { showError } = useNotification();
+ * const { showError } = useAppAlert();
  * showError('Something went wrong');
  * ```
  */
-export const NotificationProvider = ...
+export const AppAlertProvider = ...
 ```
 
 ## 🎯 Contexts Sugeridos
@@ -364,7 +369,7 @@ En `src/app/_layout.tsx`, componer múltiples providers:
 ```typescript
 export default function RootLayout() {
   return (
-    <NotificationProvider>
+    <AppAlertProvider>
       <ThemeProvider>
         <AuthProvider>
           <I18nProvider>
@@ -372,7 +377,7 @@ export default function RootLayout() {
           </I18nProvider>
         </AuthProvider>
       </ThemeProvider>
-    </NotificationProvider>
+    </AppAlertProvider>
   );
 }
 ```
@@ -382,13 +387,13 @@ export default function RootLayout() {
 // src/context/app-providers.tsx
 export const AppProviders: React.FC<{ children: ReactNode }> = ({ children }) => {
   return (
-    <NotificationProvider>
+    <AppAlertProvider>
       <ThemeProvider>
         <AuthProvider>
           {children}
         </AuthProvider>
       </ThemeProvider>
-    </NotificationProvider>
+    </AppAlertProvider>
   );
 };
 ```
@@ -413,7 +418,7 @@ Si el estado cambia con frecuencias diferentes, separar en múltiples contextos:
 // ✅ Contextos separados
 <UserContext>
   <ThemeContext>
-    <NotificationContext>
+    <AppAlertContext>
 ```
 
 ### 3. **Usar Selectores**
@@ -423,12 +428,12 @@ Para evitar re-renders innecesarios, considerar usar una librería como `use-con
 
 ```typescript
 import { renderHook, act } from '@testing-library/react-hooks';
-import { NotificationProvider, useNotification } from '../notification-context';
+import { AppAlertProvider, useAppAlert } from '../app-alert-context';
 
-describe('NotificationContext', () => {
+describe('AppAlertContext', () => {
   it('should show error notification', () => {
-    const { result } = renderHook(() => useNotification(), {
-      wrapper: NotificationProvider,
+    const { result } = renderHook(() => useAppAlert(), {
+      wrapper: AppAlertProvider,
     });
     
     act(() => {

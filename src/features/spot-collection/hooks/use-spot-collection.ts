@@ -1,8 +1,9 @@
 import { userRepository } from "@/src/api/repositories";
+import { useAppAlert } from '@/src/context/app-alert-context';
 import { useUser } from "@/src/context/user-context";
 import { SavedSpot, SpotCategory } from "@/src/entities/user/model/spot-collection";
 import { useCallback, useEffect, useState } from "react";
-import { Alert } from "react-native";
+// removed Alert import - using AppAlertProvider (useAppAlert) instead
 
 /**
  * Hook para gestionar colecciones de spots del usuario
@@ -10,6 +11,7 @@ import { Alert } from "react-native";
  */
 export const useSpotCollection = (spotId?: string) => {
   const { user } = useUser();
+  const { showError, showSuccess } = useAppAlert();
   const [categories, setCategories] = useState<SpotCategory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [savedSpots, setSavedSpots] = useState<SavedSpot[]>([]);
@@ -66,13 +68,14 @@ export const useSpotCollection = (spotId?: string) => {
   ) => {
     const spotToAdd = targetSpotId || spotId;
     
+    // useAppAlert is initialized at the top of the hook (see above)
     if (!user) {
-      Alert.alert("Error", "Debes iniciar sesión para guardar spots");
+      showError("Debes iniciar sesión para guardar spots");
       return false;
     }
 
     if (!spotToAdd) {
-      Alert.alert("Error", "No se especificó un spot");
+      showError("No se especificó un spot");
       return false;
     }
 
@@ -95,7 +98,7 @@ export const useSpotCollection = (spotId?: string) => {
       return true;
     } catch (error) {
       console.error("[useSpotCollection] Error adding to categories:", error);
-      Alert.alert("Error", "No se pudo guardar el spot");
+      showError("No se pudo guardar el spot");
       return false;
     } finally {
       setIsLoading(false);
@@ -111,13 +114,14 @@ export const useSpotCollection = (spotId?: string) => {
   ) => {
     const spotToRemove = targetSpotId || spotId;
     
+    // useAppAlert is initialized at the top of the hook (see above)
     if (!user) {
-      Alert.alert("Error", "Debes iniciar sesión");
+      showError("Debes iniciar sesión");
       return false;
     }
 
     if (!spotToRemove) {
-      Alert.alert("Error", "No se especificó un spot");
+      showError("No se especificó un spot");
       return false;
     }
 
@@ -140,7 +144,7 @@ export const useSpotCollection = (spotId?: string) => {
       return true;
     } catch (error) {
       console.error("[useSpotCollection] Error removing from categories:", error);
-      Alert.alert("Error", "No se pudo eliminar el spot");
+      showError("No se pudo eliminar el spot");
       return false;
     } finally {
       setIsLoading(false);

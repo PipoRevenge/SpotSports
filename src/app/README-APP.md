@@ -55,11 +55,11 @@ app/
 export default function RootLayout() {
   return (
     <GluestackUIProvider mode="system">
-      <NotificationProvider>
+      <AppAlertProvider>
         <UserProvider>
           <Stack screenOptions={{ headerShown: false }} />
         </UserProvider>
-      </NotificationProvider>
+      </AppAlertProvider>
     </GluestackUIProvider>
   );
 }

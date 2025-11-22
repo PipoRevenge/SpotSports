@@ -257,7 +257,7 @@ Funciones utilitarias globales reutilizables (e.g., manejo de fechas, formateo).
 
 #### **Context** (Estado Global)
 - **[src/context/README-CONTEXT.md](src/context/README-CONTEXT.md)** - React Context providers
-  - NotificationContext (sistema de notificaciones)
+  - AppAlertContext (sistema de notificaciones)
   - SelectedSpotContext (spot seleccionado en mapa)
   - Patrones de context y optimización
 

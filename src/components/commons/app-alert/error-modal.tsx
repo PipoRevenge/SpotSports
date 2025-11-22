@@ -16,7 +16,7 @@ interface ErrorModalProps {
   onClose: () => void;
 }
 
-export const ErrorModal: React.FC<ErrorModalProps> = ({
+export const AppAlertErrorModal: React.FC<ErrorModalProps> = ({
   visible,
   title = 'Error',
   message,

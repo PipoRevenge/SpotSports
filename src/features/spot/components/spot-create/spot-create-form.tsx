@@ -2,26 +2,27 @@ import { LocationPickerModal } from "@/src/components/commons/map/location-picke
 import { MediaItem, MediaPickerCarousel } from "@/src/components/commons/media-picker/media-picker-carousel";
 import { Button, ButtonText } from "@/src/components/ui/button";
 import {
-    FormControl,
-    FormControlError,
-    FormControlErrorText,
-    FormControlLabel,
-    FormControlLabelText
+  FormControl,
+  FormControlError,
+  FormControlErrorText,
+  FormControlLabel,
+  FormControlLabelText
 } from "@/src/components/ui/form-control";
 import { HStack } from "@/src/components/ui/hstack";
 import { Input, InputField } from "@/src/components/ui/input";
 import { Text } from "@/src/components/ui/text";
 import { Textarea, TextareaInput } from "@/src/components/ui/textarea";
 import { VStack } from "@/src/components/ui/vstack";
+import { useAppAlert } from '@/src/context/app-alert-context';
 import { GeoPoint } from "@/src/types/geopoint";
 import { MapPin } from "lucide-react-native";
 import React, { useState } from "react";
-import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
+import { ScrollView, TouchableOpacity, View } from "react-native";
 import { useCreateSpot } from "../../hooks/use-create-spot";
 import {
-    SpotCreateFormData,
-    SpotCreateFormProps,
-    SpotFormErrors
+  SpotCreateFormData,
+  SpotCreateFormProps,
+  SpotFormErrors
 } from "../../types/spot-types";
 import { validateSpotCreateForm } from "../../utils/spot-validations";
 
@@ -108,6 +109,8 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
   /**
    * Maneja el envío del formulario
    */
+  const { showSuccess, showError } = useAppAlert();
+
   const handleSubmit = async () => {
     // Validar formulario
     const validation = validateSpotCreateForm(formData);
@@ -121,16 +124,9 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
     const success = await createSpot(formData);
     
     if (success) {
-      Alert.alert(
-        "¡Éxito!",
-        "El spot ha sido creado correctamente",
-        [
-          {
-            text: "OK",
-            onPress: () => onSuccess?.("mock-spot-id") // En una implementación real, el ID vendría del repositorio
-          }
-        ]
-      );
+      showSuccess('El spot ha sido creado correctamente', '¡Éxito!');
+      // call onSuccess afterwards
+      onSuccess?.('mock-spot-id');
     }
   };
 

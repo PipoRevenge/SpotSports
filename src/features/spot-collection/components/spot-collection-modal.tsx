@@ -2,10 +2,11 @@ import { Icon } from "@/src/components/ui/icon";
 import { Pressable } from "@/src/components/ui/pressable";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
+import { useAppAlert } from '@/src/context/app-alert-context';
 import { SpotCategory } from "@/src/entities/user/model/spot-collection";
 import { Check } from "lucide-react-native";
 import React from "react";
-import { ActionSheetIOS, Alert, Modal, Platform, TouchableOpacity, View } from "react-native";
+import { ActionSheetIOS, Modal, Platform, TouchableOpacity, View } from "react-native";
 import { SPOT_CATEGORIES } from "../constants/categories";
 
 interface SpotCollectionModalProps {
@@ -27,17 +28,15 @@ export const SpotCollectionModal: React.FC<SpotCollectionModalProps> = ({
   onToggleCategory,
   onClose,
 }) => {
+  const { showSuccess } = useAppAlert();
+
   const handleToggle = async (category: SpotCategory) => {
     const success = await onToggleCategory(category);
     
     if (success) {
       const isInCategory = categories.includes(category);
       const categoryLabel = SPOT_CATEGORIES.find(c => c.type === category)?.label;
-      
-      Alert.alert(
-        isInCategory ? "Añadido" : "Eliminado",
-        `Spot ${isInCategory ? "añadido a" : "eliminado de"} ${categoryLabel}`
-      );
+      showSuccess(`Spot ${isInCategory ? "añadido a" : "eliminado de"} ${categoryLabel}`, isInCategory ? 'Añadido' : 'Eliminado');
     }
   };
 
@@ -119,9 +118,11 @@ export const SpotCollectionModal: React.FC<SpotCollectionModalProps> = ({
 /**
  * Mostrar ActionSheet en iOS
  */
-export const showSpotCollectionActionSheet = (
+export const showSpotCollectionActionSheet = async (
   categories: SpotCategory[],
-  onToggleCategory: (category: SpotCategory) => Promise<boolean>
+  onToggleCategory: (category: SpotCategory) => Promise<boolean>,
+  showSuccess?: (message: string, title?: string) => void,
+  showActionSheet?: (title: string | undefined, message: string | undefined, options: { key: string; label: string }[]) => Promise<string | null>
 ) => {
   if (Platform.OS !== 'ios') return;
 
@@ -132,6 +133,20 @@ export const showSpotCollectionActionSheet = (
     }),
     "Cancelar"
   ];
+
+  if (showActionSheet) {
+    const result = await showActionSheet('Guardar en colección', 'Selecciona donde quieres guardar este spot', SPOT_CATEGORIES.map(ct => ({ key: ct.type, label: ct.label })));
+    if (result) {
+      const category = result as SpotCategory;
+      const success = await onToggleCategory(category);
+      if (success) {
+        const isInCategory = categories.includes(category);
+        const categoryLabel = SPOT_CATEGORIES.find(c => c.type === category)?.label;
+        showSuccess?.(`Spot ${isInCategory ? "añadido a" : "eliminado de"} ${categoryLabel}`, isInCategory ? 'Añadido' : 'Eliminado');
+      }
+    }
+    return;
+  }
 
   ActionSheetIOS.showActionSheetWithOptions(
     {
@@ -148,11 +163,7 @@ export const showSpotCollectionActionSheet = (
         if (success) {
           const isInCategory = categories.includes(category);
           const categoryLabel = SPOT_CATEGORIES[buttonIndex].label;
-          
-          Alert.alert(
-            isInCategory ? "Añadido" : "Eliminado",
-            `Spot ${isInCategory ? "añadido a" : "eliminado de"} ${categoryLabel}`
-          );
+          showSuccess?.(`Spot ${isInCategory ? "añadido a" : "eliminado de"} ${categoryLabel}`, isInCategory ? 'Añadido' : 'Eliminado');
         }
       }
     }

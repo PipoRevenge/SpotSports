@@ -207,8 +207,6 @@ export default function UserProfile() {
                     </View>
                 )}
 
-                {/* Aquí puedes agregar secciones específicas para perfiles de otros usuarios */}
-                {/* Por ejemplo: mutual friends, shared spots, etc. */}
             </VStack>
         </ScrollView>
     );

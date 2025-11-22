@@ -1,5 +1,5 @@
 import { authRepository, userRepository } from '@/src/api/repositories';
-import { useNotification } from '@/src/context/notification-context';
+import { useAppAlert } from '@/src/context/app-alert-context';
 import { useUser } from '@/src/context/user-context';
 import { UserDetails } from '@/src/entities/user/model/user';
 import { useState } from 'react';
@@ -22,7 +22,7 @@ export const useSignUp = (): UseSignUpReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { setIsLoading: setGlobalLoading } = useUser();
-  const { showError } = useNotification();
+  const { showError } = useAppAlert();
 
   const signUp = async (
     email: string, 
