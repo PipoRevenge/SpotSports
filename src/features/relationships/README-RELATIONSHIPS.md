@@ -7,4 +7,4 @@ Exports:
 - `useFollowers(userId)` and `useFollowing(userId)` hooks: return paginated lists of `User[]` for followers and following.
 - UI components: `RelationshipList` and `RelationshipListItem`.
 
-This feature uses the `relationshipRepository` which implements a Firestore collection `relationships` with deterministic docId `${follower}_${followed}`.
+This feature uses the `userRepository` which implements relationship logic using a Firestore collection `relationships` with deterministic docId `${follower}_${followed}`.

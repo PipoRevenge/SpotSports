@@ -18,9 +18,15 @@ export interface IUserRepository {
   getUserFavoriteSports(userId: string): Promise<string[]>;
   addFavoriteSport(userId: string, sportId: string): Promise<void>;
   removeFavoriteSport(userId: string, sportId: string): Promise<void>;
+
+  // Relationship methods (migrated from RelationshipRepository)
+  followUser(userId: string, targetUserId: string): Promise<void>;
+  unfollowUser(userId: string, targetUserId: string): Promise<void>;
+  isFollowing(followerId: string, followedId: string): Promise<boolean>;
+  getFollowers(userId: string, options?: { limit?: number; startAfter?: any }): Promise<{ items: User[]; lastVisible?: any }>;
+  getFollowing(userId: string, options?: { limit?: number; startAfter?: any }): Promise<{ items: User[]; lastVisible?: any }>;
   
   checkUserNameExists(userName: string, excludeUserId?: string): Promise<boolean>;
   getUserByUserName(userName: string): Promise<User | null>;
   getAllUsers(options?: { limit?: number; startAfter?: any }): Promise<{ items: User[]; lastVisible?: any }>;
-  getUserByUserName(userName: string): Promise<User | null>;
 }

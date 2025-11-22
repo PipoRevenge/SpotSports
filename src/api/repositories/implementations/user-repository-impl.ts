@@ -13,6 +13,7 @@ import {
     increment,
     orderBy,
     query,
+    runTransaction,
     setDoc,
     Timestamp,
     updateDoc,
@@ -25,11 +26,31 @@ import { UserFirebase, UserMapper } from '../mappers/user-mapper';
 
 export class UserRepositoryImpl implements IUserRepository {
     private readonly USERS_COLLECTION = 'users';
+    private readonly RELATIONSHIPS_COLLECTION = 'relationships';
     private readonly SAVED_SPOTS_SUBCOLLECTION = 'saved_spots';
     private readonly FAVORITE_SPORTS_SUBCOLLECTION = 'favoriteSports';
-    private readonly FOLLOWERS_SUBCOLLECTION = 'followers';
-    private readonly FOLLOWING_SUBCOLLECTION = 'following';
+
     private readonly storage = getStorage();
+
+    private async batchGetUsersByIds(ids: string[]): Promise<User[]> {
+        if (!ids || ids.length === 0) return [];
+        const MAX_IN_CLAUSE = 10; // Firestore IN operator supports up to 10
+        const chunks: string[][] = [];
+        for (let i = 0; i < ids.length; i += MAX_IN_CLAUSE) {
+            chunks.push(ids.slice(i, i + MAX_IN_CLAUSE));
+        }
+
+        const results: User[] = [];
+        for (const chunk of chunks) {
+            const q = query(collection(firestore, this.USERS_COLLECTION), where('__name__', 'in', chunk));
+            const snapshot = await getDocs(q);
+            snapshot.forEach(docSnap => {
+                const data = docSnap.data() as UserFirebase;
+                results.push(UserMapper.fromFirebase(data, docSnap.id));
+            });
+        }
+        return results;
+    }
 
     async createUser(userId: string, userData: Partial<UserDetails>): Promise<boolean> {
         try {
@@ -243,6 +264,62 @@ export class UserRepositoryImpl implements IUserRepository {
         } catch (error) {
             console.error('Error getting user saved spots:', error);
             throw new Error('Unable to get user saved spots');
+        }
+    }
+
+    async getFollowers(userId: string, options?: { limit?: number; startAfter?: any }): Promise<{ items: User[]; lastVisible?: any }> {
+        try {
+            const limit = options?.limit || 20;
+            let q = query(
+                collection(firestore, this.RELATIONSHIPS_COLLECTION),
+                where('followed', '==', userId),
+                orderBy('createdAt', 'desc')
+            );
+            if (options?.startAfter) {
+                q = query(
+                    collection(firestore, this.RELATIONSHIPS_COLLECTION),
+                    where('followed', '==', userId),
+                    where('createdAt', '<', options.startAfter),
+                    orderBy('createdAt', 'desc')
+                );
+            }
+            q = query(q as any, firestoreLimit(limit));
+            const snapshot = await getDocs(q);
+            const followerIds: string[] = snapshot.docs.map(d => d.data().follower);
+            const users = await this.batchGetUsersByIds(followerIds);
+            const lastVisible = snapshot.docs[snapshot.docs.length - 1]?.data().createdAt;
+            return { items: users, lastVisible };
+        } catch (error) {
+            console.error('Error getting followers:', error);
+            throw new Error('Unable to get followers');
+        }
+    }
+
+    async getFollowing(userId: string, options?: { limit?: number; startAfter?: any }): Promise<{ items: User[]; lastVisible?: any }> {
+        try {
+            const limit = options?.limit || 20;
+            let q = query(
+                collection(firestore, this.RELATIONSHIPS_COLLECTION),
+                where('follower', '==', userId),
+                orderBy('createdAt', 'desc')
+            );
+            if (options?.startAfter) {
+                q = query(
+                    collection(firestore, this.RELATIONSHIPS_COLLECTION),
+                    where('follower', '==', userId),
+                    where('createdAt', '<', options.startAfter),
+                    orderBy('createdAt', 'desc')
+                );
+            }
+            q = query(q as any, firestoreLimit(limit));
+            const snapshot = await getDocs(q);
+            const followedIds: string[] = snapshot.docs.map(d => d.data().followed);
+            const users = await this.batchGetUsersByIds(followedIds);
+            const lastVisible = snapshot.docs[snapshot.docs.length - 1]?.data().createdAt;
+            return { items: users, lastVisible };
+        } catch (error) {
+            console.error('Error getting following:', error);
+            throw new Error('Unable to get following');
         }
     }
 
@@ -575,66 +652,28 @@ export class UserRepositoryImpl implements IUserRepository {
 
     async followUser(userId: string, targetUserId: string): Promise<void> {
         try {
-            const userRef = doc(firestore, this.USERS_COLLECTION, userId);
-            const targetUserRef = doc(firestore, this.USERS_COLLECTION, targetUserId);
-            
-            // Verificar que ambos usuarios existen
-            const [userDoc, targetUserDoc] = await Promise.all([
-                getDoc(userRef),
-                getDoc(targetUserRef)
-            ]);
-            
-            if (!userDoc.exists()) {
-                throw new Error('User not found');
-            }
-            if (!targetUserDoc.exists()) {
-                throw new Error('Target user not found');
-            }
-            
-            const now = Timestamp.now();
-            
-            // Agregar targetUserId a la subcolección "following" del usuario actual
-            const followingRef = collection(userRef, this.FOLLOWING_SUBCOLLECTION);
-            const followingDoc = doc(followingRef, targetUserId);
-            
-            // Verificar si ya está siguiendo
-            const existingFollow = await getDoc(followingDoc);
-            if (existingFollow.exists()) {
-                throw new Error('Already following this user');
-            }
-            
-            await setDoc(followingDoc, {
-                userId: targetUserId,
-                followedAt: now
+            const docId = `${userId}_${targetUserId}`;
+            const relRef = doc(firestore, this.RELATIONSHIPS_COLLECTION, docId);
+            const followerRef = doc(firestore, this.USERS_COLLECTION, userId);
+            const followedRef = doc(firestore, this.USERS_COLLECTION, targetUserId);
+
+            await runTransaction(firestore, async (transaction) => {
+                const relDoc = await transaction.get(relRef);
+                if (relDoc.exists()) {
+                    // already following
+                    return;
+                }
+
+                transaction.set(relRef, {
+                    follower: userId,
+                    followed: targetUserId,
+                    createdAt: Timestamp.now()
+                });
+
+                // Update counters
+                transaction.update(followedRef, { followersCount: increment(1), updatedAt: Timestamp.now() });
+                transaction.update(followerRef, { followingCount: increment(1), updatedAt: Timestamp.now() });
             });
-            
-            // Agregar userId a la subcolección "followers" del usuario objetivo
-            const followersRef = collection(targetUserRef, this.FOLLOWERS_SUBCOLLECTION);
-            const followerDoc = doc(followersRef, userId);
-            
-            await setDoc(followerDoc, {
-                userId: userId,
-                followedAt: now
-            });
-            
-            // Actualizar contadores
-            const currentUserData = userDoc.data() as UserFirebase;
-            const targetUserData = targetUserDoc.data() as UserFirebase;
-            
-            const currentFollowingCount = currentUserData.followingCount || 0;
-            const targetFollowersCount = targetUserData.followersCount || 0;
-            
-            await Promise.all([
-                updateDoc(userRef, {
-                    'followingCount': currentFollowingCount + 1,
-                    'updatedAt': now
-                }),
-                updateDoc(targetUserRef, {
-                    'followersCount': targetFollowersCount + 1,
-                    'updatedAt': now
-                })
-            ]);
-            
         } catch (error) {
             console.error('Error following user:', error);
             throw new Error(error instanceof Error ? error.message : 'Unable to follow user');
@@ -643,63 +682,38 @@ export class UserRepositoryImpl implements IUserRepository {
 
     async unfollowUser(userId: string, targetUserId: string): Promise<void> {
         try {
-            const userRef = doc(firestore, this.USERS_COLLECTION, userId);
-            const targetUserRef = doc(firestore, this.USERS_COLLECTION, targetUserId);
-            
-            // Verificar que ambos usuarios existen
-            const [userDoc, targetUserDoc] = await Promise.all([
-                getDoc(userRef),
-                getDoc(targetUserRef)
-            ]);
-            
-            if (!userDoc.exists()) {
-                throw new Error('User not found');
-            }
-            if (!targetUserDoc.exists()) {
-                throw new Error('Target user not found');
-            }
-            
-            const now = Timestamp.now();
-            
-            // Eliminar targetUserId de la subcolección "following" del usuario actual
-            const followingRef = collection(userRef, this.FOLLOWING_SUBCOLLECTION);
-            const followingDoc = doc(followingRef, targetUserId);
-            
-            // Verificar si realmente está siguiendo
-            const existingFollow = await getDoc(followingDoc);
-            if (!existingFollow.exists()) {
-                throw new Error('Not following this user');
-            }
-            
-            await deleteDoc(followingDoc);
-            
-            // Eliminar userId de la subcolección "followers" del usuario objetivo
-            const followersRef = collection(targetUserRef, this.FOLLOWERS_SUBCOLLECTION);
-            const followerDoc = doc(followersRef, userId);
-            
-            await deleteDoc(followerDoc);
-            
-            // Actualizar contadores
-            const currentUserData = userDoc.data() as UserFirebase;
-            const targetUserData = targetUserDoc.data() as UserFirebase;
-            
-            const currentFollowingCount = currentUserData.followingCount || 0;
-            const targetFollowersCount = targetUserData.followersCount || 0;
-            
-            await Promise.all([
-                updateDoc(userRef, {
-                    'followingCount': Math.max(0, currentFollowingCount - 1),
-                    'updatedAt': now
-                }),
-                updateDoc(targetUserRef, {
-                    'followersCount': Math.max(0, targetFollowersCount - 1),
-                    'updatedAt': now
-                })
-            ]);
-            
+            const docId = `${userId}_${targetUserId}`;
+            const relRef = doc(firestore, this.RELATIONSHIPS_COLLECTION, docId);
+            const followerRef = doc(firestore, this.USERS_COLLECTION, userId);
+            const followedRef = doc(firestore, this.USERS_COLLECTION, targetUserId);
+
+            await runTransaction(firestore, async (transaction) => {
+                const relDoc = await transaction.get(relRef);
+                if (!relDoc.exists()) {
+                    // Nothing to do
+                    return;
+                }
+
+                transaction.delete(relRef);
+                // Decrement counters
+                transaction.update(followedRef, { followersCount: increment(-1), updatedAt: Timestamp.now() });
+                transaction.update(followerRef, { followingCount: increment(-1), updatedAt: Timestamp.now() });
+            });
         } catch (error) {
             console.error('Error unfollowing user:', error);
             throw new Error(error instanceof Error ? error.message : 'Unable to unfollow user');
+        }
+    }
+
+    async isFollowing(followerId: string, followedId: string): Promise<boolean> {
+        try {
+            const docId = `${followerId}_${followedId}`;
+            const relRef = doc(firestore, this.RELATIONSHIPS_COLLECTION, docId);
+            const relDoc = await getDoc(relRef);
+            return relDoc.exists();
+        } catch (error) {
+            console.error('Error checking following status:', error);
+            throw new Error('Unable to check following status');
         }
     }
 

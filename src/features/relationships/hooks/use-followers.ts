@@ -1,4 +1,4 @@
-import { relationshipRepository } from '@/src/api/repositories';
+import { userRepository } from '@/src/api/repositories';
 import { User } from '@/src/entities/user/model/user';
 import { useEffect, useState } from 'react';
 
@@ -24,7 +24,7 @@ export const useFollowers = (userId?: string, options?: { limit?: number }) => {
     }
     setError(null);
     try {
-      const res = await relationshipRepository.getFollowers(userId, { limit: options?.limit, startAfter: reset ? undefined : lastVisible });
+      const res = await userRepository.getFollowers(userId, { limit: options?.limit, startAfter: reset ? undefined : lastVisible });
       const data = res.items;
       const last = res.lastVisible;
       if (reset) {
