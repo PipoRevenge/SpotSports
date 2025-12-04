@@ -1,5 +1,5 @@
 
-import { CommentReview } from "./comment";
+
 
 export interface ReviewDetails {
   spotId: string;
@@ -29,7 +29,6 @@ export interface ReviewActivity {
   likesCount: number;
   dislikesCount: number;
   commentsCount: number;
-  comments?: CommentReview[];
   reports: number;
 }
 

@@ -78,41 +78,36 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
     }
   }, [media]);
   
-  // Crear player de video SOLO cuando hay un video en preview
+  // Create a small component that only uses the video player hook when rendered
   const currentMedia = media[previewIndex];
-  const shouldCreatePlayer = previewVisible && currentMedia?.type === "video";
-  const videoUri = shouldCreatePlayer ? currentMedia.uri : "";
-  
-  const videoPlayer = useVideoPlayer(videoUri, (player) => {
-    if (shouldCreatePlayer) {
-      player.loop = false;
-      player.play();
-    }
-  });
 
-  // Efecto para manejar cambios de video en el preview
-  useEffect(() => {
-    if (!previewVisible) {
-      // Pausar el video cuando el modal está cerrado
+  const PreviewVideoPlayer: React.FC<{ uri: string; shouldPlay: boolean }> = ({ uri, shouldPlay }) => {
+    const player = useVideoPlayer(uri, (p) => {
+      p.loop = false;
+      if (shouldPlay) p.play();
+    });
+
+    useEffect(() => {
       try {
-        if (videoPlayer && shouldCreatePlayer) {
-          videoPlayer.pause();
+        if (player) {
+          if (shouldPlay) player.play();
+          else player.pause();
         }
-      } catch {
-        // Ignorar errores si el player ya fue liberado
-        console.log('[MediaPicker] Player already released');
+      } catch (err) {
+        // ignore user-level player errors
       }
-      return;
-    }
+    }, [shouldPlay, player]);
 
-    if (currentMedia?.type === "video" && videoPlayer) {
-      videoPlayer.replaceAsync(currentMedia.uri).then(() => {
-        videoPlayer.play();
-      }).catch((error) => {
-        console.warn('[MediaPicker] Error replacing video:', error);
-      });
-    }
-  }, [previewIndex, previewVisible, currentMedia?.type, currentMedia?.uri, shouldCreatePlayer, videoPlayer]);
+    if (!uri) return null;
+    return (
+      <VideoView
+        player={player}
+        style={{ width: "100%", height: "100%", padding: 16 }}
+        contentFit="contain"
+        nativeControls
+      />
+    );
+  };
 
   /**
    * Solicita permisos para acceder a la galería
@@ -504,12 +499,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
             {media[previewIndex] && (
               <>
                 {media[previewIndex].type === "video" ? (
-                  <VideoView
-                    player={videoPlayer}
-                    style={{ width: "100%", height: "100%", padding: 16 }}
-                    contentFit="contain"
-                    nativeControls
-                  />
+                      <PreviewVideoPlayer uri={media[previewIndex].uri} shouldPlay={previewVisible} />
                 ) : (
                   <Image
                     source={{ uri: media[previewIndex].uri }}

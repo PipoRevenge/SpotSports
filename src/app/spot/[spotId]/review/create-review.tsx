@@ -5,6 +5,7 @@ import { Text } from "@/src/components/ui/text";
 import { CreateReviewForm } from "@/src/features/review";
 import { useReviewCreate } from "@/src/features/review/hooks/use-review-create";
 import { CreateReviewData } from "@/src/features/review/types/review-types";
+import { SportSearch } from "@/src/features/sport";
 import { useSelectedSpot } from "@/src/features/spot";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
@@ -80,6 +81,7 @@ export const CreateReviewPage = () => {
                         onCancel={handleCancel}
                         isLoading={isLoading}
                         error={error}
+                        sportSearchSlot={SportSearch}
                     />
                 </ScrollView>
             </KeyboardAvoidingView>

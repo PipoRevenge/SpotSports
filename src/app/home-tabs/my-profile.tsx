@@ -4,6 +4,7 @@ import { VStack } from '@/src/components/ui/vstack';
 import { useUser } from '@/src/context/user-context';
 import { SignOut } from '@/src/features/auth';
 import { UserReviewList } from '@/src/features/review';
+import { useAllSportsMap } from '@/src/hooks/use-sports';
 import { ProfileActivityTabs, ProfileHeader } from '@/src/features/user';
 import { useProfile } from '@/src/features/user/hooks/use-profile';
 import { MenuOption, ProfileActionType } from '@/src/features/user/types/profile-types';
@@ -18,6 +19,9 @@ export default function MyProfile() {
     
     // Usar el hook de perfil
     const { user, isLoading, error, refetch } = useProfile(currentUser?.id);
+
+    // Cargar nombres de deportes para pasar al componente de reviews
+    const { getSportName } = useAllSportsMap();
 
     const handleEditPress = () => {
         router.push('/profile/profile-edit');
@@ -132,6 +136,7 @@ export default function MyProfile() {
                                     profileUser={user}
                                     onNavigateToProfile={handleNavigateToProfile}
                                     onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
+                                    getSportName={getSportName}
                                     onEdit={(reviewId, spotId, spotSports) => {
                                         if (!spotId) return;
                                         router.push({

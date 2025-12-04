@@ -19,10 +19,12 @@ export { useSpotReviews } from './hooks/use-spot-reviews';
 export { useUserReviews } from './hooks/use-user-reviews';
 
 // Types
+export type { CommentWithUser } from '@/src/features/comment';
+export type { SportSearchSlotProps } from './components/review-create/add-sport-modal';
 export type { ReviewCardProps } from './components/review-view/review-card';
+export type { ReviewCommentsProps } from './components/review-view/review-comments';
 export type { ReviewListProps } from './components/review-view/review-list';
 export type { ReviewFilters, ReviewSortOption } from './hooks/use-spot-reviews';
-export type { CommentWithUser } from './types/comment-types';
 export type {
     CreateReviewData, DifficultyLevel, ReviewFormData,
     ReviewFormErrors, ReviewSportFormData, SimpleSport

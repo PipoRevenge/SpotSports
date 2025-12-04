@@ -1,11 +1,12 @@
-import { sportRepository } from '@/src/api/repositories';
 import { Text } from '@/src/components/ui/text';
 import { VStack } from '@/src/components/ui/vstack';
 import { Review } from '@/src/entities/review/model/review';
 import { User } from '@/src/entities/user/model/user';
+import { CommentWithUser } from '@/src/features/comment';
 import { useReviewDelete } from '@/src/features/review/hooks/use-review-delete';
 import { useUserReviews } from '@/src/features/review/hooks/use-user-reviews';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSportsMapByIds } from '@/src/hooks/use-sports';
+import React, { useMemo } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { ReviewCard } from './review-card';
 
@@ -15,6 +16,14 @@ export interface UserReviewListProps {
   onNavigateToProfile?: (userId: string) => void;
   onNavigateToSpot?: (spotId: string) => void;
   onEdit?: (reviewId: string, spotId: string, spotSports?: any) => void;
+  getSportName?: (id: string) => string | undefined;
+  // Comment modal slots (propagated to ReviewCard)
+  /** Slot for the reply modal - injected from app/ layer */
+  commentModalSlot?: React.ReactNode;
+  /** Callback when user wants to reply to a comment */
+  onOpenReplyModal?: (comment: CommentWithUser, review: Review) => void;
+  /** Callback when user wants to add a new comment to a review */
+  onOpenNewCommentModal?: (review: Review) => void;
 }
 
 export const UserReviewList: React.FC<UserReviewListProps> = ({
@@ -23,6 +32,10 @@ export const UserReviewList: React.FC<UserReviewListProps> = ({
   onNavigateToProfile,
   onNavigateToSpot,
   onEdit,
+  getSportName: passedGetSportName,
+  commentModalSlot,
+  onOpenReplyModal,
+  onOpenNewCommentModal,
 }) => {
   const { reviews, spotsMap, usersData, loading, error, refetch } = useUserReviews(userId);
   const { deleteReview } = useReviewDelete(() => refetch());
@@ -36,28 +49,9 @@ export const UserReviewList: React.FC<UserReviewListProps> = ({
     return Array.from(ids);
   }, [reviews]);
 
-  // Local fetch for sport names
-  const [sportNames, setSportNames] = useState<Record<string, string>>({});
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      if (sportIds.length === 0) {
-        setSportNames({});
-        return;
-      }
-      const promises = sportIds.map(id => sportRepository.getSportById(id).catch(() => null));
-      const results = await Promise.all(promises);
-      const map: Record<string, string> = {};
-      results.forEach((s, idx) => {
-        if (s) map[sportIds[idx]] = s.details.name;
-      });
-      if (mounted) setSportNames(map);
-    };
-    load();
-    return () => { mounted = false; };
-  }, [sportIds]);
-
-  const getSportName = useCallback((sportId: string) => sportNames[sportId] || sportId, [sportNames]);
+  // Use shared hook to get sport names from the centralized repo/hook
+  const { getSportName: getSportNameFromHook } = useSportsMapByIds(sportIds);
+  const getSportName = passedGetSportName ?? getSportNameFromHook;
 
   if (loading) {
     return (
@@ -95,11 +89,11 @@ export const UserReviewList: React.FC<UserReviewListProps> = ({
 
         return (
           <View key={review.id}>
-            <ReviewCard
+              <ReviewCard
               review={review}
               spotId={review.details.spotId}
               user={user}
-              getSportName={getSportName}
+              getSportName={(sportId: string) => getSportName(sportId) ?? sportId}
               spot={spot}
               onNavigateToProfile={onNavigateToProfile}
               onNavigateToSpot={onNavigateToSpot}
@@ -111,6 +105,9 @@ export const UserReviewList: React.FC<UserReviewListProps> = ({
                   console.error('Failed to delete review in user list', e);
                 }
               }}
+              commentModalSlot={commentModalSlot}
+              onOpenReplyModal={onOpenReplyModal}
+              onOpenNewCommentModal={onOpenNewCommentModal}
             />
           </View>
         );

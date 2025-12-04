@@ -1,4 +1,4 @@
-import { Comment } from "@/src/entities/review/model/comment";
+import { Comment } from "@/src/entities/comment/model/comment";
 import { Review, ReviewDetails, ReviewSport } from "@/src/entities/review/model/review";
 import { firestore, storage } from "@/src/lib/firebase-config";
 import { ref as dbRef, getDatabase, push } from "firebase/database";
@@ -27,6 +27,7 @@ import {
     FirestoreSpotSportMetrics,
     mapFirestoreToReview
 } from "../mappers/review-mapper";
+import { voteRepository } from './vote-repository-impl';
 
 /**
  * Implementación del repositorio de reviews usando Firestore
@@ -1022,10 +1023,16 @@ export class ReviewRepositoryImpl implements IReviewRepository {
         const data = doc.data();
         allComments.push({
           id: doc.id,
-          createdBy: data.createdBy,
+          userId: data.createdBy || data.userId,
+          type: 'review',
+          parentId: reviewId,
+          level: data.level || 0,
           content: data.content,
+          media: data.media,
+          tags: data.tags,
           likesCount: data.likesCount || 0,
           dislikesCount: data.dislikesCount || 0,
+          commentsCount: data.commentsCount || 0,
           reports: data.reports || 0,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate(),
@@ -1078,10 +1085,14 @@ export class ReviewRepositoryImpl implements IReviewRepository {
 
       return {
         id: commentId,
-        createdBy: userId,
+        userId: userId,
+        type: 'review' as const,
+        parentId: reviewId,
+        level: 0,
         content,
         likesCount: 0,
         dislikesCount: 0,
+        commentsCount: 0,
         reports: 0,
         createdAt: now.toDate(),
         updatedAt: now.toDate(),
@@ -1122,122 +1133,25 @@ export class ReviewRepositoryImpl implements IReviewRepository {
   /**
    * Vota en un comentario (like o dislike)
    */
-  async voteComment(
-    reviewId: string,
-    commentId: string,
-    userId: string,
-    isLike: boolean
-  ): Promise<void> {
-    try {
-      const voteRef = doc(firestore, `reviews/${reviewId}/comments/${commentId}/votes/${userId}`);
-      const commentRef = doc(firestore, `reviews/${reviewId}/comments/${commentId}`);
-
-      await runTransaction(firestore, async (transaction) => {
-        const voteDoc = await transaction.get(voteRef);
-        const commentDoc = await transaction.get(commentRef);
-
-        if (!commentDoc.exists()) {
-          throw new Error(`Comment ${commentId} not found`);
-        }
-
-        if (!voteDoc.exists()) {
-          // Nuevo voto
-          transaction.set(voteRef, {
-            isLike,
-            createdAt: Timestamp.now(),
-          });
-
-          // Incrementar contador correspondiente
-          if (isLike) {
-            transaction.update(commentRef, { likesCount: increment(1) });
-          } else {
-            transaction.update(commentRef, { dislikesCount: increment(1) });
-          }
-        } else {
-          // Voto existente - cambiar voto
-          const previousVote = voteDoc.data()?.isLike;
-
-          if (previousVote !== isLike) {
-            // Actualizar el voto
-            transaction.update(voteRef, { isLike });
-
-            // Ajustar contadores
-            if (isLike) {
-              transaction.update(commentRef, {
-                likesCount: increment(1),
-                dislikesCount: increment(-1),
-              });
-            } else {
-              transaction.update(commentRef, {
-                likesCount: increment(-1),
-                dislikesCount: increment(1),
-              });
-            }
-          }
-        }
-      });
-    } catch (error) {
-      console.error("[ReviewRepository] Error voting comment:", error);
-      throw new Error("Failed to vote comment");
-    }
+  async voteComment(reviewId: string, commentId: string, userId: string, isLike: boolean): Promise<void> {
+    // Delegate to generic voteRepository for comment votes
+    return await voteRepository.vote('comment', commentId, userId, isLike);
   }
 
   /**
    * Elimina el voto de un comentario
    */
-  async removeCommentVote(
-    reviewId: string,
-    commentId: string,
-    userId: string
-  ): Promise<void> {
-    try {
-      const voteRef = doc(firestore, `reviews/${reviewId}/comments/${commentId}/votes/${userId}`);
-      const commentRef = doc(firestore, `reviews/${reviewId}/comments/${commentId}`);
-
-      await runTransaction(firestore, async (transaction) => {
-        const voteDoc = await transaction.get(voteRef);
-
-        if (!voteDoc.exists()) {
-          return;
-        }
-
-        const voteData = voteDoc.data();
-        transaction.delete(voteRef);
-
-        // Decrementar contador correspondiente
-        if (voteData.isLike) {
-          transaction.update(commentRef, { likesCount: increment(-1) });
-        } else {
-          transaction.update(commentRef, { dislikesCount: increment(-1) });
-        }
-      });
-    } catch (error) {
-      console.error("[ReviewRepository] Error removing comment vote:", error);
-      throw new Error("Failed to remove comment vote");
-    }
+  async removeCommentVote(reviewId: string, commentId: string, userId: string): Promise<void> {
+    // Delegate to generic voteRepository for comment votes
+    return await voteRepository.removeVote('comment', commentId, userId);
   }
 
   /**
    * Obtiene el voto de un usuario en un comentario
    */
-  async getCommentVote(
-    reviewId: string,
-    commentId: string,
-    userId: string
-  ): Promise<boolean | null> {
-    try {
-      const voteRef = doc(firestore, `reviews/${reviewId}/comments/${commentId}/votes/${userId}`);
-      const voteDoc = await getDoc(voteRef);
-
-      if (!voteDoc.exists()) {
-        return null;
-      }
-
-      return voteDoc.data()?.isLike ?? null;
-    } catch (error) {
-      console.error("[ReviewRepository] Error getting comment vote:", error);
-      return null;
-    }
+  async getCommentVote(reviewId: string, commentId: string, userId: string): Promise<boolean | null> {
+    // Delegate to generic voteRepository for comment votes
+    return await voteRepository.getUserVote('comment', commentId, userId);
   }
 
   /**
@@ -1347,65 +1261,8 @@ export class ReviewRepositoryImpl implements IReviewRepository {
    * NUEVA ESTRUCTURA: reviews/{reviewId}/votes/{userId}
    */
   async voteReview(spotId: string, reviewId: string, userId: string, isLike: boolean): Promise<void> {
-    try {
-      const voteRef = doc(firestore, `reviews/${reviewId}/votes/${userId}`);
-      const reviewRef = doc(firestore, `reviews/${reviewId}`);
-
-      await runTransaction(firestore, async (transaction) => {
-        // Leer el voto actual y la review
-        const voteDoc = await transaction.get(voteRef);
-        const reviewDoc = await transaction.get(reviewRef);
-
-        if (!reviewDoc.exists()) {
-          throw new Error('Review not found');
-        }
-
-        const currentLikes = reviewDoc.data().likesCount || 0;
-        const currentDislikes = reviewDoc.data().dislikesCount || 0;
-
-        let likesChange = 0;
-        let dislikesChange = 0;
-
-        if (voteDoc.exists()) {
-          // El usuario ya votó, actualizar el voto
-          const previousVote = voteDoc.data().isLike;
-          
-          if (previousVote !== isLike) {
-            // Cambió de like a dislike o viceversa
-            if (isLike) {
-              likesChange = 1;
-              dislikesChange = -1;
-            } else {
-              likesChange = -1;
-              dislikesChange = 1;
-            }
-          }
-          // Si el voto es el mismo, no hacer nada (ya está votado)
-        } else {
-          // Nuevo voto
-          if (isLike) {
-            likesChange = 1;
-          } else {
-            dislikesChange = 1;
-          }
-        }
-
-        // Actualizar el voto
-        transaction.set(voteRef, {
-          isLike,
-          createdAt: Timestamp.now(),
-        });
-
-        // Actualizar los contadores en la review
-        transaction.update(reviewRef, {
-          likesCount: currentLikes + likesChange,
-          dislikesCount: currentDislikes + dislikesChange,
-        });
-      });
-    } catch (error) {
-      console.error('[ReviewRepository] Error voting review:', error);
-      throw new Error(`Failed to vote review: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    // Delegate to generic voteRepository for reviews
+    return await voteRepository.vote('review', reviewId, userId, isLike);
   }
 
   /**
@@ -1413,46 +1270,8 @@ export class ReviewRepositoryImpl implements IReviewRepository {
    * NUEVA ESTRUCTURA: reviews/{reviewId}/votes/{userId}
    */
   async removeVote(spotId: string, reviewId: string, userId: string): Promise<void> {
-    try {
-      const voteRef = doc(firestore, `reviews/${reviewId}/votes/${userId}`);
-      const reviewRef = doc(firestore, `reviews/${reviewId}`);
-
-      await runTransaction(firestore, async (transaction) => {
-        // Leer el voto actual y la review
-        const voteDoc = await transaction.get(voteRef);
-        const reviewDoc = await transaction.get(reviewRef);
-
-        if (!reviewDoc.exists()) {
-          throw new Error('Review not found');
-        }
-
-        if (!voteDoc.exists()) {
-          // No hay voto que eliminar
-          return;
-        }
-
-        const wasLike = voteDoc.data().isLike;
-        const currentLikes = reviewDoc.data().likesCount || 0;
-        const currentDislikes = reviewDoc.data().dislikesCount || 0;
-
-        // Eliminar el voto
-        transaction.delete(voteRef);
-
-        // Actualizar los contadores
-        if (wasLike) {
-          transaction.update(reviewRef, {
-            likesCount: Math.max(0, currentLikes - 1),
-          });
-        } else {
-          transaction.update(reviewRef, {
-            dislikesCount: Math.max(0, currentDislikes - 1),
-          });
-        }
-      });
-    } catch (error) {
-      console.error('[ReviewRepository] Error removing vote:', error);
-      throw new Error(`Failed to remove vote: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    // Delegate to generic voteRepository for reviews
+    return await voteRepository.removeVote('review', reviewId, userId);
   }
 
   /**
@@ -1460,19 +1279,8 @@ export class ReviewRepositoryImpl implements IReviewRepository {
    * NUEVA ESTRUCTURA: reviews/{reviewId}/votes/{userId}
    */
   async getUserVote(spotId: string, reviewId: string, userId: string): Promise<boolean | null> {
-    try {
-      const voteRef = doc(firestore, `reviews/${reviewId}/votes/${userId}`);
-      const voteDoc = await getDoc(voteRef);
-
-      if (!voteDoc.exists()) {
-        return null;
-      }
-
-      return voteDoc.data().isLike;
-    } catch (error) {
-      console.error('[ReviewRepository] Error getting user vote:', error);
-      return null;
-    }
+    // Delegate to generic voteRepository for reviews
+    return await voteRepository.getUserVote('review', reviewId, userId);
   }
 
   /**

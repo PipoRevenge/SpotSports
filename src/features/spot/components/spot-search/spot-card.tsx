@@ -5,7 +5,6 @@ import { Image } from '@/src/components/ui/image';
 import { Pressable } from '@/src/components/ui/pressable';
 import { Text } from '@/src/components/ui/text';
 import { VStack } from '@/src/components/ui/vstack';
-import { SpotCollectionSelector } from '@/src/features/spot/components/spot-view/spot-collection-selector';
 import React, { useState } from 'react';
 
 
@@ -15,9 +14,14 @@ interface SpotCardProps {
   number: number;
   imageUrl: string;
   onPress?: () => void;
+  /**
+   * Slot for collection selector component - injected from app layer
+   * This follows the architecture pattern of feature independence
+   */
+  collectionSlot?: React.ReactNode;
 }
 
-export const SpotCard: React.FC<SpotCardProps> = ({ id, name, number, imageUrl, onPress }) => {
+export const SpotCard: React.FC<SpotCardProps> = ({ id, name, number, imageUrl, onPress, collectionSlot }) => {
   const [isPressed, setIsPressed] = useState(false);
 
   return (
@@ -43,8 +47,8 @@ export const SpotCard: React.FC<SpotCardProps> = ({ id, name, number, imageUrl, 
             <HStack className="gap-2 items-center">
               <RatingStars rating={number} size="sm" showValue={true} />
               
-              {/* Selector de colecciones */}
-              <SpotCollectionSelector spotId={id} />
+              {/* Collection selector slot - injected from app layer */}
+              {collectionSlot}
             </HStack>
           </HStack>
         </VStack>

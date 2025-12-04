@@ -5,11 +5,12 @@ import { Select, SelectBackdrop, SelectContent, SelectDragIndicator, SelectDragI
 import { Slider, SliderFilledTrack, SliderThumb, SliderTrack } from "@/src/components/ui/slider";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
-import { SportSimple } from "@/src/features/sport/types/sport-types";
+import { SimpleSport as SportSimple } from "@/src/entities/sport/model/sport";
+import { SportFilterCriteria } from "@/src/entities/spot/types/spot-search-types";
 import { DIFFICULTY_LEVELS, DifficultyLevel } from "@/src/types/difficulty";
 import { ChevronDownIcon, ChevronUpIcon, XIcon } from "lucide-react-native";
 import React, { useState } from "react";
-import { RATING_CONFIG, SportFilterCriteria } from "../../types/spot-types";
+import { RATING_CONFIG } from "../../types/spot-types";
 
 // Opciones para el selector de dificultad
 const DIFFICULTY_OPTIONS = [

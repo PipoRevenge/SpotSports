@@ -1,4 +1,5 @@
 import { RatingStars } from "@/src/components/commons/rating/rating-stars";
+import Tag from '@/src/components/commons/tag';
 import { Badge, BadgeIcon, BadgeText } from "@/src/components/ui/badge";
 import { Card } from "@/src/components/ui/card";
 import { HStack } from "@/src/components/ui/hstack";
@@ -7,7 +8,7 @@ import { Pressable } from "@/src/components/ui/pressable";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { Spot } from "@/src/entities/spot/model/spot";
-import { useSportNames } from "@/src/features/sport/hooks/use-sport-names";
+import { useSportsMapByIds } from '@/src/hooks/use-sports';
 import { Check } from "lucide-react-native";
 import React from "react";
 
@@ -29,7 +30,7 @@ export const SpotListCard: React.FC<SpotListCardProps> = ({
   showDistance = true,
 }) => {
   const mainImage = spot.details.media[0] || "https://via.placeholder.com/150";
-  const { getSportName } = useSportNames(spot.details.availableSports);
+  const { getSportName } = useSportsMapByIds(spot.details.availableSports);
 
   return (
     <Pressable onPress={onPress}>
@@ -84,21 +85,11 @@ export const SpotListCard: React.FC<SpotListCardProps> = ({
             {spot.details.availableSports.length > 0 && (
               <HStack className="gap-1 pt-2 flex-wrap">
                 {spot.details.availableSports.slice(0, 3).map((sportId) => (
-                  <Badge
-                    key={sportId}
-                    size="sm"
-                    variant="outline"
-                    action="info"
-                  >
-                    <BadgeText>{getSportName(sportId)}</BadgeText>
-                  </Badge>
+                  <Tag key={sportId} label={getSportName(sportId)} color={'#E6F6FF'} />
                 ))}
+
                 {spot.details.availableSports.length > 3 && (
-                  <Badge
-                    size="sm"
-                    variant="outline"
-                    action="muted"
-                  >
+                  <Badge size="sm" variant="outline" action="muted">
                     <BadgeText>+{spot.details.availableSports.length - 3}</BadgeText>
                   </Badge>
                 )}

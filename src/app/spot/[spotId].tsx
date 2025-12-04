@@ -1,5 +1,9 @@
 import { MapMarker, MapView } from '@/src/components/commons/map';
+import { Button, ButtonText } from '@/src/components/ui/button';
 import { useUser } from '@/src/context/user-context';
+import { Review } from '@/src/entities/review/model/review';
+import { CommentWithUser, ReplyModal, ReviewHeaderForModal, useComments } from '@/src/features/comment';
+import { DiscussionCard, useDiscussionLoad } from "@/src/features/discussion";
 import {
     ReviewList,
     useReviewDelete
@@ -16,7 +20,7 @@ import { Text } from "@components/ui/text";
 import { VStack } from "@components/ui/vstack";
 import { router, useLocalSearchParams } from "expo-router";
 import { CheckCircle, ChevronDown, ChevronUp, Heart, MessageSquare, Target } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, View } from "react-native";
 
 export const SpotPage = () => {
@@ -26,6 +30,13 @@ export const SpotPage = () => {
     const [isSportsTableVisible, setIsSportsTableVisible] = useState(true);
     const [sortBy, setSortBy] = useState<'recent' | 'oldest' | 'rating-high' | 'rating-low'>('recent');
     const [sportFilter, setSportFilter] = useState<string>('');
+    const [activeTab, setActiveTab] = useState<'reviews' | 'discussions'>('reviews');
+    
+    // Reply modal state for review comments
+    const [replyModalVisible, setReplyModalVisible] = useState(false);
+    const [selectedParentComment, setSelectedParentComment] = useState<CommentWithUser | null>(null);
+    const [selectedReview, setSelectedReview] = useState<Review | null>(null);
+    const [isNewComment, setIsNewComment] = useState(false); // true = new comment on review, false = reply to comment
     
     // Usar el contexto de Spot Seleccionado que incluye todo
     const {
@@ -41,6 +52,7 @@ export const SpotPage = () => {
         selectSpot,
         refreshAll,
     } = useSelectedSpot();
+    // debug logs removed for production
     
     // Cargar el spot cuando se monta el componente
     useEffect(() => {
@@ -96,9 +108,9 @@ export const SpotPage = () => {
         if (!spotId) return;
         
         router.push({
-            pathname: `/spot/review/[spotId]/edit-review`,
+            pathname: `/spot/${spotId}/review/edit-review` as any,
             params: {
-                spotId,
+                reviewId,
                 spotSports: JSON.stringify(availableSports),
             },
         });
@@ -120,15 +132,15 @@ export const SpotPage = () => {
     const handleCreateReview = () => {
         if (!spotId) return;
         router.push({
-            pathname: `/spot/review/[spotId]/create-review`,
+            pathname: `/spot/${spotId}/review/create-review` as any,
             params: {
-                spotId,
                 spotSports: JSON.stringify(availableSports),
             },
         });
     };
 
     const { user } = useUser();
+    const { discussions } = useDiscussionLoad({ pageSize: 6, spotId });
     const handleNavigateToProfile = (userIdToNavigate: string) => {
         if (!userIdToNavigate) return;
         if (userIdToNavigate === user?.id) {
@@ -137,6 +149,50 @@ export const SpotPage = () => {
             router.push(`/profile/${userIdToNavigate}`);
         }
     };
+
+    // Comments hook for the selected review - only load when needed
+    const { addComment, addReply } = useComments({ 
+        parentId: selectedReview?.id || '', 
+        type: 'review', 
+        autoLoad: false 
+    });
+
+    // Handlers for comment modals
+    const handleOpenReplyModal = useCallback((comment: CommentWithUser, review: Review) => {
+        setSelectedParentComment(comment);
+        setSelectedReview(review);
+        setIsNewComment(false);
+        setReplyModalVisible(true);
+    }, []);
+
+    const handleOpenNewCommentModal = useCallback((review: Review) => {
+        setSelectedParentComment(null);
+        setSelectedReview(review);
+        setIsNewComment(true);
+        setReplyModalVisible(true);
+    }, []);
+
+    const handleCloseReplyModal = useCallback(() => {
+        setReplyModalVisible(false);
+        setSelectedParentComment(null);
+        setSelectedReview(null);
+        setIsNewComment(false);
+    }, []);
+
+    const handleSubmitComment = useCallback(async (content: string, media?: string[]) => {
+        if (!selectedReview) return;
+        
+        if (isNewComment) {
+            // New comment on the review
+            await addComment(content, media);
+        } else if (selectedParentComment) {
+            // Reply to an existing comment
+            await addReply(selectedParentComment.id, content, media, (selectedParentComment.level || 0));
+        }
+        
+        // Refresh to show new comment
+        await refreshAll();
+    }, [selectedReview, isNewComment, selectedParentComment, addComment, addReply, refreshAll]);
 
     if (loadingSpot) {
         return (
@@ -314,36 +370,110 @@ export const SpotPage = () => {
                                     </View>
                                 </VStack>
                             }
-                            reviewsSlot={
-                                <ReviewList
-                                    reviews={reviews}
-                                    spotId={spotId || ""}
-                                    totalReviews={reviews.length}
-                                    usersData={usersData}
-                                    loading={loadingReviews}
-                                    isDeleting={isDeleting}
-                                    error={reviewsError || undefined}
-                                    availableSports={availableSports}
-                                    selectedSportId={sportFilter}
-                                    onSportFilterChange={setSportFilter}
-                                    getSportName={getSportName}
-                                    sortBy={sortBy}
-                                    onSortChange={setSortBy}
-                                    emptyMessage="Sé el primero en escribir una review"
-                                    onEdit={handleEditReview}
-                                    onCreate={handleCreateReview}
-                                    onDelete={handleDeleteReview}
-                                    onNavigateToProfile={handleNavigateToProfile}
-                                />
-                            }
                         />
                     </View>
                     
                 </View>
 
+                {/* Tabs for Reviews and Discussions */}
+                <HStack className="flex-row border-b border-gray-200">
+                    <Pressable
+                        className={`flex-1 py-3 px-4 ${activeTab === 'reviews' ? 'border-b-2 border-blue-600' : ''}`}
+                        onPress={() => setActiveTab('reviews')}
+                    >
+                        <Text className={`text-center font-semibold ${activeTab === 'reviews' ? 'text-blue-600' : 'text-gray-600'}`}>
+                            Reviews
+                        </Text>
+                    </Pressable>
+                    <Pressable
+                        className={`flex-1 py-3 px-4 ${activeTab === 'discussions' ? 'border-b-2 border-blue-600' : ''}`}
+                        onPress={() => setActiveTab('discussions')}
+                    >
+                        <Text className={`text-center font-semibold ${activeTab === 'discussions' ? 'text-blue-600' : 'text-gray-600'}`}>
+                            Discussions
+                        </Text>
+                    </Pressable>
+                </HStack>
+
+                {/* Tab Content */}
+                {activeTab === 'reviews' && (
+                    <ReviewList
+                        reviews={reviews}
+                        spotId={spotId || ""}
+                        totalReviews={reviews.length}
+                        usersData={usersData}
+                        loading={loadingReviews}
+                        isDeleting={isDeleting}
+                        error={reviewsError || undefined}
+                        availableSports={availableSports}
+                        selectedSportId={sportFilter}
+                        onSportFilterChange={setSportFilter}
+                        getSportName={getSportName}
+                        sortBy={sortBy}
+                        onSortChange={setSortBy}
+                        emptyMessage="Sé el primero en escribir una review"
+                        onEdit={handleEditReview}
+                        onCreate={handleCreateReview}
+                        onDelete={handleDeleteReview}
+                        onNavigateToProfile={handleNavigateToProfile}
+                        onOpenReplyModal={handleOpenReplyModal}
+                        onOpenNewCommentModal={handleOpenNewCommentModal}
+                    />
+                )}
+                {activeTab === 'discussions' && (
+                    <VStack className="p-4">
+                            <HStack className="justify-between items-center">
+                                        <Text className="text-xl font-bold pb-2">Discussions</Text>
+                                        {user?.id && (
+                                        <Button onPress={() => router.push(`/discussion/create?spotId=${spotId}`)} variant="outline">
+                                            <ButtonText>Create</ButtonText>
+                                        </Button>
+                                        )}
+                                    </HStack>
+                                        <VStack className="gap-2">
+                                                {(!discussions || discussions.length === 0) ? (
+                                                <VStack className="items-center py-8">
+                                                    <Text className="text-gray-600">No discussions yet — be the first to start one</Text>
+                                                    {user?.id && (
+                                                    <Button className="mt-4" onPress={() => router.push(`/discussion/create?spotId=${spotId}`)}>
+                                                        <ButtonText className="text-white">Create Discussion</ButtonText>
+                                                    </Button>
+                                                    )}
+                                                </VStack>
+                                            ) : (
+                                                                                                discussions.map((discussion) => (
+                                                                                                        typeof DiscussionCard !== 'undefined' ? (
+                                                                                                            <DiscussionCard key={discussion.id} discussion={discussion} onPress={(id) => router.push(`/discussion/${id}`)} spotSports={availableSports ?? []} />
+                                                                                                        ) : (
+                                                                                                            <Text key={discussion.id}>{discussion.details.title}</Text>
+                                                                                                        )
+                                                                                                ))
+                                            )}
+                                        </VStack>
+                    </VStack>
+                )}
+
                 {/* Close scroll and layout containers - sports, location, interactions and reviews are passed as slots to SpotDataDetails */}
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            {/* Reply Modal for review comments */}
+            <ReplyModal
+                visible={replyModalVisible}
+                onClose={handleCloseReplyModal}
+                onSubmit={handleSubmitComment}
+                parentComment={selectedParentComment || undefined}
+                headerSlot={
+                    isNewComment && selectedReview ? (
+                        <ReviewHeaderForModal
+                            review={selectedReview}
+                            reviewUser={usersData.get(selectedReview.metadata.createdBy)}
+                        />
+                    ) : undefined
+                }
+                title={isNewComment ? 'Comentar' : 'Responder'}
+                placeholder={isNewComment ? 'Escribe tu comentario...' : 'Escribe tu respuesta...'}
+            />
         </SafeAreaView>
         );
     };

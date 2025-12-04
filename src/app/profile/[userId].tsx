@@ -4,6 +4,7 @@ import { VStack } from '@/src/components/ui/vstack';
 import { useUser } from '@/src/context/user-context';
 import { useFollow } from '@/src/features/relationships';
 import { UserReviewList } from '@/src/features/review';
+import { useAllSportsMap } from '@/src/hooks/use-sports';
 import { ProfileActivityTabs, ProfileHeader } from '@/src/features/user';
 import { useProfile } from '@/src/features/user/hooks/use-profile';
 import { FollowStatus, ProfileActionType } from '@/src/features/user/types/profile-types';
@@ -24,6 +25,7 @@ export default function UserProfile() {
     
         // Usar el hook de perfil
         const { user, isLoading, error, refetch } = useProfile(userId);
+        const { getSportName } = useAllSportsMap();
         // Local optimistic followers counter
         const [localFollowersCount, setLocalFollowersCount] = useState<number | null>(null);
         const { subscribeToFollowEvents } = useUser();
@@ -149,6 +151,7 @@ export default function UserProfile() {
                             profileUser={user}
                             onNavigateToProfile={handleNavigateToProfile}
                             onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
+                            getSportName={getSportName}
                             onEdit={(reviewId, spotId, spotSports) => {
                                 if (!spotId) return;
                                 router.push({

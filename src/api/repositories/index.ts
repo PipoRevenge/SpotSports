@@ -1,8 +1,11 @@
 import { AuthRepositoryImpl } from "./implementations/auth-repository-impl";
+import { commentRepository } from './implementations/comment-repository-impl';
+import { discussionRepository } from './implementations/discussion-repository-impl';
 import { ReviewRepositoryImpl } from "./implementations/review-repository-impl";
 import { SportRepositoryImpl } from "./implementations/sport-repository-impl";
 import { SpotRepositoryImpl } from "./implementations/spot-repository-impl";
 import { UserRepositoryImpl } from "./implementations/user-repository-impl";
+import { voteRepository } from './implementations/vote-repository-impl';
 import { IAuthRepository } from "./interfaces/i-auth-repository";
 import { IReviewRepository } from "./interfaces/i-review-repository";
 import { ISportRepository } from "./interfaces/i-sport-repository";
@@ -23,4 +26,5 @@ export const authRepository: IAuthRepository = new AuthRepositoryImpl();
 export const spotRepository: ISpotRepository = new SpotRepositoryImpl();
 export const sportRepository: ISportRepository = new SportRepositoryImpl();
 export const reviewRepository: IReviewRepository = new ReviewRepositoryImpl();
+export { commentRepository, discussionRepository, voteRepository };
 // relationshipRepository removed: relationship logic migrated into userRepository

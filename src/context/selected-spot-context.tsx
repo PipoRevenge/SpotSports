@@ -2,7 +2,7 @@ import { reviewRepository, sportRepository, spotRepository, userRepository } fro
 import { Review } from "@/src/entities/review/model/review";
 import { SportSpotRating, Spot } from "@/src/entities/spot/model/spot";
 import { User } from "@/src/entities/user/model/user";
-import { SimpleSport } from "@/src/features/review/types/review-types";
+import { SimpleSport } from "@/src/entities/sport/model/sport";
 import React, { createContext, useCallback, useContext, useState } from "react";
 
 /**

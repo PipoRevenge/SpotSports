@@ -1,4 +1,3 @@
-import { DifficultyLevel } from "@/src/types/difficulty";
 import { GeoPoint } from "@/src/types/geopoint";
 import React from "react";
 
@@ -10,14 +9,7 @@ export interface MediaItem {
   duration?: number;
 }
 
-/**
- * Criterios específicos de filtrado por deporte
- */
-export interface SportFilterCriteria {
-  sportId: string;
-  difficulty?: DifficultyLevel;
-  minRating?: number;
-}
+// SportFilterCriteria is defined in entities/spot and imported above
 
 /**
  * Constantes para el rating

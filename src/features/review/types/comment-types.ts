@@ -1,4 +1,4 @@
-import { Comment } from "@/src/entities/review/comment";
+import { Comment } from "@/src/entities/comment";
 
 /**
  * Comentario enriquecido con datos del usuario

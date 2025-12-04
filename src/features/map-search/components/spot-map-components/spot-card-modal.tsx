@@ -1,6 +1,6 @@
 import { MediaCarousel } from "@/src/components/commons/media-carousel";
 import { RatingStars } from "@/src/components/commons/rating/rating-stars";
-import { SpotCollectionSelector } from "@/src/features/spot";
+import Tag from '@/src/components/commons/tag';
 import { X } from "lucide-react-native";
 import React, { useState } from "react";
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from "react-native";
@@ -15,6 +15,11 @@ interface SpotCardModalProps {
   onClose: () => void;
   onPress: (spot: Spot) => void;
   getSportName?: (sportId: string) => string;
+  /**
+   * Slot for collection selector component - injected from app layer
+   * This follows the architecture pattern of feature independence
+   */
+  collectionSlot?: React.ReactNode;
 }
 
 /**
@@ -32,6 +37,7 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
   onClose,
   onPress,
   getSportName,
+  collectionSlot,
 }) => {
   const [isNavigating, setIsNavigating] = useState(false);
   
@@ -88,8 +94,8 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
                   Detalles del Spot
                 </Text>
                 <HStack className="gap-2 items-center">
-                  {/* Selector de colecciones */}
-                  <SpotCollectionSelector spotId={spot.id} />
+                  {/* Selector de colecciones - slot injected from app layer */}
+                  {collectionSlot}
                   
                   {/* Botón cerrar */}
                   <Pressable
@@ -189,14 +195,7 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
                         </Text>
                         <View className="flex-row flex-wrap gap-2">
                           {spot.details.availableSports.map((sportId: string) => (
-                            <View
-                              key={sportId}
-                              className="bg-blue-100 px-3 py-2 rounded-lg"
-                            >
-                              <Text className="text-blue-700 text-sm font-medium">
-                                {getSportName ? getSportName(sportId) : sportId}
-                              </Text>
-                            </View>
+                            <Tag key={sportId} label={getSportName ? getSportName(sportId) : sportId} color={'#E6F6FF'} />
                           ))}
                         </View>
                       </VStack>

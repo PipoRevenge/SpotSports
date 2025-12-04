@@ -14,6 +14,7 @@ interface SpotDataDetailsProps {
     locationSlot?: ReactNode;
     interactionsSlot?: ReactNode;
     reviewsSlot?: ReactNode;
+    discussionsSlot?: ReactNode;
 }
 
 /**
@@ -25,7 +26,7 @@ interface SpotDataDetailsProps {
  * callbacks) via props and slots. This keeps the feature independent and
  * testable, while the app orchestrates navigation and data fetching.
  */
-export function SpotDataDetails({ spot, collectionSlot, sportsSlot, locationSlot, interactionsSlot, reviewsSlot }: SpotDataDetailsProps) {
+export function SpotDataDetails({ spot, collectionSlot, sportsSlot, locationSlot, interactionsSlot, reviewsSlot, discussionsSlot }: SpotDataDetailsProps) {
     return (
         <VStack className="w-full flex-1 px-6 pt-6">
             {/* Galería de imágenes */}
@@ -73,6 +74,8 @@ export function SpotDataDetails({ spot, collectionSlot, sportsSlot, locationSlot
 
             {/* Slot para reviews */}
             {reviewsSlot}
+            {/* Slot para discussions */}
+            {discussionsSlot}
         </VStack>
     );
 }

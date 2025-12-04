@@ -9,6 +9,7 @@ import { CreateReviewForm } from "@/src/features/review";
 import { useReviewLoad } from "@/src/features/review/hooks/use-review-load";
 import { useReviewUpdate } from "@/src/features/review/hooks/use-review-update";
 import { CreateReviewData, ReviewFormData } from "@/src/features/review/types/review-types";
+import { SportSearch } from "@/src/features/sport";
 import { useSelectedSpot } from "@/src/features/spot";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
@@ -180,6 +181,7 @@ export const EditReviewPage = () => {
                             error={updateError}
                             initialData={initialData}
                             isEditMode={true}
+                            sportSearchSlot={SportSearch}
                         />
                     </View>
                 </ScrollView>

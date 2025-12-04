@@ -45,75 +45,108 @@ spots/
     updatedAt: timestamp
     createdBy: reference //referencia al usuario
     
-    ---
+----------------------------------------
     
 [COLECCIÓN RAÍZ]
-  reviews/
-    [idReview]
-      // Contenido de la Review (General)
-      content: string
-      rating: number           // Rating Overall del Spot
-      gallery: string[]       // URLs de descarga
-      
-      // Referencias
-      spotId: string          
-      userId: string
-      SportReviews: array (de strings de sports ratings)
-      sportRatings: map    // Mapa donde la key es el 'sportId'
-        [sportId]:
-          sportRating: number  // Rating específico para este deporte
-          difficulty: number // Dificultad para este deporte
-          content?: string   // Comentario opcional *solo* para este deporte
-      
-      // Métricas de Interacción (planas)
-      likesCount: number
-      dislikesCount: number
-      commentsCount: number
-      reports: number
-      
-      // Metadatos y Estado
-      createdAt: timestamp
-      updatedAt?: timestamp
-      isDeleted?: boolean
-      
-      [SUBCOLECCIÓN]
-      /votes
-        [idUser]
-          isLike: boolean //true = like; false= dislike;
-          //metadatos
-          createdAt: timestamp
-
-      [SUBCOLECCIÓN]
-      /comments
-        [idComment]
-          // Identificación
-          createdBy: string // userId
-          
-          // Contenido
-          content: string 
-          
-          // Métricas de interacción
-          likesCount: number
-          dislikesCount: number
-          reports: number
-          
-          // Metadatos
-          createdAt: timestamp
-          updatedAt?: timestamp
-          isDeleted: boolean
-          
-          [SUBCOLECCIÓN]
-          /votes
-            [idUser]
-              isLike: boolean //true = like; false= dislike;
-              //metadatos
-              createdAt: timestamp
-          
-        
-
-        
-    ---
+reviews/
+  [reviewId] // Formato: {userId}_{spotId}
+    // Contenido de la Review (General)
+    content: string
+    rating: number           // Rating Overall del Spot
+    gallery: string[]       // URLs de descarga
     
+    // Referencias
+    spotId: string          
+    userId: string
+    SportReviews: array (de strings de sports ratings)
+    sportRatings: map    // Mapa donde la key es el 'sportId'
+      [sportId]:
+        sportRating: number  // Rating específico para este deporte
+        difficulty: number // Dificultad para este deporte
+        content?: string   // Comentario opcional *solo* para este deporte
+    
+    // Métricas de Interacción (planas)
+    likesCount: number
+    dislikesCount: number
+    commentsCount: number
+    reports: number
+    
+    // Metadatos y Estado
+    createdAt: timestamp
+    updatedAt?: timestamp
+    isDeleted?: boolean
+    
+    [SUBCOLECCIÓN]
+    /votes
+      [userId]
+        isLike: boolean //true = like; false= dislike;
+        createdAt: timestamp
+
+----------------------------------------
+
+[COLECCIÓN RAÍZ]
+discussions/
+  [discussionId]
+    // Referencias
+    userId: string          // Creador de la discusión
+    spotId: string          // Vacío para discusiones generales
+    
+    // Contenido
+    title: string
+    titleLower: string      // Para búsquedas case-insensitive
+    description: string
+    tags: string[]          // Ej: ['Q&A', 'Tips', 'Events']
+    media: string[]         // URLs de archivos multimedia
+    
+    // Métricas de Interacción
+    likesCount: number
+    dislikesCount: number
+    commentsCount: number
+    reports: number
+    
+    // Metadatos y Estado
+    createdAt: timestamp
+    updatedAt?: timestamp
+    isDeleted: boolean
+    
+    [SUBCOLECCIÓN]
+    /votes
+      [userId]
+        isLike: boolean //true = like; false= dislike;
+        createdAt: timestamp
+
+----------------------------------------
+
+[COLECCIÓN RAÍZ]
+comments/
+  [commentId]
+    // Referencias y Jerarquía
+    userId: string          // Creador del comentario
+    parentId: string        // ID del padre (reviewId, discussionId, o commentId)
+    type: string            // 'review' | 'discussion' (tipo del recurso raíz)
+    level: number           // 0 = comentario directo, 1+ = respuesta anidada
+    
+    // Contenido
+    content: string 
+    media: string[]         // URLs de archivos multimedia
+    tags: string[]          // Tags opcionales
+    
+    // Métricas de interacción
+    likesCount: number
+    dislikesCount: number
+    commentsCount: number   // Contador de respuestas
+    reports: number
+    
+    // Metadatos
+    createdAt: timestamp
+    updatedAt?: timestamp
+    isDeleted: boolean
+    
+    [SUBCOLECCIÓN]
+    /votes
+      [userId]
+        isLike: boolean //true = like; false= dislike;
+        createdAt: timestamp
 
 ----------------------------------------
 
@@ -181,21 +214,25 @@ users/
 
 
 ========================================
-Estructura de Datos Firestorage
+Estructura de Datos Firebase Storage
 ========================================
 
 [Directorio]
 users/
-  [userId] (subdirectorio)
-    profile.jpeg (imagen)
+  [userId]/
+    profile.jpeg
+
 [Directorio]
 spots/
-  [spotId] (subdirectorio)
-    [gallery] (subdirectorio)
-      (uuid)_0(.jpeg/.mp4)
-reviews
-      [reviewId] (subdirectorio)
-        uuid(.jpeg/.mp4)
+  [spotId]/
+    gallery/
+      {uuid}_0.jpeg|.mp4
+    reviews/
+      [reviewId]/
+        {uuid}.jpeg|.mp4
+    discussions/
+      [discussionId]/
+        {uuid}.jpeg|.mp4
 
 
     

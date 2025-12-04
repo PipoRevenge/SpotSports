@@ -1,9 +1,10 @@
 import { HStack } from "@/src/components/ui/hstack";
 import { Icon } from "@/src/components/ui/icon";
+import { Text } from "@/src/components/ui/text";
 import { storage } from "@/src/lib/firebase-config";
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { getDownloadURL, ref } from "firebase/storage";
-import { X } from "lucide-react-native";
+import { Play, X } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
@@ -23,46 +24,45 @@ interface MediaCarouselProps {
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 /**
- * Componente para reproducir videos con manejo robusto del player
+ * Placeholder para videos - muestra un icono de play
+ * Se usa en el carrusel para evitar problemas con el player
  */
-const VideoPlayer: React.FC<{ uri: string; style: any; shouldPlay?: boolean }> = ({ 
+const VideoPlaceholder: React.FC<{ 
+  width: number | string;
+  height: number;
+  onPress?: () => void 
+}> = ({ width: w, height: h, onPress }) => {
+  return (
+    <Pressable onPress={onPress} style={{ width: w, height: h, backgroundColor: '#1f2937', justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 30, padding: 16 }}>
+        <Play size={32} color="#1f2937" />
+      </View>
+      <Text style={{ color: '#fff', fontSize: 12, marginTop: 8 }}>Tap to play</Text>
+    </Pressable>
+  );
+};
+
+/**
+ * Componente para reproducir videos en el modal fullscreen
+ * Solo se renderiza cuando el modal está visible para evitar el error de shared object
+ */
+const FullscreenVideoPlayer: React.FC<{ uri: string; shouldPlay: boolean }> = ({ 
   uri, 
-  style, 
-  shouldPlay = false 
+  shouldPlay 
 }) => {
-  // Solo crear el player si hay una URI válida
-  const player = useVideoPlayer(uri || "", player => {
-    if (uri) {
-      player.loop = true;
-      if (shouldPlay) {
-        player.play();
-      }
+  const player = useVideoPlayer(uri, (p) => {
+    p.loop = true;
+    if (shouldPlay) {
+      p.play();
     }
   });
 
-  useEffect(() => {
-    // Cleanup cuando el componente se desmonta
-    return () => {
-      if (player) {
-        try {
-          player.pause();
-          player.release();
-        } catch {
-          // Ignorar errores de cleanup
-        }
-      }
-    };
-  }, [player]);
-
-  // Si no hay URI válida, no renderizar nada
-  if (!uri) {
-    return null;
-  }
+  if (!uri) return null;
 
   return (
     <VideoView
       player={player}
-      style={style}
+      style={styles.fullscreenMedia}
       contentFit="contain"
       allowsPictureInPicture
       nativeControls
@@ -77,15 +77,7 @@ const VideoPlayer: React.FC<{ uri: string; style: any; shouldPlay?: boolean }> =
  * - Scroll horizontal
  * - Ampliación en modal
  * - Soporte para Storage paths y URLs
- * - Reproducción de videos
- * 
- * @example
- * ```tsx
- * <MediaCarousel 
- *   media={["spots/abc/reviews/xyz/xyz_0.jpg", "spots/abc/reviews/xyz/xyz_1.mp4"]}
- *   altText="Review media"
- * />
- * ```
+ * - Reproducción de videos (solo en modal fullscreen)
  */
 export const MediaCarousel: React.FC<MediaCarouselProps> = ({ 
   media, 
@@ -99,21 +91,13 @@ export const MediaCarousel: React.FC<MediaCarouselProps> = ({
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Determinar el ancho del item
   const itemWidth = width !== undefined ? width : SCREEN_WIDTH - 48;
 
-  /**
-   * Determina si un archivo es video por su extensión
-   */
   const isVideo = (uri: string): boolean => {
     const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'];
     return videoExtensions.some(ext => uri.toLowerCase().includes(ext));
   };
 
-  /**
-   * Convierte rutas de Storage a URLs de descarga
-   * Memoizado para evitar recargas innecesarias
-   */
   const mediaKey = useMemo(() => JSON.stringify(media), [media]);
   
   useEffect(() => {
@@ -126,7 +110,6 @@ export const MediaCarousel: React.FC<MediaCarouselProps> = ({
       try {
         const urls = await Promise.all(
           media.map(async (path) => {
-            // Si ya es una URL completa (http/https o firebasestorage), devolverla directamente
             if (
               path.startsWith('http://') || 
               path.startsWith('https://') ||
@@ -135,14 +118,13 @@ export const MediaCarousel: React.FC<MediaCarouselProps> = ({
               return path;
             }
             
-            // Si es una ruta de Storage (sin dominio), obtener URL de descarga
             try {
               const storageRef = ref(storage, path);
               const url = await getDownloadURL(storageRef);
               return url;
             } catch (error) {
               console.warn('[MediaCarousel] Error getting download URL for:', path, error);
-              return path; // Devolver path original si falla
+              return path;
             }
           })
         );
@@ -150,7 +132,7 @@ export const MediaCarousel: React.FC<MediaCarouselProps> = ({
         setMediaUrls(urls);
       } catch (error) {
         console.error('[MediaCarousel] Error loading media URLs:', error);
-        setMediaUrls(media); // Usar paths originales si falla
+        setMediaUrls(media);
       } finally {
         setLoading(false);
       }
@@ -166,7 +148,8 @@ export const MediaCarousel: React.FC<MediaCarouselProps> = ({
 
   const closeFullscreen = () => {
     setIsModalVisible(false);
-    setSelectedIndex(null);
+    // Delay clearing selectedIndex to allow modal to close first
+    setTimeout(() => setSelectedIndex(null), 300);
   };
 
   if (loading) {
@@ -181,32 +164,42 @@ export const MediaCarousel: React.FC<MediaCarouselProps> = ({
     return null;
   }
 
+  // Renderizar item de media (imagen o placeholder de video)
+  const renderMediaItem = (uri: string, index: number, itemW: number | string, itemH: number) => {
+    const isVideoFile = isVideo(uri);
+    
+    return (
+      <Pressable key={index} onPress={() => openFullscreen(index)}>
+        <View style={{ 
+          width: itemW, 
+          height: itemH, 
+          backgroundColor: '#000', 
+          borderRadius: 12, 
+          overflow: 'hidden' 
+        }}>
+          {isVideoFile ? (
+            <VideoPlaceholder width={itemW} height={itemH} onPress={() => openFullscreen(index)} />
+          ) : (
+            <Image
+              source={{ uri }}
+              alt={`${altText} - ${index + 1}`}
+              style={{ width: '100%', height: itemH }}
+              resizeMode={resizeMode}
+            />
+          )}
+        </View>
+      </Pressable>
+    );
+  };
+
   if (mediaUrls.length === 1) {
     const uri = mediaUrls[0];
     const isVideoFile = isVideo(uri);
 
     return (
       <>
-        <Pressable onPress={() => openFullscreen(0)}>
-          <View style={{ width: itemWidth, height, backgroundColor: '#000', borderRadius: 12, overflow: 'hidden' }}>
-            {isVideoFile ? (
-              <VideoPlayer
-                uri={uri}
-                style={{ width: '100%', height }}
-                shouldPlay={false}
-              />
-            ) : (
-              <Image
-                source={{ uri }}
-                alt={altText}
-                style={{ width: '100%', height }}
-                resizeMode={resizeMode}
-              />
-            )}
-          </View>
-        </Pressable>
+        {renderMediaItem(uri, 0, itemWidth, height)}
 
-        {/* Modal para vista ampliada */}
         <Modal
           visible={isModalVisible}
           transparent={true}
@@ -219,11 +212,7 @@ export const MediaCarousel: React.FC<MediaCarouselProps> = ({
             </Pressable>
             <View style={styles.fullscreenContainer}>
               {isVideoFile ? (
-                <VideoPlayer
-                  uri={uri}
-                  style={styles.fullscreenMedia}
-                  shouldPlay={true}
-                />
+                <FullscreenVideoPlayer uri={uri} shouldPlay={isModalVisible} />
               ) : (
                 <Image
                   source={{ uri }}
@@ -251,43 +240,10 @@ export const MediaCarousel: React.FC<MediaCarouselProps> = ({
         className="w-full"
       >
         <HStack className="gap-3">
-          {mediaUrls.map((mediaUri, index) => {
-            const isVideoFile = isVideo(mediaUri);
-            return (
-              <Pressable
-                key={index}
-                onPress={() => openFullscreen(index)}
-                style={{ width: itemWidth }}
-              >
-                <View style={{ 
-                  width: itemWidth, 
-                  height, 
-                  backgroundColor: '#000', 
-                  borderRadius: 12, 
-                  overflow: 'hidden' 
-                }}>
-                  {isVideoFile ? (
-                    <VideoPlayer
-                      uri={mediaUri}
-                      style={{ width: '100%', height }}
-                      shouldPlay={false}
-                    />
-                  ) : (
-                    <Image
-                      source={{ uri: mediaUri }}
-                      alt={`${altText} - ${index + 1}`}
-                      style={{ width: '100%', height }}
-                      resizeMode={resizeMode}
-                    />
-                  )}
-                </View>
-              </Pressable>
-            );
-          })}
+          {mediaUrls.map((mediaUri, index) => renderMediaItem(mediaUri, index, itemWidth, height))}
         </HStack>
       </ScrollView>
 
-      {/* Modal para vista ampliada */}
       <Modal
         visible={isModalVisible}
         transparent={true}
@@ -299,38 +255,36 @@ export const MediaCarousel: React.FC<MediaCarouselProps> = ({
             <Icon as={X} className="text-white w-8 h-8" />
           </Pressable>
           
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            snapToInterval={Dimensions.get('window').width}
-            decelerationRate="fast"
-            contentOffset={{ x: (selectedIndex || 0) * Dimensions.get('window').width, y: 0 }}
-          >
-            {mediaUrls.map((mediaUri, index) => {
-              const isVideoFile = isVideo(mediaUri);
-              return (
-                <View key={index} style={styles.fullscreenSlide}>
-                  <View style={styles.fullscreenContainer}>
-                    {isVideoFile ? (
-                      <VideoPlayer
-                        uri={mediaUri}
-                        style={styles.fullscreenMedia}
-                        shouldPlay={index === selectedIndex}
-                      />
-                    ) : (
-                      <Image
-                        source={{ uri: mediaUri }}
-                        alt={`${altText} - ${index + 1}`}
-                        style={styles.fullscreenImage}
-                        resizeMode="contain"
-                      />
-                    )}
+          {isModalVisible && selectedIndex !== null && (
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={Dimensions.get('window').width}
+              decelerationRate="fast"
+              contentOffset={{ x: selectedIndex * Dimensions.get('window').width, y: 0 }}
+            >
+              {mediaUrls.map((mediaUri, index) => {
+                const isVideoFile = isVideo(mediaUri);
+                return (
+                  <View key={index} style={styles.fullscreenSlide}>
+                    <View style={styles.fullscreenContainer}>
+                      {isVideoFile ? (
+                        <FullscreenVideoPlayer uri={mediaUri} shouldPlay={index === selectedIndex} />
+                      ) : (
+                        <Image
+                          source={{ uri: mediaUri }}
+                          alt={`${altText} - ${index + 1}`}
+                          style={styles.fullscreenImage}
+                          resizeMode="contain"
+                        />
+                      )}
+                    </View>
                   </View>
-                </View>
-              );
-            })}
-          </ScrollView>
+                );
+              })}
+            </ScrollView>
+          )}
         </View>
       </Modal>
     </>

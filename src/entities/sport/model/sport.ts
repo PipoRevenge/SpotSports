@@ -25,3 +25,11 @@ export interface Sport {
   metadata: SportMetadata;
   activity?: SportActivity;
 }
+
+// Deporte simple (view model o tipo ligero) usado en varios componentes
+export interface SimpleSport {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+}

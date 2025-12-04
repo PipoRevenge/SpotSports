@@ -1,13 +1,10 @@
 import { useAppAlert } from '@/src/context/app-alert-context';
 import { useSelectedSpot } from "@/src/context/selected-spot-context";
-import {
-  SpotCollectionButton,
-  SpotCollectionModal,
-  showSpotCollectionActionSheet,
-  useSpotCollection
-} from "@/src/features/spot-collection";
 import React, { useState } from "react";
 import { Platform } from "react-native";
+import { useSpotCollection } from "../hooks/use-spot-collection";
+import { SpotCollectionButton } from "./spot-collection-button";
+import { SpotCollectionModal, showSpotCollectionActionSheet } from "./spot-collection-modal";
 
 interface SpotCollectionSelectorProps {
   spotId: string;

@@ -1,4 +1,4 @@
-import { Comment } from "@/src/entities/review/comment";
+import { Comment } from "@/src/entities/comment";
 import { Review, ReviewDetails } from "@/src/entities/review/model/review";
 
 /**
@@ -76,6 +76,7 @@ export interface IReviewRepository {
   /**
    * Vota en una review (like o dislike)
    * Si el usuario ya votó, actualiza el voto
+   * @deprecated - Moved to IVoteRepository; use voteRepository.vote('review', reviewId, userId, isLike) instead.
    * @param spotId - ID del spot
    * @param reviewId - ID de la review
    * @param userId - ID del usuario que vota
@@ -85,6 +86,7 @@ export interface IReviewRepository {
 
   /**
    * Elimina el voto de una review
+   * @deprecated - Moved to IVoteRepository; use voteRepository.removeVote('review', reviewId, userId) instead.
    * @param spotId - ID del spot
    * @param reviewId - ID de la review
    * @param userId - ID del usuario que quita el voto
@@ -93,6 +95,7 @@ export interface IReviewRepository {
 
   /**
    * Obtiene el voto de un usuario en una review
+   * @deprecated - Moved to IVoteRepository; use voteRepository.getUserVote('review', reviewId, userId) instead.
    * @param spotId - ID del spot
    * @param reviewId - ID de la review
    * @param userId - ID del usuario
@@ -135,6 +138,7 @@ export interface IReviewRepository {
 
   /**
    * Vota en un comentario (like o dislike)
+   * @deprecated - Moved to IVoteRepository; use voteRepository.vote('comment', commentId, userId, isLike) instead.
    * @param reviewId - ID de la review
    * @param commentId - ID del comentario
    * @param userId - ID del usuario que vota
@@ -144,6 +148,7 @@ export interface IReviewRepository {
 
   /**
    * Elimina el voto de un comentario
+   * @deprecated - Moved to IVoteRepository; use voteRepository.removeVote('comment', commentId, userId) instead.
    * @param reviewId - ID de la review
    * @param commentId - ID del comentario
    * @param userId - ID del usuario que quita el voto
@@ -152,6 +157,7 @@ export interface IReviewRepository {
 
   /**
    * Obtiene el voto de un usuario en un comentario
+   * @deprecated - Moved to IVoteRepository; use voteRepository.getUserVote('comment', commentId, userId) instead.
    * @param reviewId - ID de la review
    * @param commentId - ID del comentario
    * @param userId - ID del usuario

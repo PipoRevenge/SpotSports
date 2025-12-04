@@ -45,7 +45,7 @@ export const SpotSportsSelector: React.FC<SpotSportsSelectorProps> = ({
     const newSport: ReviewSportFormData = {
       sportId: sport.id,
       name: sport.name,
-      sportRating: 0,
+      sportRating: 1, // Default to minimum rating so validation passes
       difficulty: 1.25, // Valor numérico por defecto (Beginner range: 0-2.5)
     };
 

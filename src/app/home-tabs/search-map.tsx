@@ -1,4 +1,5 @@
 import { MapMarker } from "@/src/components/commons/map";
+import Tag from '@/src/components/commons/tag';
 import { HStack } from "@/src/components/ui/hstack";
 import { SafeAreaView } from "@/src/components/ui/safe-area-view";
 import { Text } from "@/src/components/ui/text";
@@ -20,6 +21,7 @@ import {
   SpotSearchFilterModal,
   useSelectedSpot,
 } from "@/src/features/spot";
+import { SpotCollectionSelector } from "@/src/features/spot-collection";
 import { useUserLocation } from "@/src/hooks/use-user-location";
 import { GeoPoint } from "@/src/types/geopoint";
 import { useFocusEffect } from "@react-navigation/native";
@@ -258,12 +260,7 @@ export default function SearchMapScreen() {
           {spot.details.availableSports.length > 0 && (
             <HStack className="flex-wrap gap-1 pt-1">
               {spot.details.availableSports.slice(0, 3).map((sportId: string) => (
-                <View
-                  key={sportId}
-                  className="bg-blue-100 px-2 py-1 rounded-full"
-                >
-                  <Text className="text-xs text-blue-700">{getSportName(sportId)}</Text>
-                </View>
+                <Tag key={sportId} label={getSportName(sportId)} color={'#E6F6FF'} />
               ))}
               {spot.details.availableSports.length > 3 && (
                 <Text className="text-xs text-gray-500">
@@ -460,6 +457,7 @@ export default function SearchMapScreen() {
               onClose={handleCloseSpotCard}
               onPress={handleSpotPress}
               getSportName={getSportName}
+              collectionSlot={selectedSpot ? <SpotCollectionSelector spotId={selectedSpot.id} /> : undefined}
             />
           </View>
         ) : (

@@ -12,7 +12,7 @@ export type { MediaItem, SportFilterCriteria, SpotCreateFormData, SpotCreateForm
 export { SpotCreateForm } from './components/spot-create/spot-create-form';
 
 // Components - View
-export { SpotCollectionSelector } from './components/spot-view/spot-collection-selector';
+// Note: SpotCollectionSelector moved to spot-collection feature
 export { SpotDataDetails } from './components/spot-view/spot-data-details';
 export { SpotImageGallery } from './components/spot-view/spot-image-gallery';
 export { SpotSportsTable } from './components/spot-view/spot-sports-table';
@@ -25,11 +25,11 @@ export { SpotSearchFilterModal } from './components/spot-search/spot-search-filt
 
 // Components - Filter Components  
 export {
-    DistanceFilter,
-    RatingFilter,
-    SportFilter,
-    SportSelectedFilter,
-    VerifiedFilter
+  DistanceFilter,
+  RatingFilter,
+  SportFilter,
+  SportSelectedFilter,
+  VerifiedFilter
 } from './components/spot-filter-components';
 
 // Hooks
@@ -39,8 +39,7 @@ export { useSpotsByIds } from './hooks/use-spots';
 
 // Utils
 export {
-    validateAvailableSports, validateContactEmail,
-    validateContactWebsite, validateLocation, validateMedia, validateSpotCreateForm, validateSpotDescription, validateSpotName
+  validateAvailableSports, validateContactEmail,
+  validateContactWebsite, validateLocation, validateMedia, validateSpotCreateForm, validateSpotDescription, validateSpotName
 } from './utils/spot-validations';
-
 

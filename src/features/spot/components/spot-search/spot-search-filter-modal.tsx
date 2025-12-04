@@ -3,25 +3,17 @@ import { Heading } from "@/src/components/ui/heading";
 import { HStack } from "@/src/components/ui/hstack";
 import { Modal, ModalBackdrop, ModalBody, ModalContent, ModalFooter, ModalHeader } from "@/src/components/ui/modal";
 import { VStack } from "@/src/components/ui/vstack";
-import { SportSimple } from "@/src/features/sport/types/sport-types";
+import { SimpleSport as SportSimple } from "@/src/entities/sport/model/sport";
 import React, { useState } from "react";
 import { ScrollView } from "react-native";
 import {
     DistanceFilter,
     RatingFilter,
     SportFilter,
-    SportFilterCriteria,
     SportSelectedFilter,
     VerifiedFilter,
 } from "../spot-filter-components";
-
-export interface SpotSearchFilters {
-  sports: SportSimple[];
-  sportCriteria: SportFilterCriteria[];
-  maxDistance?: number; // Opcional - solo aplica cuando está definido
-  minRating: number;
-  onlyVerified: boolean;
-}
+import { SpotSearchFilters } from '@/src/entities/spot/types/spot-search-types';
 
 interface SpotSearchFilterModalProps {
   visible: boolean;

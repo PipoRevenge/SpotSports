@@ -4,14 +4,25 @@ import { ScrollView } from "@/src/components/ui/scroll-view";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { useAppAlert } from '@/src/context/app-alert-context';
-import { SportSearch } from "@/src/features/sport/components/sport-search/sport-search";
-import { SportSimple } from "@/src/features/sport/types/sport-types";
+import { SimpleSport as SportSimple } from "@/src/entities/sport/model/sport";
 import React, { useState } from "react";
 import { Modal } from "react-native";
 import {
   ReviewSportFormData,
   SimpleSport,
 } from "../../types/review-types";
+
+/**
+ * Props for the SportSearchSlot component that should be injected
+ */
+export interface SportSearchSlotProps {
+  onSportSelect: (sport: SportSimple) => void;
+  excludeIds: string[];
+  placeholder?: string;
+  showAllOnEmpty?: boolean;
+  maxResults?: number;
+  showCategoryFilter?: boolean;
+}
 
 interface AddSportModalProps {
   visible: boolean;
@@ -20,6 +31,11 @@ interface AddSportModalProps {
   excludeSportIds: string[];
   spotSports?: SimpleSport[];
   availableSportIds?: string[]; // IDs de deportes ya disponibles en el spot
+  /**
+   * Slot for sport search component - must be provided by the app layer
+   * This follows the architecture pattern of feature independence
+   */
+  sportSearchSlot?: React.ComponentType<SportSearchSlotProps>;
 }
 
 /**
@@ -32,6 +48,7 @@ export const AddSportModal: React.FC<AddSportModalProps> = ({
   excludeSportIds,
   spotSports = [],
   availableSportIds = [],
+  sportSearchSlot: SportSearchComponent,
 }) => {
   const [selectedSport, setSelectedSport] = useState<SportSimple | null>(null);
   
@@ -55,7 +72,7 @@ export const AddSportModal: React.FC<AddSportModalProps> = ({
     const newSport: ReviewSportFormData = {
       sportId: selectedSport.id,
       name: selectedSport.name,
-      sportRating: 0,
+      sportRating: 1, // Default to minimum rating so validation passes
       difficulty: 1.25, // Beginner por defecto (centro del rango 0-2.5)
     };
 
@@ -92,14 +109,22 @@ export const AddSportModal: React.FC<AddSportModalProps> = ({
             </VStack>
 
             {/* Buscador de deportes */}
-            <SportSearch
-              onSportSelect={handleSportSelect}
-              excludeIds={allExcludedIds}
-              placeholder="Search for a sport..."
-              showAllOnEmpty={true}
-              maxResults={20}
-              showCategoryFilter={true}
-            />
+            {SportSearchComponent ? (
+              <SportSearchComponent
+                onSportSelect={handleSportSelect}
+                excludeIds={allExcludedIds}
+                placeholder="Search for a sport..."
+                showAllOnEmpty={true}
+                maxResults={20}
+                showCategoryFilter={true}
+              />
+            ) : (
+              <Box className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                <Text className="text-sm text-yellow-800 text-center">
+                  Sport search component not provided. Please inject a SportSearch component via the sportSearchSlot prop.
+                </Text>
+              </Box>
+            )}
 
             {/* Deporte seleccionado */}
             {selectedSport && (

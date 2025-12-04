@@ -1,4 +1,4 @@
-import { Sport as DomainSport } from '@/src/entities/sport/model/sport';
+import { Sport as DomainSport, SimpleSport as DomainSimpleSport } from '@/src/entities/sport/model/sport';
 import { SPORT_CATEGORIES } from '../utils/sport-constants';
 
 // Re-exportar el tipo Sport del dominio
@@ -12,11 +12,8 @@ export type SportCategory = typeof SPORT_CATEGORIES[keyof typeof SPORT_CATEGORIE
 /**
  * Tipo simplificado para la UI de deportes
  */
-export interface SportSimple {
-  id: string;
-  name: string;
-  category?: SportCategory; // Opcional - los deportes pueden no tener categoría
-}
+// Reusar el tipo SimpleSport del dominio para mantener consistencia
+export type SportSimple = DomainSimpleSport & { category?: SportCategory };
 
 /**
  * Deporte con estado de selección para componentes de UI

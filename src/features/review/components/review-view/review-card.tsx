@@ -18,6 +18,7 @@ import { Image, View } from 'react-native';
 import { Edit, MessageCircle, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react-native";
 import React, { useState } from "react";
 
+import type { CommentWithUser } from '@/src/features/comment';
 import { useReviewVote } from "../../hooks/use-review-vote";
 import { ReviewComments } from "./review-comments";
 
@@ -35,6 +36,13 @@ export interface ReviewCardProps {
   onEdit?: (reviewId: string) => void; // Callback para editar review
   onDelete?: (reviewId: string) => void; // Callback para eliminar review
   onNavigateToProfile?: (userId: string) => void;
+  // Comment slots and callbacks
+  /** Slot for the reply modal - injected from app/ layer */
+  commentModalSlot?: React.ReactNode;
+  /** Callback when user wants to reply to a comment */
+  onOpenReplyModal?: (comment: CommentWithUser, review: Review) => void;
+  /** Callback when user wants to add a new comment to this review */
+  onOpenNewCommentModal?: (review: Review) => void;
 }
 
 /**
@@ -70,6 +78,9 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   onEdit,
   onDelete,
   onNavigateToProfile,
+  commentModalSlot,
+  onOpenReplyModal,
+  onOpenNewCommentModal,
 }) => {
   const { user: currentUser } = useUser();
   const userName = user?.userDetails?.userName || user?.userDetails?.fullName || "Usuario Anónimo";
@@ -329,8 +340,10 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
         <ReviewComments
           reviewId={review.id}
           initialCommentsCount={review.activity?.commentsCount || 0}
-          // Pasamos la función de navegación si está disponible
           onNavigateToProfile={onNavigateToProfile}
+          replyModalSlot={commentModalSlot}
+          onOpenReplyModal={onOpenReplyModal ? (comment) => onOpenReplyModal(comment, review) : undefined}
+          onOpenNewCommentModal={onOpenNewCommentModal ? () => onOpenNewCommentModal(review) : undefined}
         />
       </VStack>
     </Card>

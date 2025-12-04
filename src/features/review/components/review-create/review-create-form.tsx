@@ -42,7 +42,7 @@ import {
   REVIEW_VALIDATION_LIMITS,
 } from "../../utils/review-constants";
 import { validateReviewForm } from "../../utils/review-validation";
-import { AddSportModal } from "./add-sport-modal";
+import { AddSportModal, SportSearchSlotProps } from "./add-sport-modal";
 import { SportRatingItem } from "./sport-rating-item";
 import { SpotSportsSelector } from "./spot-sports-selector";
 
@@ -56,6 +56,11 @@ interface CreateReviewFormProps {
   error?: string | null;
   initialData?: ReviewFormData; // Datos iniciales para edición
   isEditMode?: boolean; // Modo edición
+  /**
+   * Slot for sport search component - must be provided by the app layer
+   * This follows the architecture pattern of feature independence
+   */
+  sportSearchSlot?: React.ComponentType<SportSearchSlotProps>;
 }
 
 /**
@@ -72,6 +77,7 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
   error = null,
   initialData,
   isEditMode = false,
+  sportSearchSlot,
 }) => {
   // Estado del formulario
   const [formData, setFormData] = useState<ReviewFormData>(
@@ -452,6 +458,7 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
         excludeSportIds={excludedSportIds}
         spotSports={spotSports}
         availableSportIds={availableSportIds}
+        sportSearchSlot={sportSearchSlot}
       />
     </Box>
   );

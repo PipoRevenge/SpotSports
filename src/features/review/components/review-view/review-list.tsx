@@ -5,6 +5,7 @@ import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { Review } from "@/src/entities/review/model/review";
 import { User } from "@/src/entities/user/model/user";
+import { CommentWithUser } from "@/src/features/comment";
 import { ChevronDown } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
@@ -43,6 +44,14 @@ export interface ReviewListProps {
   onCreate?: () => void;
   onDelete?: (reviewId: string) => void;
   onNavigateToProfile?: (userId: string) => void;
+  
+  // Comment modal slots (propagated to ReviewCard)
+  /** Slot for the reply modal - injected from app/ layer */
+  commentModalSlot?: React.ReactNode;
+  /** Callback when user wants to reply to a comment */
+  onOpenReplyModal?: (comment: CommentWithUser, review: Review) => void;
+  /** Callback when user wants to add a new comment to a review */
+  onOpenNewCommentModal?: (review: Review) => void;
   
   // Personalización
   emptyMessage?: string;
@@ -104,6 +113,9 @@ export const ReviewList: React.FC<ReviewListProps> = ({
   onCreate,
   onDelete,
   onNavigateToProfile,
+  commentModalSlot,
+  onOpenReplyModal,
+  onOpenNewCommentModal,
   emptyMessage = "No hay reviews disponibles",
   listHeaderComponent,
   totalReviews = 0,
@@ -113,7 +125,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
   const [userReviewId, setUserReviewId] = useState<string | null>(null);
   const { loadReview } = useReviewLoad();
   
-  // Verificar si el usuario ya tiene una review (SOLO una vez al montar)
+  // Verificar si el usuario ya tiene una review
   useEffect(() => {
     let mounted = true;
     const checkUserReview = async () => {
@@ -126,7 +138,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
     checkUserReview();
     
     return () => { mounted = false; };
-  }, []); // Solo en mount, sin spotId ni loadReview
+  }, [spotId, loadReview]);
 
   // Determinar si realmente no hay reviews en el spot (sin filtros)
   const hasNoReviewsAtAll = totalReviews === 0;
@@ -206,7 +218,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
    * Lista de reviews (con o sin resultados de filtro)
    */
   return (
-    <VStack className="gap-3">
+    <VStack className="gap-3 pt-3">
       {/* Header adicional (ej: detalles del spot) */}
       {listHeaderComponent}
 
@@ -312,6 +324,9 @@ export const ReviewList: React.FC<ReviewListProps> = ({
                   onEdit={onEdit}
                   onDelete={onDelete}
                   onNavigateToProfile={onNavigateToProfile}
+                  commentModalSlot={commentModalSlot}
+                  onOpenReplyModal={onOpenReplyModal}
+                  onOpenNewCommentModal={onOpenNewCommentModal}
                 />
                 {index < reviews.length - 1 && (
                   <View className="px-6">

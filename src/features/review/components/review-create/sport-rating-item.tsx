@@ -1,10 +1,11 @@
 import { RatingDifficultySlider } from '@/src/components/commons/rating/rating-difficulty-slider';
+import { RatingStars } from '@/src/components/commons/rating/rating-stars';
 import { Box } from '@/src/components/ui/box';
 import { Button, ButtonIcon } from '@/src/components/ui/button';
 import {
-  FormControl,
-  FormControlLabel,
-  FormControlLabelText,
+    FormControl,
+    FormControlLabel,
+    FormControlLabelText,
 } from '@/src/components/ui/form-control';
 import { HStack } from '@/src/components/ui/hstack';
 import { Text } from '@/src/components/ui/text';
@@ -15,7 +16,7 @@ import { numberToDifficulty } from '@/src/types/difficulty';
 import { X } from 'lucide-react-native';
 import React from 'react';
 import {
-  ReviewSportFormData,
+    ReviewSportFormData,
 } from '../../types/review-types';
 
 interface SportRatingItemProps {
@@ -87,6 +88,22 @@ export const SportRatingItem: React.FC<SportRatingItemProps> = ({
             <ButtonIcon as={X} className="text-gray-500" />
           </Button>
         </HStack>
+
+        {/* Sport Quality rating */}
+        <FormControl isRequired>
+          <FormControlLabel>
+            <FormControlLabelText className="text-sm text-gray-700">
+              Sport Quality
+            </FormControlLabelText>
+          </FormControlLabel>
+          <RatingStars
+            rating={sport.sportRating ?? 0}
+            onRatingChange={handleRatingChange}
+            editable={!isLoading}
+            size="md"
+            allowHalf
+          />
+        </FormControl>
 
         {/* Dificultad */}
         <FormControl isRequired>

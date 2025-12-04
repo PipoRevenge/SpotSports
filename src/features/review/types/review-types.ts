@@ -1,4 +1,5 @@
 import { MediaItem } from "@/src/components/commons/media-picker/media-picker-carousel";
+import { SimpleSport as DomainSimpleSport } from '@/src/entities/sport/model/sport';
 
 /**
  * Tipos de dificultad para deportes
@@ -50,9 +51,5 @@ export interface ReviewFormData {
 /**
  * Deporte simple para búsqueda
  */
-export interface SimpleSport {
-  id: string;
-  name: string;
-  description?: string;
-  category?: string;
-}
+// Reusar tipo SimpleSport del dominio para mantener consistencia across features
+export type SimpleSport = DomainSimpleSport;

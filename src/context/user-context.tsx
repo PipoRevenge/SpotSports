@@ -50,7 +50,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                 await new Promise(resolve => setTimeout(resolve, 1000));
               } else {
                 // If all attempts failed, navigate to auth to complete registration
-                console.error("Failed" , userError);
+                console.error("Failed loading userData", userError);
                 setUser(null);
                 router.replace('/auth/authentication');
               }
