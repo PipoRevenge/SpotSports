@@ -12,7 +12,7 @@ export interface FirestoreSportRating {
 
 /**
  * Estructura de la review principal en Firestore
- * Ubicación: reviews/[reviewId]
+ * Ubicación: spots/[spotId]/reviews/[reviewId]
  */
 export interface FirestoreReviewData {
   // Contenido de la Review (General)
@@ -59,13 +59,12 @@ export interface FirestoreSportReviewData {
 
 /**
  * Estructura de spot_sport_metrics en Firestore
- * Ubicación: spot_sport_metrics/[idMetric]
+ * Ubicación: spots/[spotId]/sport_metrics/[sportId]
+ * 
+ * NOTA: spot_ref y sport_ref ya no son necesarios porque están
+ * implícitos en el path de la subcollection
  */
 export interface FirestoreSpotSportMetrics {
-  // Referencias Principales (DocumentReference de Firestore)
-  spot_ref: DocumentReference; // Referencia a spots/[spotId]
-  sport_ref: DocumentReference; // Referencia a sports/[sportId]
-  
   // Métricas Calculadas
   avg_difficulty: number;
   avg_rating: number; // Promedio de sportRating (antes avg_quality)

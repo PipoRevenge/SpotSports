@@ -3,7 +3,7 @@ import { Discussion } from '@/src/entities/discussion/model/discussion';
 import { User } from '@/src/entities/user/model/user';
 import { useCallback, useEffect, useState } from 'react';
 
-export function useDiscussionDetails(discussionId?: string) {
+export function useDiscussionDetails(discussionId?: string, spotId?: string) {
   const [discussion, setDiscussion] = useState<Discussion | null>(null);
   const [author, setAuthor] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
@@ -18,7 +18,8 @@ export function useDiscussionDetails(discussionId?: string) {
     setLoading(true);
     setError(null);
     try {
-      const d = await discussionRepository.getDiscussionById(id);
+      // spotId is optional - uses collectionGroup fallback if not provided
+      const d = await discussionRepository.getDiscussionById(id, spotId);
       setDiscussion(d);
       
       // Load author data
@@ -37,7 +38,7 @@ export function useDiscussionDetails(discussionId?: string) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [spotId]);
 
   useEffect(() => { load(discussionId); }, [discussionId, load]);
 

@@ -1,5 +1,5 @@
 export interface DiscussionDetails {
-  spotId?: string; // Optional: if undefined, it's a general discussion (e.g., about sports, community)
+  spotId: string; // Required: discussions are now subcollections under spots
   title: string;
   description?: string;
   tags?: string[];

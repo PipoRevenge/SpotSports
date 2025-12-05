@@ -181,7 +181,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
         {listHeaderComponent}
 
         {/* Filtros y contador de reviews */}
-        <VStack className="gap-3 px-6 pb-4">
+        <VStack className="gap-3 p-4">
           {/* Contador de reviews y botón de escribir */}
           <HStack className="justify-between items-center">
             <Text className="text-lg font-bold text-gray-900">
@@ -206,8 +206,8 @@ export const ReviewList: React.FC<ReviewListProps> = ({
         </VStack>
 
         {/* Mensaje vacío */}
-        <VStack className="items-center justify-center p-8">
-          <Text className="text-gray-400 text-6xl pb-4">💬</Text>
+        <VStack className="items-center justify-center p-8 h-auto">
+          <Text className="text-gray-400 text-6xl p-4">💬</Text>
           <Text className="text-gray-600 text-center">{emptyMessage}</Text>
         </VStack>
       </VStack>

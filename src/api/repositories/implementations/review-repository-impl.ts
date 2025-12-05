@@ -1,10 +1,9 @@
-import { Comment } from "@/src/entities/comment/model/comment";
 import { Review, ReviewDetails, ReviewSport } from "@/src/entities/review/model/review";
 import { firestore, storage } from "@/src/lib/firebase-config";
 import { ref as dbRef, getDatabase, push } from "firebase/database";
 import {
-    addDoc,
     collection,
+    collectionGroup,
     doc,
     limit as firestoreLimit,
     getDoc,
@@ -14,7 +13,6 @@ import {
     query,
     runTransaction,
     Timestamp,
-    updateDoc,
     where,
     writeBatch
 } from "firebase/firestore";
@@ -27,17 +25,17 @@ import {
     FirestoreSpotSportMetrics,
     mapFirestoreToReview
 } from "../mappers/review-mapper";
-import { voteRepository } from './vote-repository-impl';
+import { voteRepository } from "./vote-repository-impl";
 
 /**
  * Implementación del repositorio de reviews usando Firestore
  * 
- * Estructura de datos en Firestore según firebase_structure_review_restructure.txt:
- * - reviews/{reviewId} - Review principal en colección raíz con spotId y userId
- * - reviews/{reviewId}/votes/{userId} - Votos (likes/dislikes) como subcolección
- * - reviews/{reviewId}/comments/{commentId} - Comentarios como subcolección
+ * Estructura de datos en Firestore según firebase_structure.txt:
+ * - spots/{spotId}/reviews/{reviewId} - Review como subcolección del spot
+ * - spots/{spotId}/reviews/{reviewId}/votes/{userId} - Votos (likes/dislikes) como subcolección
+ * - spots/{spotId}/reviews/{reviewId}/comments/{commentId} - Comentarios como subcolección
  * - sportRatings - Map dentro del documento review (key: sportId)
- * - spot_sport_metrics/{idMetric} - Métricas agregadas (spots + sports)
+ * - spots/{spotId}/sport_metrics/{sportId} - Métricas agregadas por deporte
  * - Las imágenes/videos se guardan en: /spots/{spotId}/reviews/{reviewId}/
  */
 export class ReviewRepositoryImpl implements IReviewRepository {
@@ -96,8 +94,8 @@ export class ReviewRepositoryImpl implements IReviewRepository {
         // ============================================================
 
         // 1.0. Verificar si ya existe una review de este usuario en este spot
-        // NUEVA ESTRUCTURA: reviews está en la colección raíz
-        const reviewRef = doc(firestore, `reviews/${reviewId}`);
+        // ESTRUCTURA: reviews es subcolección de spots
+        const reviewRef = doc(firestore, `spots/${spotId}/reviews/${reviewId}`);
         const existingReviewDoc = await transaction.get(reviewRef);
         const isUpdate = existingReviewDoc.exists();
 
@@ -149,28 +147,18 @@ export class ReviewRepositoryImpl implements IReviewRepository {
         const metricsData: Map<string, { ref: any; data: FirestoreSpotSportMetrics | null }> = new Map();
         
         for (const sportReview of reviewData.reviewSports) {
-          const spotDocRef = doc(firestore, 'spots', spotId);
-          const sportDocRef = doc(firestore, 'sports', sportReview.sportId);
+          // sport_metrics es subcolección de spots: spots/{spotId}/sport_metrics/{sportId}
+          const sportMetricRef = doc(firestore, `spots/${spotId}/sport_metrics/${sportReview.sportId}`);
+          const sportMetricDoc = await transaction.get(sportMetricRef);
           
-          const metricsQuery = query(
-            collection(firestore, 'spot_sport_metrics'),
-            where('spot_ref', '==', spotDocRef),
-            where('sport_ref', '==', sportDocRef),
-            firestoreLimit(1)
-          );
-
-          const metricsSnapshot = await getDocs(metricsQuery);
-          
-          if (!metricsSnapshot.empty) {
-            const metricDoc = metricsSnapshot.docs[0];
-            const metricRef = doc(firestore, `spot_sport_metrics/${metricDoc.id}`);
+          if (sportMetricDoc.exists()) {
             metricsData.set(sportReview.sportId, {
-              ref: metricRef,
-              data: metricDoc.data() as FirestoreSpotSportMetrics
+              ref: sportMetricRef,
+              data: sportMetricDoc.data() as FirestoreSpotSportMetrics
             });
           } else {
             metricsData.set(sportReview.sportId, {
-              ref: doc(collection(firestore, 'spot_sport_metrics')),
+              ref: sportMetricRef,
               data: null
             });
           }
@@ -186,24 +174,14 @@ export class ReviewRepositoryImpl implements IReviewRepository {
           for (const previousSportId of previousSportIds) {
             if (!currentSportIds.has(previousSportId)) {
               // Este deporte fue eliminado de la review
-              const spotDocRef = doc(firestore, 'spots', spotId);
-              const sportDocRef = doc(firestore, 'sports', previousSportId);
+              // sport_metrics es subcolección de spots: spots/{spotId}/sport_metrics/{sportId}
+              const sportMetricRef = doc(firestore, `spots/${spotId}/sport_metrics/${previousSportId}`);
+              const sportMetricDoc = await transaction.get(sportMetricRef);
               
-              const metricsQuery = query(
-                collection(firestore, 'spot_sport_metrics'),
-                where('spot_ref', '==', spotDocRef),
-                where('sport_ref', '==', sportDocRef),
-                firestoreLimit(1)
-              );
-
-              const metricsSnapshot = await getDocs(metricsQuery);
-              
-              if (!metricsSnapshot.empty) {
-                const metricDoc = metricsSnapshot.docs[0];
-                const metricRef = doc(firestore, `spot_sport_metrics/${metricDoc.id}`);
+              if (sportMetricDoc.exists()) {
                 removedSportsMetrics.set(previousSportId, {
-                  ref: metricRef,
-                  data: metricDoc.data() as FirestoreSpotSportMetrics
+                  ref: sportMetricRef,
+                  data: sportMetricDoc.data() as FirestoreSpotSportMetrics
                 });
               }
             }
@@ -292,12 +270,10 @@ export class ReviewRepositoryImpl implements IReviewRepository {
             }
           } else {
             // Crear nuevas métricas - deporte nuevo en este spot
-            const spotDocRef = doc(firestore, 'spots', spotId);
-            const sportDocRef = doc(firestore, 'sports', sportReview.sportId);
+            // La ubicación es spots/{spotId}/sport_metrics/{sportId}
+            // spot_ref y sport_ref son implícitos en el path
             
             const newMetricData: FirestoreSpotSportMetrics = {
-              spot_ref: spotDocRef,
-              sport_ref: sportDocRef,
               avg_rating: sportReview.sportRating,
               avg_difficulty: sportReview.difficulty,
               review_count: 1,
@@ -419,11 +395,26 @@ export class ReviewRepositoryImpl implements IReviewRepository {
 
   /**
    * Obtiene una review por su ID
+   * Requiere spotId para acceder a la subcolección correcta
    */
   async getReviewById(reviewId: string, spotId?: string): Promise<Review | null> {
     try {
-      // NUEVA ESTRUCTURA: reviews está en la colección raíz
-      const reviewRef = doc(firestore, `reviews/${reviewId}`);
+      // Si no tenemos spotId, intentamos extraerlo del reviewId (formato: userId_spotId)
+      let effectiveSpotId = spotId;
+      if (!effectiveSpotId) {
+        const parts = reviewId.split('_');
+        if (parts.length >= 2) {
+          effectiveSpotId = parts.slice(1).join('_'); // En caso de que spotId contenga _
+        }
+      }
+      
+      if (!effectiveSpotId) {
+        console.error('[ReviewRepository] spotId is required to get review');
+        return null;
+      }
+      
+      // ESTRUCTURA: reviews es subcolección de spots
+      const reviewRef = doc(firestore, `spots/${effectiveSpotId}/reviews/${reviewId}`);
       const reviewDoc = await getDoc(reviewRef);
 
       if (!reviewDoc.exists()) {
@@ -475,11 +466,10 @@ export class ReviewRepositoryImpl implements IReviewRepository {
     offset: number = 0
   ): Promise<Review[]> {
     try {
-      // NUEVA ESTRUCTURA: reviews está en la colección raíz, filtramos por spotId
-      const reviewsRef = collection(firestore, `reviews`);
+      // ESTRUCTURA: reviews es subcolección de spots
+      const reviewsRef = collection(firestore, `spots/${spotId}/reviews`);
       const q = query(
         reviewsRef,
-        where("spotId", "==", spotId),
         where("isDeleted", "==", false),
         orderBy("createdAt", "desc"),
         firestoreLimit(limit)
@@ -511,6 +501,7 @@ export class ReviewRepositoryImpl implements IReviewRepository {
 
   /**
    * Obtiene todas las reviews de un usuario
+   * Usa collectionGroup query para buscar en todas las subcollections de reviews
    */
   async getReviewsByUser(
     userId: string,
@@ -518,8 +509,8 @@ export class ReviewRepositoryImpl implements IReviewRepository {
     offset: number = 0
   ): Promise<Review[]> {
     try {
-      // NUEVA ESTRUCTURA: reviews está en la colección raíz, filtramos por userId
-      const reviewsRef = collection(firestore, `reviews`);
+      // Usar collectionGroup para buscar en todas las subcollections 'reviews'
+      const reviewsRef = collectionGroup(firestore, 'reviews');
       const q = query(
         reviewsRef,
         where("userId", "==", userId),
@@ -569,8 +560,8 @@ export class ReviewRepositoryImpl implements IReviewRepository {
     try {
       console.log('[ReviewRepository] Updating review:', reviewId, 'for spot:', spotId);
       
-      // Obtener review existente - NUEVA ESTRUCTURA: colección raíz
-      const reviewRef = doc(firestore, `reviews/${reviewId}`);
+      // Obtener review existente - ESTRUCTURA: subcolección de spots
+      const reviewRef = doc(firestore, `spots/${spotId}/reviews/${reviewId}`);
       const reviewDoc = await getDoc(reviewRef);
       
       if (!reviewDoc.exists()) {
@@ -714,7 +705,7 @@ export class ReviewRepositoryImpl implements IReviewRepository {
       console.log('[ReviewRepository] Deleting review:', reviewId, 'from spot:', spotId);
       
       // Primero leer la review para obtener las URLs de multimedia (antes de la transacción)
-      const reviewRef = doc(firestore, `reviews/${reviewId}`);
+      const reviewRef = doc(firestore, `spots/${spotId}/reviews/${reviewId}`);
       const initialReviewDoc = await getDoc(reviewRef);
       
       if (!initialReviewDoc.exists()) {
@@ -732,8 +723,8 @@ export class ReviewRepositoryImpl implements IReviewRepository {
         // FASE 1: LECTURAS
         // ============================================================
         
-        // 1.1. Leer la review a eliminar
-        const reviewRef = doc(firestore, `reviews/${reviewId}`);
+        // 1.1. Leer la review a eliminar - ESTRUCTURA: subcolección de spots
+        const reviewRef = doc(firestore, `spots/${spotId}/reviews/${reviewId}`);
         const reviewDoc = await transaction.get(reviewRef);
         
         if (!reviewDoc.exists()) {
@@ -777,23 +768,15 @@ export class ReviewRepositoryImpl implements IReviewRepository {
         const sportsToRemove: string[] = [];
         
         for (const sportId in sportRatings) {
-          const spotDocRef = doc(firestore, 'spots', spotId);
-          const sportDocRef = doc(firestore, 'sports', sportId);
+          // sport_metrics es subcolección de spots: spots/{spotId}/sport_metrics/{sportId}
+          const sportMetricRef = doc(firestore, `spots/${spotId}/sport_metrics/${sportId}`);
+          const sportMetricDoc = await transaction.get(sportMetricRef);
           
-          const metricsQuery = query(
-            collection(firestore, 'spot_sport_metrics'),
-            where('spot_ref', '==', spotDocRef),
-            where('sport_ref', '==', sportDocRef),
-            firestoreLimit(1)
-          );
-          
-          const metricsSnapshot = await getDocs(metricsQuery);
-          
-          if (!metricsSnapshot.empty) {
-            const metricDoc = metricsSnapshot.docs[0];
-            const metricRef = doc(firestore, `spot_sport_metrics/${metricDoc.id}`);
-            const metricData = metricDoc.data() as FirestoreSpotSportMetrics;
-            sportsMetrics.set(sportId, { ref: metricRef, data: metricData });
+          if (sportMetricDoc.exists()) {
+            sportsMetrics.set(sportId, {
+              ref: sportMetricRef,
+              data: sportMetricDoc.data() as FirestoreSpotSportMetrics
+            });
           }
         }
         
@@ -892,7 +875,8 @@ export class ReviewRepositoryImpl implements IReviewRepository {
       
       // 3.1. Eliminar todos los comentarios de la review
       try {
-        const commentsRef = collection(firestore, `reviews/${reviewId}/comments`);
+        // ESTRUCTURA: comentarios en spots/{spotId}/reviews/{reviewId}/comments
+        const commentsRef = collection(firestore, `spots/${spotId}/reviews/${reviewId}/comments`);
         const commentsSnapshot = await getDocs(commentsRef);
         
         if (!commentsSnapshot.empty) {
@@ -987,172 +971,15 @@ export class ReviewRepositoryImpl implements IReviewRepository {
     }
   }
 
-  /**
-   * Obtiene los comentarios de una review con paginación
-   */
-  async getComments(
-    reviewId: string,
-    page: number,
-    pageSize: number
-  ): Promise<{ comments: Comment[]; total: number }> {
-    try {
-      const commentsRef = collection(firestore, "reviews", reviewId, "comments");
-      
-      // Consulta para obtener el total de comentarios no eliminados
-      const totalQuery = query(
-        commentsRef,
-        where("isDeleted", "==", false)
-      );
-      const totalSnapshot = await getDocs(totalQuery);
-      const total = totalSnapshot.size;
-
-      // Consulta paginada - obtener todos los comentarios ordenados
-      const allCommentsQuery = query(
-        commentsRef,
-        where("isDeleted", "==", false),
-        orderBy("createdAt", "desc")
-      );
-
-      const snapshot = await getDocs(allCommentsQuery);
-      
-      // Aplicar paginación manualmente
-      const offset = (page - 1) * pageSize;
-      const allComments: Comment[] = [];
-      
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        allComments.push({
-          id: doc.id,
-          userId: data.createdBy || data.userId,
-          type: 'review',
-          parentId: reviewId,
-          level: data.level || 0,
-          content: data.content,
-          media: data.media,
-          tags: data.tags,
-          likesCount: data.likesCount || 0,
-          dislikesCount: data.dislikesCount || 0,
-          commentsCount: data.commentsCount || 0,
-          reports: data.reports || 0,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate(),
-          isDeleted: data.isDeleted || false,
-        });
-      });
-
-      // Retornar solo la página solicitada
-      const comments = allComments.slice(offset, offset + pageSize);
-
-      return { comments, total };
-    } catch (error) {
-      console.error("[ReviewRepository] Error getting comments:", error);
-      throw new Error("Failed to get comments");
-    }
-  }
-
-  /**
-   * Añade un comentario a una review
-   */
-  async addComment(
-    reviewId: string,
-    userId: string,
-    content: string
-  ): Promise<Comment> {
-    try {
-      const now = Timestamp.now();
-
-      const commentData = {
-        createdBy: userId,
-        content,
-        likesCount: 0,
-        dislikesCount: 0,
-        reports: 0,
-        createdAt: now,
-        updatedAt: now,
-        isDeleted: false,
-      };
-
-      // Dejar que Firestore genere el ID automáticamente usando addDoc
-      const commentsCollectionRef = collection(firestore, "reviews", reviewId, "comments");
-      const newCommentRef = await addDoc(commentsCollectionRef, commentData);
-      const commentId = newCommentRef.id;
-
-      // Actualizar el contador de comentarios
-      const reviewRef = doc(firestore, "reviews", reviewId);
-      await updateDoc(reviewRef, {
-        commentsCount: increment(1),
-      });
-
-      return {
-        id: commentId,
-        userId: userId,
-        type: 'review' as const,
-        parentId: reviewId,
-        level: 0,
-        content,
-        likesCount: 0,
-        dislikesCount: 0,
-        commentsCount: 0,
-        reports: 0,
-        createdAt: now.toDate(),
-        updatedAt: now.toDate(),
-        isDeleted: false,
-      };
-    } catch (error) {
-      console.error("[ReviewRepository] Error adding comment:", error);
-      throw new Error("Failed to add comment");
-    }
-  }
-
-  /**
-   * Elimina un comentario (soft delete)
-   */
-  async deleteComment(reviewId: string, commentId: string): Promise<void> {
-    try {
-      const now = Timestamp.now();
-
-      await runTransaction(firestore, async (transaction) => {
-        const commentRef = doc(firestore, "reviews", reviewId, "comments", commentId);
-        const reviewRef = doc(firestore, "reviews", reviewId);
-
-        transaction.update(commentRef, {
-          isDeleted: true,
-          updatedAt: now,
-        });
-
-        transaction.update(reviewRef, {
-          commentsCount: increment(-1),
-        });
-      });
-    } catch (error) {
-      console.error("[ReviewRepository] Error deleting comment:", error);
-      throw new Error("Failed to delete comment");
-    }
-  }
-
-  /**
-   * Vota en un comentario (like o dislike)
-   */
-  async voteComment(reviewId: string, commentId: string, userId: string, isLike: boolean): Promise<void> {
-    // Delegate to generic voteRepository for comment votes
-    return await voteRepository.vote('comment', commentId, userId, isLike);
-  }
-
-  /**
-   * Elimina el voto de un comentario
-   */
-  async removeCommentVote(reviewId: string, commentId: string, userId: string): Promise<void> {
-    // Delegate to generic voteRepository for comment votes
-    return await voteRepository.removeVote('comment', commentId, userId);
-  }
-
-  /**
-   * Obtiene el voto de un usuario en un comentario
-   */
-  async getCommentVote(reviewId: string, commentId: string, userId: string): Promise<boolean | null> {
-    // Delegate to generic voteRepository for comment votes
-    return await voteRepository.getUserVote('comment', commentId, userId);
-  }
+  // NOTE: Comment methods removed - use commentRepository directly:
+  // - commentRepository.getCommentsByParent(`spots/${spotId}/reviews/${reviewId}`, page, pageSize)
+  // - commentRepository.addComment(`spots/${spotId}/reviews/${reviewId}`, ...)
+  // - commentRepository.deleteComment(`spots/${spotId}/reviews/${reviewId}`, commentId)
+  //
+  // NOTE: Vote methods removed - use voteRepository directly:
+  // - voteRepository.vote(`spots/${spotId}/reviews/${reviewId}`, userId, isLike)
+  // - voteRepository.removeVote(`spots/${spotId}/reviews/${reviewId}`, userId)
+  // - voteRepository.getUserVote(`spots/${spotId}/reviews/${reviewId}`, userId)
 
   /**
    * Sube archivos multimedia de una review a Firebase Storage
@@ -1253,34 +1080,6 @@ export class ReviewRepositoryImpl implements IReviewRepository {
       console.error('[ReviewRepository] Error uploading review media:', error);
       throw new Error(`Failed to upload media: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  }
-
-  /**
-   * Vota en una review (like o dislike)
-   * Crea o actualiza el voto en la subcolección votes
-   * NUEVA ESTRUCTURA: reviews/{reviewId}/votes/{userId}
-   */
-  async voteReview(spotId: string, reviewId: string, userId: string, isLike: boolean): Promise<void> {
-    // Delegate to generic voteRepository for reviews
-    return await voteRepository.vote('review', reviewId, userId, isLike);
-  }
-
-  /**
-   * Elimina el voto de una review
-   * NUEVA ESTRUCTURA: reviews/{reviewId}/votes/{userId}
-   */
-  async removeVote(spotId: string, reviewId: string, userId: string): Promise<void> {
-    // Delegate to generic voteRepository for reviews
-    return await voteRepository.removeVote('review', reviewId, userId);
-  }
-
-  /**
-   * Obtiene el voto de un usuario en una review
-   * NUEVA ESTRUCTURA: reviews/{reviewId}/votes/{userId}
-   */
-  async getUserVote(spotId: string, reviewId: string, userId: string): Promise<boolean | null> {
-    // Delegate to generic voteRepository for reviews
-    return await voteRepository.getUserVote('review', reviewId, userId);
   }
 
   /**
@@ -1391,6 +1190,33 @@ export class ReviewRepositoryImpl implements IReviewRepository {
     });
 
     return { local, remote };
+  }
+
+  // ==================== VOTE METHODS ====================
+
+  /**
+   * Vota en una review (like o dislike)
+   * Delega al voteRepository usando el path correcto
+   */
+  async voteReview(spotId: string, reviewId: string, userId: string, isLike: boolean): Promise<void> {
+    const reviewPath = `spots/${spotId}/reviews/${reviewId}`;
+    return await voteRepository.vote(reviewPath, userId, isLike);
+  }
+
+  /**
+   * Elimina el voto de un usuario en una review
+   */
+  async removeReviewVote(spotId: string, reviewId: string, userId: string): Promise<void> {
+    const reviewPath = `spots/${spotId}/reviews/${reviewId}`;
+    return await voteRepository.removeVote(reviewPath, userId);
+  }
+
+  /**
+   * Obtiene el voto actual de un usuario en una review
+   */
+  async getReviewVote(spotId: string, reviewId: string, userId: string): Promise<boolean | null> {
+    const reviewPath = `spots/${spotId}/reviews/${reviewId}`;
+    return await voteRepository.getUserVote(reviewPath, userId);
   }
 }
 

@@ -1,6 +1,16 @@
 import { SavedSpot, SpotCategory } from '@/src/entities/user/model/spot-collection';
 import { User, UserDetails } from '@/src/entities/user/model/user';
 
+/**
+ * Interfaz del repositorio de usuarios
+ * 
+ * Estructura de datos en Firestore:
+ * - users/{userId} - Documento principal del usuario
+ * - users/{userId}/followers/{followerId} - Subcollection de seguidores
+ * - users/{userId}/following/{followedId} - Subcollection de seguidos
+ * - users/{userId}/saved_spots/{savedSpotId} - Subcollection de spots guardados
+ * - users/{userId}/favoriteSports/{sportId} - Subcollection de deportes favoritos
+ */
 export interface IUserRepository {
   createUser(userId: string, userData: Partial<UserDetails>): Promise<boolean>;
   getUserById(userId: string): Promise<User>;
@@ -14,12 +24,18 @@ export interface IUserRepository {
   getSpotCategories(userId: string, spotId: string): Promise<SpotCategory[]>;
   updateSpotCategories(userId: string, spotId: string, categories: SpotCategory[]): Promise<void>;
   
-  // Métodos de deportes favoritos (mantener como array)
+  // Métodos de deportes favoritos (subcolección favoriteSports)
   getUserFavoriteSports(userId: string): Promise<string[]>;
   addFavoriteSport(userId: string, sportId: string): Promise<void>;
   removeFavoriteSport(userId: string, sportId: string): Promise<void>;
 
-  // Relationship methods (migrated from RelationshipRepository)
+  /**
+   * Relationship methods
+   * 
+   * Estructura:
+   * - users/{userId}/followers/{followerId} con { createdAt: timestamp }
+   * - users/{userId}/following/{followedId} con { createdAt: timestamp }
+   */
   followUser(userId: string, targetUserId: string): Promise<void>;
   unfollowUser(userId: string, targetUserId: string): Promise<void>;
   isFollowing(followerId: string, followedId: string): Promise<boolean>;

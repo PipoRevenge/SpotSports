@@ -10,16 +10,16 @@ import * as ImagePicker from 'expo-image-picker';
 import { Image as ImageIcon, X } from 'lucide-react-native';
 import React, { memo, useCallback, useState } from 'react';
 import {
-    ActivityIndicator,
-    Image,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  TextInput,
+  View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// Safe area insets are not needed currently
 
 export type CommentWithUser = Comment & { userName?: string; userProfileUrl?: string };
 
@@ -45,7 +45,7 @@ const DefaultCommentHeader: React.FC<{ comment: CommentWithUser }> = ({ comment 
   const commentDate = comment.createdAt ? formatDate(comment.createdAt) : '';
   
   return (
-    <View className="px-4 py-4 bg-gray-50 border-b border-gray-100">
+    <View className="px-4 py-3 bg-gray-50 border-b border-gray-100">
       <HStack className="items-start gap-3">
         <Avatar size="md" className="bg-blue-100 border border-blue-200">
           {comment.userProfileUrl ? (
@@ -77,7 +77,7 @@ const DefaultCommentHeader: React.FC<{ comment: CommentWithUser }> = ({ comment 
         </VStack>
       </HStack>
 
-      <HStack className="items-center mt-3 pt-3 border-t border-gray-200">
+      <HStack className="items-center mt-2 pt-2 border-t border-gray-200">
         <Text className="text-xs text-gray-500">
           Respondiendo a{' '}
           <Text className="font-semibold text-blue-600">
@@ -99,7 +99,7 @@ export const ReplyModal: React.FC<ReplyModalProps> = memo(({
   placeholder = 'Escribe tu respuesta...',
   isSubmitting = false,
 }) => {
-  const insets = useSafeAreaInsets();
+  // Safe area insets not required here
   const [content, setContent] = useState('');
   const [media, setMedia] = useState<string[]>([]);
   const [localSubmitting, setLocalSubmitting] = useState(false);
@@ -160,8 +160,7 @@ export const ReplyModal: React.FC<ReplyModalProps> = memo(({
         style={{ 
           flex: 1, 
           backgroundColor: '#ffffff',
-          paddingTop: insets.top,
-          paddingBottom: insets.bottom,
+          
         }}
       >
         <KeyboardAvoidingView
@@ -172,13 +171,13 @@ export const ReplyModal: React.FC<ReplyModalProps> = memo(({
           {/* Header */}
           <HStack 
             className="items-center justify-between px-4 py-3 border-b border-gray-200"
-            style={{ minHeight: 56 }}
+
           >
             {/* Close Button */}
             <Pressable
               onPress={handleClose}
               disabled={isSubmittingState}
-              className="p-2 -ml-2 rounded-full active:bg-gray-100"
+              className="p-2  rounded-full active:bg-gray-100"
             >
               <X size={24} color={isSubmittingState ? '#d1d5db' : '#374151'} />
             </Pressable>
@@ -205,20 +204,24 @@ export const ReplyModal: React.FC<ReplyModalProps> = memo(({
 
           <ScrollView 
             className="flex-1"
-            contentContainerStyle={{ flexGrow: 1 }}
+            
             keyboardShouldPersistTaps="handled"
           >
             {/* Header Slot - either custom slot or default comment header */}
-            {headerSlot ? headerSlot : parentComment ? (
-              <DefaultCommentHeader comment={parentComment} />
-            ) : null}
+            {(headerSlot || parentComment) && (
+              <View className="mb-3">
+                {headerSlot ? headerSlot : parentComment ? (
+                  <DefaultCommentHeader comment={parentComment} />
+                ) : null}
+              </View>
+            )}
 
             {/* Media Section */}
-            <View className="px-4 py-4 border-b border-gray-100">
+            <View className="py-3 border-b border-gray-100">
               <Pressable
                 onPress={handlePickMedia}
                 disabled={isSubmittingState || media.length >= 4}
-                className="flex-row items-center gap-2 py-3 px-4 bg-gray-50 rounded-xl active:bg-gray-100"
+                className="flex-row items-center gap-3 px-4 py-2 bg-gray-50 rounded-xl active:bg-gray-100"
               >
                 <ImageIcon 
                   size={22} 
@@ -234,7 +237,7 @@ export const ReplyModal: React.FC<ReplyModalProps> = memo(({
 
               {/* Media Preview Grid */}
               {media.length > 0 && (
-                <HStack className="gap-3 flex-wrap mt-4">
+                <HStack className="mt-2 gap-3 flex-wrap p-2">
                   {media.map((uri, index) => (
                     <View key={index} style={{ position: 'relative' }}>
                       <Image

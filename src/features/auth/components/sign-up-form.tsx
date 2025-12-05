@@ -101,7 +101,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
       marginBottom: 16
     }}>
         <TouchableOpacity onPress={handlePickImage} testID="profile-photo-selector">
-          {formData.photo ? <Avatar size={AVATAR_CONFIG.size} className="pb-2">
+          {formData.photo ? <Avatar size={AVATAR_CONFIG.size} className="">
               <AvatarImage source={{
             uri: formData.photo
           }} />

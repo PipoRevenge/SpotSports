@@ -1,6 +1,7 @@
 import { MediaCarousel } from "@/src/components/commons/media-carousel";
 import { RatingStars } from "@/src/components/commons/rating/rating-stars";
 import Tag from '@/src/components/commons/tag';
+import { useMediaUrls } from "@/src/hooks";
 import { X } from "lucide-react-native";
 import React, { useState } from "react";
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from "react-native";
@@ -40,6 +41,9 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
   collectionSlot,
 }) => {
   const [isNavigating, setIsNavigating] = useState(false);
+  
+  // Resolver URLs de media
+  const { urls: mediaUrls, loading: mediaLoading } = useMediaUrls(spot?.details?.media);
   
   // Resetear estado cuando el modal se cierra
   React.useEffect(() => {
@@ -114,10 +118,11 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
                 {/* Imagen del spot */}
                 {spot.details.media && spot.details.media.length > 0 ? (
                   <MediaCarousel
-                    media={spot.details.media}
+                    media={mediaUrls}
                     altText={spot.details.name}
                     height={192}
                     resizeMode="contain"
+                    loading={mediaLoading}
                   />
                 ) : (
                   <View className="w-full h-48 rounded-lg bg-gray-200 items-center justify-center">

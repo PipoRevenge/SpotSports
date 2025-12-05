@@ -20,7 +20,15 @@ export function useDiscussionLoad({ pageSize = 12, sort = 'newest', tag, search,
   const load = useCallback(async (p = 1) => {
     setLoading(true);
     try {
-      const { discussions: f, total: t } = await discussionRepository.getDiscussions({ page: p, pageSize, sort, tag, search, spotId });
+      // Updated to use options object with optional spotId
+      const { discussions: f, total: t } = await discussionRepository.getDiscussions({ 
+        page: p, 
+        pageSize, 
+        sort, 
+        tag, 
+        search, 
+        spotId 
+      });
       if (p === 1) setDiscussions(f);
       else setDiscussions(prev => [...prev, ...f]);
       setTotal(t);
@@ -34,7 +42,6 @@ export function useDiscussionLoad({ pageSize = 12, sort = 'newest', tag, search,
   }, [pageSize, sort, tag, search, spotId]);
 
   useEffect(() => {
-    // Only load when the key of parameters changes to prevent repeated loads
     load(1);
   }, [load]);
 

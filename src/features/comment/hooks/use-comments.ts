@@ -1,11 +1,15 @@
-import { commentRepository, userRepository, voteRepository } from '@/src/api/repositories';
+import { commentRepository, userRepository } from '@/src/api/repositories';
 import { useUser } from '@/src/context/user-context';
-import { Comment } from '@/src/entities/comment/model/comment';
+import { Comment, CommentSourceType } from '@/src/entities/comment/model/comment';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface UseCommentsParams {
-  parentId: string;
-  type: 'review'|'discussion';
+  /** ID of the context (spot) containing the source */
+  contextId: string;
+  /** Type of parent resource (review or discussion) */
+  sourceType: CommentSourceType;
+  /** ID of the parent resource (reviewId or discussionId) */
+  sourceId: string;
   pageSize?: number;
   autoLoad?: boolean;
 }
@@ -28,8 +32,15 @@ export interface UseCommentsReturn {
   getCommentVote: (commentId: string) => Promise<boolean | null>;
 }
 
-export function useComments({ parentId, type, pageSize = 10, autoLoad = true }: UseCommentsParams): UseCommentsReturn {
+export function useComments({ 
+  contextId,
+  sourceType,
+  sourceId,
+  pageSize = 10, 
+  autoLoad = true 
+}: UseCommentsParams): UseCommentsReturn {
   type CommentWithUser = Comment & { userName?: string; userProfileUrl?: string };
+  
   const [comments, setComments] = useState<CommentWithUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,24 +54,31 @@ export function useComments({ parentId, type, pageSize = 10, autoLoad = true }: 
   useEffect(() => { commentsRef.current = comments; }, [comments]);
   
   // Use refs to store stable values for the load function
-  const parentIdRef = useRef(parentId);
-  const typeRef = useRef(type);
+  const contextIdRef = useRef(contextId);
+  const sourceTypeRef = useRef(sourceType);
+  const sourceIdRef = useRef(sourceId);
   const pageSizeRef = useRef(pageSize);
   
   // Update refs when values change
   useEffect(() => {
-    parentIdRef.current = parentId;
-    typeRef.current = type;
+    contextIdRef.current = contextId;
+    sourceTypeRef.current = sourceType;
+    sourceIdRef.current = sourceId;
     pageSizeRef.current = pageSize;
-  }, [parentId, type, pageSize]);
+  }, [contextId, sourceType, sourceId, pageSize]);
 
   const load = useCallback(async (p = 1) => {
+    if (!contextIdRef.current || !sourceIdRef.current) {
+      console.warn('[useComments] Missing contextId or sourceId, skipping load');
+      return;
+    }
     setLoading(true);
     try {
       const { comments: c, total: t } = await commentRepository.getCommentsByParent(
-        parentIdRef.current, 
-        typeRef.current, 
-        p, 
+        contextIdRef.current,
+        sourceTypeRef.current,
+        sourceIdRef.current,
+        p,
         pageSizeRef.current
       );
       // Enrich with user data
@@ -73,7 +91,6 @@ export function useComments({ parentId, type, pageSize = 10, autoLoad = true }: 
         }
       }));
       if (p === 1) {
-        // Avoid updating state if array of comments is identical (reduce unneeded rerenders)
         const prev = commentsRef.current;
         if (prev.length === enriched.length && prev.every((c, idx) => c.id === enriched[idx].id)) {
           // No change
@@ -85,12 +102,12 @@ export function useComments({ parentId, type, pageSize = 10, autoLoad = true }: 
       setHasMore(c.length === pageSizeRef.current);
       setPage(p);
     } catch (err) {
-        console.error('[useComments] load:', err);
-        setError(err instanceof Error ? err.message : 'Error loading comments');
+      console.error('[useComments] load:', err);
+      setError(err instanceof Error ? err.message : 'Error loading comments');
     } finally {
       setLoading(false);
     }
-  }, []); // Empty deps - uses refs for stable reference
+  }, []);
 
   const loadMore = useCallback(async () => {
     if (loading) return;
@@ -106,8 +123,21 @@ export function useComments({ parentId, type, pageSize = 10, autoLoad = true }: 
     if (!user?.id) {
       throw new Error('User must be authenticated to comment');
     }
+    if (!contextId || !sourceId) {
+      throw new Error('contextId and sourceId are required to add comments');
+    }
     try {
-      const comment = await commentRepository.addComment(parentId, type, user.id, level, content, media, tags);
+      const comment = await commentRepository.addComment(
+        contextId,
+        sourceType,
+        sourceId,
+        sourceId, // parentId for level 0 is the sourceId
+        user.id,
+        level,
+        content,
+        media,
+        tags
+      );
       // Enrich by current user
       const enriched = { ...comment, userName: user.userDetails.userName, userProfileUrl: user.userDetails.photoURL } as CommentWithUser;
       // prepend to list
@@ -118,19 +148,31 @@ export function useComments({ parentId, type, pageSize = 10, autoLoad = true }: 
       console.error('[useComments] addComment:', err);
       throw err;
     }
-  }, [parentId, type, user?.id, user?.userDetails?.userName, user?.userDetails?.photoURL]);
+  }, [contextId, sourceType, sourceId, user?.id, user?.userDetails?.userName, user?.userDetails?.photoURL]);
 
   const addReply = useCallback(async (parentCommentId: string, content: string, media?: string[], level: number = 1) => {
     if (!user?.id) {
       throw new Error('User must be authenticated to reply');
     }
+    if (!contextId || !sourceId) {
+      throw new Error('contextId and sourceId are required to add replies');
+    }
     try {
-      // For replies, we use the commentId as parentId and keep the same type
-      const reply = await commentRepository.addComment(parentCommentId, type, user.id, level, content, media, undefined);
+      const reply = await commentRepository.addComment(
+        contextId,
+        sourceType,
+        sourceId,
+        parentCommentId, // parentId is the comment we're replying to
+        user.id,
+        level,
+        content,
+        media,
+        undefined
+      );
       // Enrich by current user
       const enriched = { ...reply, userName: user.userDetails.userName, userProfileUrl: user.userDetails.photoURL } as CommentWithUser;
       
-      // Add to replies map and update parent comment's commentsCount wherever it lives
+      // Add to replies map
       setRepliesMap(prev => {
         const clone = { ...prev } as typeof prev;
         const current = clone[parentCommentId];
@@ -149,7 +191,7 @@ export function useComments({ parentId, type, pageSize = 10, autoLoad = true }: 
           };
         }
 
-        // Update parent comment's commentsCount in repliesMap lists if it exists there (for nested parents)
+        // Update parent comment's commentsCount in repliesMap lists
         Object.keys(clone).forEach(key => {
           clone[key] = {
             ...clone[key],
@@ -160,7 +202,7 @@ export function useComments({ parentId, type, pageSize = 10, autoLoad = true }: 
         return clone;
       });
       
-      // Update commentsCount on the parent comment locally (if parent is top-level comment)
+      // Update commentsCount on the parent comment locally
       setComments(prev => prev.map(c => 
         c.id === parentCommentId 
           ? { ...c, commentsCount: (c.commentsCount || 0) + 1 } 
@@ -172,12 +214,15 @@ export function useComments({ parentId, type, pageSize = 10, autoLoad = true }: 
       console.error('[useComments] addReply:', err);
       throw err;
     }
-  }, [type, user?.id, user?.userDetails?.userName, user?.userDetails?.photoURL]);
+  }, [contextId, sourceType, sourceId, user?.id, user?.userDetails?.userName, user?.userDetails?.photoURL]);
 
   const deleteComment = useCallback(async (commentId: string) => {
+    if (!contextId || !sourceId) {
+      throw new Error('contextId and sourceId are required to delete comments');
+    }
     try {
-      await commentRepository.deleteComment(commentId);
-      // Update local lists where needed
+      await commentRepository.deleteComment(contextId, sourceType, sourceId, commentId);
+      // Update local lists
       setComments(prev => prev.filter(c => c.id !== commentId));
       // Also remove from replies map
       setRepliesMap(prev => {
@@ -189,7 +234,6 @@ export function useComments({ parentId, type, pageSize = 10, autoLoad = true }: 
           const afterLen = clone[key].comments.length;
           if (afterLen < beforeLen) parentsFound.push(key);
         });
-        // If we removed a comment from a replies list, decrement the parent's commentsCount in top-level comments as well
         if (parentsFound.length > 0) {
           setComments(prevComments => prevComments.map(c => parentsFound.includes(c.id) ? ({ ...c, commentsCount: Math.max(0, (c.commentsCount || 0) - 1) }) : c));
         }
@@ -200,13 +244,16 @@ export function useComments({ parentId, type, pageSize = 10, autoLoad = true }: 
       console.error('[useComments] deleteComment', error);
       throw error;
     }
-  }, []);
+  }, [contextId, sourceType, sourceId]);
 
   const loadReplies = useCallback(async (commentId: string) => {
+    if (!contextId || !sourceId) {
+      throw new Error('contextId and sourceId are required to load replies');
+    }
     try {
       const current = repliesMap[commentId];
       const nextPage = current ? current.page + 1 : 1;
-      const { comments: c, total: t } = await commentRepository.getReplies(commentId, nextPage, pageSize);
+      const { comments: c, total: t } = await commentRepository.getReplies(contextId, sourceType, sourceId, commentId, nextPage, pageSize);
       const enriched = await Promise.all(c.map(async (cm) => {
         try {
           const userData = await userRepository.getUserById(cm.userId);
@@ -228,54 +275,58 @@ export function useComments({ parentId, type, pageSize = 10, autoLoad = true }: 
       console.error('[useComments] loadReplies:', err);
       throw err;
     }
-  }, [repliesMap, pageSize]);
+  }, [contextId, sourceType, sourceId, repliesMap, pageSize]);
 
   const voteComment = useCallback(async (commentId: string, isLike: boolean) => {
     if (!user?.id) throw new Error('User must be authenticated to vote');
+    if (!contextId || !sourceId) throw new Error('contextId and sourceId are required for voting');
     try {
-      await voteRepository.vote('comment', commentId, user.id, isLike);
+      await commentRepository.voteComment(contextId, sourceType, sourceId, commentId, user.id, isLike);
       setComments(prev => prev.map(c => c.id === commentId ? ({ ...c, likesCount: isLike ? c.likesCount + 1 : Math.max(0, c.likesCount - 1), dislikesCount: !isLike ? c.dislikesCount + 1 : Math.max(0, c.dislikesCount - 1) }) : c));
     } catch (err) {
       console.error('[useComments] voteComment', err);
       throw err;
     }
-  }, [user?.id]);
+  }, [user?.id, contextId, sourceType, sourceId]);
 
   const removeCommentVote = useCallback(async (commentId: string) => {
     if (!user?.id) throw new Error('User must be authenticated to remove vote');
+    if (!contextId || !sourceId) throw new Error('contextId and sourceId are required for removing vote');
     try {
-      await voteRepository.removeVote('comment', commentId, user.id);
+      await commentRepository.removeCommentVote(contextId, sourceType, sourceId, commentId, user.id);
     } catch (err) {
       console.error('[useComments] removeCommentVote', err);
       throw err;
     }
-  }, [user?.id]);
+  }, [user?.id, contextId, sourceType, sourceId]);
 
   const getCommentVote = useCallback(async (commentId: string): Promise<boolean | null> => {
     if (!user?.id) return null;
+    if (!contextId || !sourceId) return null;
     try {
-      return await voteRepository.getUserVote('comment', commentId, user.id);
+      return await commentRepository.getCommentVote(contextId, sourceType, sourceId, commentId, user.id);
     } catch (err) {
       console.error('[useComments] getCommentVote', err);
       return null;
     }
-  }, [user?.id]);
+  }, [user?.id, contextId, sourceType, sourceId]);
 
-  // Track if initial load has been done for this parentId
-  const loadedParentIdRef = useRef<string | null>(null);
+  // Track if initial load has been done for this source
+  const loadedKeyRef = useRef<string | null>(null);
+  const currentKey = `${contextId}:${sourceType}:${sourceId}`;
 
   // Initialize (controlled by autoLoad option)
   useEffect(() => {
-    if (autoLoad && loadedParentIdRef.current !== parentId) {
-      loadedParentIdRef.current = parentId;
-      // Reset state when parentId changes
+    if (autoLoad && contextId && sourceId && loadedKeyRef.current !== currentKey) {
+      loadedKeyRef.current = currentKey;
+      // Reset state when source changes
       setComments([]);
       setPage(1);
       setTotal(0);
       setHasMore(false);
       load(1).catch(() => {});
     }
-  }, [autoLoad, parentId, load]);
+  }, [autoLoad, contextId, sourceId, currentKey, load]);
 
   return {
     comments,

@@ -3,7 +3,7 @@ import { HStack } from '@/src/components/ui/hstack';
 import { Pressable } from '@/src/components/ui/pressable';
 import { Text } from '@/src/components/ui/text';
 import { VStack } from '@/src/components/ui/vstack';
-import { Comment } from '@/src/entities/comment/model/comment';
+import { Comment, CommentSourceType } from '@/src/entities/comment/model/comment';
 import { formatDate, getInitials } from '@/src/utils/date-utils';
 import { ChevronDown, ChevronUp, MessageCircle, Play, ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react-native';
 import React, { memo, useCallback, useEffect, useState } from 'react';
@@ -16,6 +16,12 @@ export type { CommentWithUser };
 
 export interface CommentCardProps {
   comment: CommentWithUser;
+  /** ID del contexto (spot) - usado para operaciones de voto */
+  contextId: string;
+  /** Tipo de recurso padre (review o discussion) */
+  sourceType: CommentSourceType;
+  /** ID del recurso padre (reviewId o discussionId) */
+  sourceId: string;
   onDelete?: (commentId: string) => void;
   onReply?: (commentId: string, content: string, media?: string[], level?: number) => Promise<void>;
   onOpenReplyModal?: (comment: CommentWithUser) => void;
@@ -100,6 +106,9 @@ const VideoPlaceholder: React.FC<{ onPress?: () => void }> = ({ onPress }) => {
 
 export const CommentCard: React.FC<CommentCardProps> = memo(({ 
   comment, 
+  contextId,
+  sourceType,
+  sourceId,
   onDelete,
   onReply,
   onOpenReplyModal,
@@ -142,6 +151,9 @@ export const CommentCard: React.FC<CommentCardProps> = memo(({
   
   // Use the vote hook - handles toggle behavior automatically
   const { voteState, handleLike, handleDislike } = useCommentVote(
+    contextId,
+    sourceType,
+    sourceId,
     comment.id,
     handleVoteChange,
     true // autoFetch
@@ -344,6 +356,9 @@ export const CommentCard: React.FC<CommentCardProps> = memo(({
               <CommentCard
                 key={reply.id}
                 comment={reply}
+                contextId={contextId}
+                sourceType={sourceType}
+                sourceId={sourceId}
                 currentUserId={currentUserId}
                 onDelete={onDelete}
                 onReply={onReply}

@@ -1,44 +1,53 @@
 import { HStack } from "@/src/components/ui/hstack";
-import { Icon } from "@/src/components/ui/icon";
 import { Text } from "@/src/components/ui/text";
-import { storage } from "@/src/lib/firebase-config";
-import { VideoView, useVideoPlayer } from 'expo-video';
-import { getDownloadURL, ref } from "firebase/storage";
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { Play, X } from "lucide-react-native";
-import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import React, { useState } from "react";
+import {
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  Modal,
+  ScrollView,
+  TouchableOpacity,
+  View
+} from "react-native";
 
 interface MediaCarouselProps {
-  /** Array de rutas de Storage o URLs */
+  /** Array de URLs de medios (ya resueltas, no paths de Storage) */
   media: string[];
   /** Texto alternativo para las imágenes */
   altText?: string;
   /** Altura de cada item del carrusel (por defecto 256) */
   height?: number;
-  /** Ancho de cada item del carrusel en píxeles (por defecto SCREEN_WIDTH - 48 para carrusel, SCREEN_WIDTH - 48 para item único) */
+  /** Ancho de cada item del carrusel en píxeles (por defecto SCREEN_WIDTH - 48) */
   width?: number;
-  /** Modo de ajuste de imagen (por defecto "cover") */
+  /** Modo de ajuste de imagen (por defecto "contain") */
   resizeMode?: "cover" | "contain" | "stretch" | "center";
+  /** Mostrar indicador de carga mientras se inicializa */
+  loading?: boolean;
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 /**
  * Placeholder para videos - muestra un icono de play
  * Se usa en el carrusel para evitar problemas con el player
  */
 const VideoPlaceholder: React.FC<{ 
-  width: number | string;
-  height: number;
   onPress?: () => void 
-}> = ({ width: w, height: h, onPress }) => {
+}> = ({ onPress }) => {
   return (
-    <Pressable onPress={onPress} style={{ width: w, height: h, backgroundColor: '#1f2937', justifyContent: 'center', alignItems: 'center' }}>
-      <View style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 30, padding: 16 }}>
+    <TouchableOpacity 
+      onPress={onPress} 
+      activeOpacity={0.8}
+      className="w-full h-full bg-gray-800 items-center justify-center"
+    >
+      <View className="bg-white/90 p-4 rounded-full">
         <Play size={32} color="#1f2937" />
       </View>
-      <Text style={{ color: '#fff', fontSize: 12, marginTop: 8 }}>Tap to play</Text>
-    </Pressable>
+      <Text className="text-white text-xs mt-2">Toca para reproducir</Text>
+    </TouchableOpacity>
   );
 };
 
@@ -62,7 +71,7 @@ const FullscreenVideoPlayer: React.FC<{ uri: string; shouldPlay: boolean }> = ({
   return (
     <VideoView
       player={player}
-      style={styles.fullscreenMedia}
+      style={{ width: '100%', height: '100%' }}
       contentFit="contain"
       allowsPictureInPicture
       nativeControls
@@ -76,70 +85,29 @@ const FullscreenVideoPlayer: React.FC<{ uri: string; shouldPlay: boolean }> = ({
  * Carrusel de imágenes y videos con:
  * - Scroll horizontal
  * - Ampliación en modal
- * - Soporte para Storage paths y URLs
+ * - Soporte para URLs de medios
  * - Reproducción de videos (solo en modal fullscreen)
+ * 
+ * NOTA: Este componente espera URLs ya resueltas, no paths de Firebase Storage.
+ * La resolución de URLs debe hacerse en el componente padre o en un hook.
  */
 export const MediaCarousel: React.FC<MediaCarouselProps> = ({ 
   media, 
   altText = "Media",
   height = 256,
   width,
-  resizeMode = "contain"
+  resizeMode = "contain",
+  loading = false
 }) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [mediaUrls, setMediaUrls] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  const itemWidth = width !== undefined ? width : SCREEN_WIDTH - 48;
+  const itemWidth = width ?? SCREEN_WIDTH - 48;
 
   const isVideo = (uri: string): boolean => {
     const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'];
     return videoExtensions.some(ext => uri.toLowerCase().includes(ext));
   };
-
-  const mediaKey = useMemo(() => JSON.stringify(media), [media]);
-  
-  useEffect(() => {
-    const loadMediaUrls = async () => {
-      if (!media || media.length === 0) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const urls = await Promise.all(
-          media.map(async (path) => {
-            if (
-              path.startsWith('http://') || 
-              path.startsWith('https://') ||
-              path.includes('firebasestorage.googleapis.com')
-            ) {
-              return path;
-            }
-            
-            try {
-              const storageRef = ref(storage, path);
-              const url = await getDownloadURL(storageRef);
-              return url;
-            } catch (error) {
-              console.warn('[MediaCarousel] Error getting download URL for:', path, error);
-              return path;
-            }
-          })
-        );
-        
-        setMediaUrls(urls);
-      } catch (error) {
-        console.error('[MediaCarousel] Error loading media URLs:', error);
-        setMediaUrls(media);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadMediaUrls();
-  }, [mediaKey, media]);
 
   const openFullscreen = (index: number) => {
     setSelectedIndex(index);
@@ -148,82 +116,162 @@ export const MediaCarousel: React.FC<MediaCarouselProps> = ({
 
   const closeFullscreen = () => {
     setIsModalVisible(false);
-    // Delay clearing selectedIndex to allow modal to close first
     setTimeout(() => setSelectedIndex(null), 300);
   };
 
   if (loading) {
     return (
-      <View style={{ width: '100%', height, backgroundColor: '#f3f4f6', borderRadius: 12, justifyContent: 'center', alignItems: 'center' }}>
+      <View 
+        className="w-full bg-gray-100 rounded-lg items-center justify-center"
+        style={{ height }}
+      >
         <ActivityIndicator size="large" color="#3b82f6" />
       </View>
     );
   }
 
-  if (!mediaUrls || mediaUrls.length === 0) {
+  if (!media || media.length === 0) {
     return null;
   }
 
   // Renderizar item de media (imagen o placeholder de video)
-  const renderMediaItem = (uri: string, index: number, itemW: number | string, itemH: number) => {
+  const renderMediaItem = (uri: string, index: number) => {
     const isVideoFile = isVideo(uri);
     
     return (
-      <Pressable key={index} onPress={() => openFullscreen(index)}>
-        <View style={{ 
-          width: itemW, 
-          height: itemH, 
-          backgroundColor: '#000', 
-          borderRadius: 12, 
-          overflow: 'hidden' 
-        }}>
-          {isVideoFile ? (
-            <VideoPlaceholder width={itemW} height={itemH} onPress={() => openFullscreen(index)} />
-          ) : (
-            <Image
-              source={{ uri }}
-              alt={`${altText} - ${index + 1}`}
-              style={{ width: '100%', height: itemH }}
-              resizeMode={resizeMode}
-            />
-          )}
-        </View>
-      </Pressable>
+      <TouchableOpacity 
+        key={index} 
+        onPress={() => openFullscreen(index)}
+        activeOpacity={0.8}
+        className="relative bg-black rounded-lg overflow-hidden"
+        style={{ width: itemWidth, height }}
+      >
+        {isVideoFile ? (
+          <VideoPlaceholder onPress={() => openFullscreen(index)} />
+        ) : (
+          <Image
+            source={{ uri }}
+            alt={`${altText} - ${index + 1}`}
+            className="w-full h-full"
+            style={{ backgroundColor: '#000' }}
+            resizeMode={resizeMode}
+          />
+        )}
+        
+        {/* Contador (solo si hay múltiples medios) */}
+        {media.length > 1 && (
+          <View className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 rounded">
+            <Text className="text-white text-xs">
+              {index + 1} / {media.length}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
     );
   };
 
-  if (mediaUrls.length === 1) {
-    const uri = mediaUrls[0];
-    const isVideoFile = isVideo(uri);
-
-    return (
-      <>
-        {renderMediaItem(uri, 0, itemWidth, height)}
-
-        <Modal
-          visible={isModalVisible}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={closeFullscreen}
+  // Modal de preview fullscreen
+  const renderModal = () => (
+    <Modal
+      visible={isModalVisible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={closeFullscreen}
+    >
+      <View className="flex-1 bg-black">
+        {/* Botón cerrar */}
+        <TouchableOpacity
+          onPress={closeFullscreen}
+          className="absolute top-12 right-4 z-10 bg-white/20 p-3 rounded-full"
         >
-          <View style={styles.modalContainer}>
-            <Pressable style={styles.closeButton} onPress={closeFullscreen}>
-              <Icon as={X} className="text-white w-8 h-8" />
-            </Pressable>
-            <View style={styles.fullscreenContainer}>
-              {isVideoFile ? (
-                <FullscreenVideoPlayer uri={uri} shouldPlay={isModalVisible} />
+          <X size={24} color="#FFF" />
+        </TouchableOpacity>
+
+        {/* Contenido del modal */}
+        {isModalVisible && selectedIndex !== null && (
+          media.length === 1 ? (
+            // Un solo medio
+            <View className="flex-1 items-center justify-center pt-20 pb-5">
+              {isVideo(media[0]) ? (
+                <FullscreenVideoPlayer uri={media[0]} shouldPlay={isModalVisible} />
               ) : (
                 <Image
-                  source={{ uri }}
+                  source={{ uri: media[0] }}
                   alt={altText}
-                  style={styles.fullscreenImage}
+                  className="w-full h-full"
                   resizeMode="contain"
                 />
               )}
             </View>
-          </View>
-        </Modal>
+          ) : (
+            // Múltiples medios con scroll
+            <>
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                snapToInterval={SCREEN_WIDTH}
+                decelerationRate="fast"
+                contentOffset={{ x: selectedIndex * SCREEN_WIDTH, y: 0 }}
+              >
+                {media.map((mediaUri, index) => {
+                  const isVideoFile = isVideo(mediaUri);
+                  return (
+                    <View 
+                      key={index} 
+                      className="items-center justify-center bg-black pt-20 pb-5"
+                      style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}
+                    >
+                      {isVideoFile ? (
+                        <FullscreenVideoPlayer uri={mediaUri} shouldPlay={index === selectedIndex} />
+                      ) : (
+                        <Image
+                          source={{ uri: mediaUri }}
+                          alt={`${altText} - ${index + 1}`}
+                          className="w-full h-full"
+                          resizeMode="contain"
+                        />
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Navegación */}
+              <View className="absolute bottom-12 left-0 right-0 items-center">
+                <HStack space="md" className="bg-black/50 px-4 py-2 rounded-full">
+                  <TouchableOpacity
+                    onPress={() => setSelectedIndex((prev) => 
+                      prev !== null ? (prev > 0 ? prev - 1 : media.length - 1) : 0
+                    )}
+                  >
+                    <Text className="text-white font-semibold text-lg">←</Text>
+                  </TouchableOpacity>
+                  <Text className="text-white">
+                    {(selectedIndex ?? 0) + 1} / {media.length}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setSelectedIndex((prev) => 
+                      prev !== null ? (prev < media.length - 1 ? prev + 1 : 0) : 0
+                    )}
+                  >
+                    <Text className="text-white font-semibold text-lg">→</Text>
+                  </TouchableOpacity>
+                </HStack>
+              </View>
+            </>
+          )
+        )}
+      </View>
+    </Modal>
+  );
+
+  // Un solo medio
+  if (media.length === 1) {
+    return (
+      <>
+        {renderMediaItem(media[0], 0)}
+        {renderModal()}
       </>
     );
   }
@@ -235,100 +283,17 @@ export const MediaCarousel: React.FC<MediaCarouselProps> = ({
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        snapToInterval={itemWidth}
+        snapToInterval={itemWidth + 12}
         decelerationRate="fast"
         className="w-full"
+        contentContainerStyle={{ paddingRight: 16 }}
       >
         <HStack className="gap-3">
-          {mediaUrls.map((mediaUri, index) => renderMediaItem(mediaUri, index, itemWidth, height))}
+          {media.map((mediaUri, index) => renderMediaItem(mediaUri, index))}
         </HStack>
       </ScrollView>
 
-      <Modal
-        visible={isModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={closeFullscreen}
-      >
-        <View style={styles.modalContainer}>
-          <Pressable style={styles.closeButton} onPress={closeFullscreen}>
-            <Icon as={X} className="text-white w-8 h-8" />
-          </Pressable>
-          
-          {isModalVisible && selectedIndex !== null && (
-            <ScrollView
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              snapToInterval={Dimensions.get('window').width}
-              decelerationRate="fast"
-              contentOffset={{ x: selectedIndex * Dimensions.get('window').width, y: 0 }}
-            >
-              {mediaUrls.map((mediaUri, index) => {
-                const isVideoFile = isVideo(mediaUri);
-                return (
-                  <View key={index} style={styles.fullscreenSlide}>
-                    <View style={styles.fullscreenContainer}>
-                      {isVideoFile ? (
-                        <FullscreenVideoPlayer uri={mediaUri} shouldPlay={index === selectedIndex} />
-                      ) : (
-                        <Image
-                          source={{ uri: mediaUri }}
-                          alt={`${altText} - ${index + 1}`}
-                          style={styles.fullscreenImage}
-                          resizeMode="contain"
-                        />
-                      )}
-                    </View>
-                  </View>
-                );
-              })}
-            </ScrollView>
-          )}
-        </View>
-      </Modal>
+      {renderModal()}
     </>
   );
 };
-
-const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    zIndex: 10,
-    padding: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 20,
-  },
-  fullscreenSlide: {
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000',
-  },
-  fullscreenContainer: {
-    width: "100%",
-    height: "100%",
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000',
-    paddingTop: 80,
-    paddingBottom: 20,
-  },
-  fullscreenMedia: {
-    width: '100%',
-    height: '100%',
-  },
-  fullscreenImage: {
-    width: '100%',
-    height: '100%',
-  },
-});

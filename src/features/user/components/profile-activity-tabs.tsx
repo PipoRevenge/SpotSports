@@ -4,17 +4,19 @@ import { Pressable } from '@/src/components/ui/pressable';
 import { Text } from '@/src/components/ui/text';
 import { VStack } from '@/src/components/ui/vstack';
 import { User } from '@/src/entities/user/model/user';
-import { CheckCircle, Heart, MessageSquare } from 'lucide-react-native';
+import { CheckCircle, MessageSquare, MessagesSquare } from 'lucide-react-native';
 import React, { useState } from 'react';
 
 interface ActivityTabsProps {
   user?: User | null;
   userId: string | undefined;
   reviewsSlot?: React.ReactNode; // slot injected by app layer to render reviews list
+  discussionsSlot?: React.ReactNode; // slot for user's discussions
+  commentsSlot?: React.ReactNode; // slot for user's comments
 }
 
-export const ProfileActivityTabs: React.FC<ActivityTabsProps> = ({ user, userId, reviewsSlot }) => {
-  const [selectedTab, setSelectedTab] = useState<'reviews' | 'favorites' | 'interactions'>('reviews');
+export const ProfileActivityTabs: React.FC<ActivityTabsProps> = ({ user, userId, reviewsSlot, discussionsSlot, commentsSlot }) => {
+  const [selectedTab, setSelectedTab] = useState<'reviews' | 'discussions' | 'comments'>('reviews');
 
   const TABS = [
     {
@@ -25,18 +27,18 @@ export const ProfileActivityTabs: React.FC<ActivityTabsProps> = ({ user, userId,
       count: user?.activity?.reviewsCount || 0,
     },
     {
-      key: 'favorites',
-      label: 'Favoritos',
-      icon: Heart,
-      color: '#FF6B6B',
-      count: user?.activity?.favoriteSpotsCount || 0,
+      key: 'discussions',
+      label: 'Discusiones',
+      icon: MessagesSquare,
+      color: '#3b82f6',
+      count: user?.activity?.discussionsCount || 0,
     },
     {
-      key: 'interactions',
-      label: 'Interacción',
+      key: 'comments',
+      label: 'Comentarios',
       icon: CheckCircle,
       color: '#4ECDC4',
-      count: (user?.activity?.commentsCount || 0) + (user?.activity?.reviewsCount || 0),
+      count: user?.activity?.commentsCount || 0,
     }
   ];
 
@@ -60,7 +62,19 @@ export const ProfileActivityTabs: React.FC<ActivityTabsProps> = ({ user, userId,
       {/* Tab content */}
       <VStack className="pt-4">
         {selectedTab === 'reviews' && reviewsSlot}
-        {selectedTab !== 'reviews' && (
+        {selectedTab === 'discussions' && discussionsSlot}
+        {selectedTab === 'comments' && commentsSlot}
+        {selectedTab === 'reviews' && !reviewsSlot && (
+          <VStack className="items-center justify-center p-8">
+            <Text className="text-gray-600">Contenido no disponible aún para esta pestaña</Text>
+          </VStack>
+        )}
+        {selectedTab === 'discussions' && !discussionsSlot && (
+          <VStack className="items-center justify-center p-8">
+            <Text className="text-gray-600">Contenido no disponible aún para esta pestaña</Text>
+          </VStack>
+        )}
+        {selectedTab === 'comments' && !commentsSlot && (
           <VStack className="items-center justify-center p-8">
             <Text className="text-gray-600">Contenido no disponible aún para esta pestaña</Text>
           </VStack>

@@ -262,7 +262,6 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
                               setViewMode('create');
                               clearCreateError();
                             }}
-                            className="pt-4"
                           >
                             <ButtonText className="text-blue-600 font-medium">
                               + Crear nuevo deporte

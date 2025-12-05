@@ -18,19 +18,23 @@ export function useUpdateDiscussion() {
         const remoteUris = rawUris.filter(uri => uri && uri.match(/^https?:\/\//));
 
         if (localUris.length > 0) {
-          // Need the discussion to get spotId
+          // Get the discussion to get spotId for upload
           const current = await discussionRepository.getDiscussionById(discussionId);
-          const uploaded = await discussionRepository.uploadDiscussionMedia(current?.details.spotId || '', discussionId, localUris);
+          const uploaded = await discussionRepository.uploadDiscussionMedia(
+            current?.details.spotId || '', 
+            discussionId, 
+            localUris
+          );
           const finalMedia = [...remoteUris, ...uploaded];
           finalUpdates.media = finalMedia;
         } else {
-          // Only remote URIs provided in the changes - replace the media list with these remote URIs
           finalUpdates.media = [...remoteUris];
         }
       }
 
       console.log('[useUpdateDiscussion] update payload', { discussionId, finalUpdates });
-        const updated = await discussionRepository.updateDiscussion(discussionId, finalUpdates);
+      // spotId is optional - will be resolved internally if not provided
+      const updated = await discussionRepository.updateDiscussion(discussionId, finalUpdates);
       return updated;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update discussion');

@@ -3,20 +3,83 @@ import { Discussion, DiscussionDetails } from '@/src/entities/discussion/model/d
 import { firestore, storage } from '@/src/lib/firebase-config';
 import * as FileSystem from 'expo-file-system';
 import { ref as dbRef, getDatabase, push } from 'firebase/database';
-import { addDoc, collection, doc, limit as firestoreLimit, getDoc, getDocs, orderBy, query, runTransaction, Timestamp, updateDoc, where } from 'firebase/firestore';
+import {
+    addDoc,
+    collection,
+    collectionGroup,
+    doc,
+    limit as firestoreLimit,
+    getDoc,
+    getDocs,
+    orderBy,
+    query,
+    runTransaction,
+    Timestamp,
+    updateDoc,
+    where,
+} from 'firebase/firestore';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { IDiscussionRepository } from '../interfaces/i-discussion-repository';
 import { voteRepository } from './vote-repository-impl';
 
+/**
+ * DiscussionRepositoryImpl - Discussions as subcollections under spots
+ *
+ * Paths: spots/{spotId}/discussions/{discussionId}
+ * Uses collectionGroup('discussions') for queries when spotId is unknown.
+ */
 export class DiscussionRepositoryImpl implements IDiscussionRepository {
-  async createDiscussion(userId: string, discussionData: DiscussionDetails): Promise<Discussion> {
+  private getDiscussionsCollectionPath(spotId: string): string {
+    return `spots/${spotId}/discussions`;
+  }
+
+  private getDiscussionDocPath(spotId: string, discussionId: string): string {
+    return `${this.getDiscussionsCollectionPath(spotId)}/${discussionId}`;
+  }
+
+  /**
+   * Helper to find a discussion by ID using collectionGroup when spotId is unknown
+   */
+  private async findDiscussionById(discussionId: string): Promise<{ discussion: Discussion; spotId: string } | null> {
+    const discussionsGroupRef = collectionGroup(firestore, 'discussions');
+    
+    // Query all non-deleted discussions and find by ID
+    // Try alternative approach - query by document ID pattern
+    const allDiscussionsQ = query(
+      discussionsGroupRef,
+      where('isDeleted', '==', false),
+      firestoreLimit(500) // Practical limit
+    );
+    const snapshot = await getDocs(allDiscussionsQ);
+    
+    for (const d of snapshot.docs) {
+      if (d.id === discussionId) {
+        const pathSegments = d.ref.path.split('/');
+        const spotId = pathSegments[1];
+        const data = d.data() as any;
+        let mediaUrls: string[] = [];
+        if (data.media && data.media.length > 0) {
+          mediaUrls = await this.getDiscussionMediaUrls(spotId, d.id, data.media);
+        }
+        return {
+          discussion: mapFirestoreDiscussionToEntity(
+            { id: d.id, data: () => ({ ...data, media: mediaUrls }) } as any,
+            spotId
+          ),
+          spotId,
+        };
+      }
+    }
+    return null;
+  }
+
+  async createDiscussion(spotId: string, userId: string, discussionData: DiscussionDetails): Promise<Discussion> {
     try {
       const now = Timestamp.now();
 
-      // Basic discussion doc (no media URLs yet to avoid race conditions)
       const discussion = {
         userId,
-        spotId: discussionData.spotId || '', // Empty string for general discussions
+        spotId,
         title: discussionData.title,
         titleLower: (discussionData.title || '').toLowerCase(),
         description: discussionData.description || '',
@@ -31,100 +94,148 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
         isDeleted: false,
       };
 
-      const colRef = collection(firestore, 'discussions');
+      const colRef = collection(firestore, this.getDiscussionsCollectionPath(spotId));
 
-      // Avoid creating duplicate discussion title within the same spot (case-insensitive)
-      // For general discussions (no spotId), check globally
-      let existingQ;
-      if (discussionData.spotId) {
-        existingQ = query(colRef, where('spotId', '==', discussionData.spotId), where('titleLower', '==', (discussionData.title || '').toLowerCase()), where('isDeleted', '==', false), firestoreLimit(1));
-      } else {
-        // General discussions: check for same title where spotId is empty/null
-        existingQ = query(colRef, where('spotId', '==', ''), where('titleLower', '==', (discussionData.title || '').toLowerCase()), where('isDeleted', '==', false), firestoreLimit(1));
-      }
+      // Check for duplicate title within the spot
+      const existingQ = query(
+        colRef,
+        where('titleLower', '==', (discussionData.title || '').toLowerCase()),
+        where('isDeleted', '==', false),
+        firestoreLimit(1)
+      );
       const existingSnap = await getDocs(existingQ);
       if (!existingSnap.empty) {
-        // Return the existing discussion to be idempotent
         const first = existingSnap.docs[0];
-        return mapFirestoreDiscussionToEntity(first);
+        return mapFirestoreDiscussionToEntity(first, spotId);
       }
 
-      const firestoreData = createFirestoreDiscussionData(userId, discussionData.spotId || '', discussionData.title, discussionData.description, discussionData.tags, []);
+      const firestoreData = createFirestoreDiscussionData(
+        userId,
+        spotId,
+        discussionData.title,
+        discussionData.description,
+        discussionData.tags,
+        []
+      );
       const docRef = await addDoc(colRef, firestoreData);
 
-      // If there are local files provided in discussionData.media, upload them now and update the doc
+      // Handle media uploads
       const mediaUris: string[] = discussionData.media || [];
       if (mediaUris.length > 0) {
         const { local, remote } = this.separateLocalAndRemoteMedia(mediaUris);
         if (local.length > 0) {
           try {
-            const uploaded = await this.uploadDiscussionMedia(discussionData.spotId || '', docRef.id, local);
+            const uploaded = await this.uploadDiscussionMedia(spotId, docRef.id, local);
             const finalMedia = [...remote, ...uploaded];
-            // Update doc with final media URLs/paths
-            await updateDoc(doc(firestore, `discussions/${docRef.id}`), { media: finalMedia, updatedAt: Timestamp.now() } as any);
-            return mapFirestoreDiscussionToEntity({ id: docRef.id, data: () => ({ ...discussion, media: finalMedia }) });
+            await updateDoc(
+              doc(firestore, this.getDiscussionDocPath(spotId, docRef.id)),
+              { media: finalMedia, updatedAt: Timestamp.now() } as any
+            );
+            return mapFirestoreDiscussionToEntity(
+              { id: docRef.id, data: () => ({ ...discussion, media: finalMedia }) },
+              spotId
+            );
           } catch (uploadErr) {
             console.error('[DiscussionRepository] createDiscussion: media upload failed', uploadErr);
-            // If upload fails, delete created doc to avoid inconsistent state
-            await updateDoc(doc(firestore, `discussions/${docRef.id}`), { media: [], updatedAt: Timestamp.now() } as any);
-            // Propagate a helpful error
+            await updateDoc(
+              doc(firestore, this.getDiscussionDocPath(spotId, docRef.id)),
+              { media: [], updatedAt: Timestamp.now() } as any
+            );
             throw new Error('Failed to upload discussion media. Please try again.');
           }
         }
-        // No local files to upload, just return created doc with existing media
-        return mapFirestoreDiscussionToEntity({ id: docRef.id, data: () => ({ ...discussion, media: remote }) });
+        return mapFirestoreDiscussionToEntity(
+          { id: docRef.id, data: () => ({ ...discussion, media: remote }) },
+          spotId
+        );
       }
 
-      return mapFirestoreDiscussionToEntity({ id: docRef.id, data: () => discussion });
+      return mapFirestoreDiscussionToEntity({ id: docRef.id, data: () => discussion }, spotId);
     } catch (error) {
       console.error('[DiscussionRepository] createDiscussion:', error);
       throw error;
     }
   }
 
-  async getDiscussionById(discussionId: string): Promise<Discussion | null> {
+  async getDiscussionById(discussionId: string, spotId?: string): Promise<Discussion | null> {
     try {
-      const docRef = doc(firestore, `discussions/${discussionId}`);
-      const snap = await getDoc(docRef);
-      if (!snap.exists()) return null;
-      const data = snap.data() as any;
-      let mediaUrls: string[] = [];
-      if (data.media && data.media.length > 0) {
-        mediaUrls = await this.getDiscussionMediaUrls(data.spotId, discussionId, data.media);
+      if (spotId) {
+        // Direct query with spotId (faster)
+        const docRef = doc(firestore, this.getDiscussionDocPath(spotId, discussionId));
+        const snap = await getDoc(docRef);
+        if (!snap.exists()) return null;
+        const data = snap.data() as any;
+        let mediaUrls: string[] = [];
+        if (data.media && data.media.length > 0) {
+          mediaUrls = await this.getDiscussionMediaUrls(spotId, discussionId, data.media);
+        }
+        return mapFirestoreDiscussionToEntity(
+          { id: snap.id, data: () => ({ ...data, media: mediaUrls }) } as any,
+          spotId
+        );
       }
-      const docWithUrls = { id: snap.id, data: () => ({ ...data, media: mediaUrls }) } as any;
-      return mapFirestoreDiscussionToEntity(docWithUrls);
+
+      // Fallback: use collectionGroup to find by ID
+      const result = await this.findDiscussionById(discussionId);
+      return result?.discussion || null;
     } catch (error) {
       console.error('[DiscussionRepository] getDiscussionById:', error);
       throw error;
     }
   }
 
-  async getDiscussions(options: { page: number; pageSize: number; sort?: 'newest'|'mostVoted'; tag?: string; search?: string; spotId?: string }): Promise<{ discussions: Discussion[]; total: number }> {
+  async getDiscussions(options: {
+    page: number;
+    pageSize: number;
+    spotId?: string;
+    sort?: 'newest' | 'mostVoted';
+    tag?: string;
+    search?: string;
+  }): Promise<{ discussions: Discussion[]; total: number }> {
     try {
-      const colRef = collection(firestore, 'discussions');
-      let q = query(colRef, where('isDeleted', '==', false));
-      if (options.spotId) q = query(q, where('spotId', '==', options.spotId));
+      let baseQuery;
+      
+      if (options.spotId) {
+        // Query within specific spot
+        const colRef = collection(firestore, this.getDiscussionsCollectionPath(options.spotId));
+        baseQuery = query(colRef, where('isDeleted', '==', false));
+      } else {
+        // Query across all spots using collectionGroup
+        const discussionsGroupRef = collectionGroup(firestore, 'discussions');
+        baseQuery = query(discussionsGroupRef, where('isDeleted', '==', false));
+      }
+
+      let q = baseQuery;
       if (options.tag) q = query(q, where('tags', 'array-contains', options.tag));
       if (options.search) {
         const lower = options.search.toLowerCase();
         q = query(q, where('titleLower', '>=', lower));
       }
 
-      if (!options.sort || options.sort === 'newest') q = query(q, orderBy('createdAt','desc'));
-      if (options.sort === 'mostVoted') q = query(q, orderBy('likesCount','desc'));
+      if (!options.sort || options.sort === 'newest') q = query(q, orderBy('createdAt', 'desc'));
+      if (options.sort === 'mostVoted') q = query(q, orderBy('likesCount', 'desc'));
 
       const snap = await getDocs(q);
       const total = snap.size;
       const result: Discussion[] = [];
+      
       for (const d of snap.docs) {
+        // Extract spotId from path if using collectionGroup
+        const pathSegments = d.ref.path.split('/');
+        const docSpotId = pathSegments[1];
         const data = d.data() as any;
         let mediaUrls: string[] = [];
         if (data.media && data.media.length > 0) {
-          mediaUrls = await this.getDiscussionMediaUrls(data.spotId, d.id, data.media);
+          mediaUrls = await this.getDiscussionMediaUrls(docSpotId, d.id, data.media);
         }
-        result.push(mapFirestoreDiscussionToEntity({ id: d.id, data: () => ({ ...data, media: mediaUrls }) } as any));
+        result.push(
+          mapFirestoreDiscussionToEntity(
+            { id: d.id, data: () => ({ ...data, media: mediaUrls }) } as any,
+            docSpotId
+          )
+        );
       }
+      
       const offset = (options.page - 1) * options.pageSize;
       const pageDiscussions = result.slice(offset, offset + options.pageSize);
 
@@ -135,11 +246,59 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
     }
   }
 
-  async updateDiscussion(discussionId: string, updates: Partial<DiscussionDetails>): Promise<Discussion> {
+  async getDiscussionsByUser(userId: string, limit: number = 20, offset: number = 0): Promise<Discussion[]> {
     try {
-      console.log('[DiscussionRepository] updateDiscussion:', discussionId, updates);
+      const discussionsGroupRef = collectionGroup(firestore, 'discussions');
+      const q = query(
+        discussionsGroupRef,
+        where('userId', '==', userId),
+        where('isDeleted', '==', false),
+        orderBy('createdAt', 'desc'),
+        firestoreLimit(limit + offset)
+      );
 
-      const discussionRef = doc(firestore, `discussions/${discussionId}`);
+      const snapshot = await getDocs(q);
+      const all: Discussion[] = [];
+      for (const d of snapshot.docs) {
+        const pathSegments = d.ref.path.split('/');
+        const spotId = pathSegments[1];
+        const data = d.data() as any;
+        let mediaUrls: string[] = [];
+        if (data.media && data.media.length > 0) {
+          mediaUrls = await this.getDiscussionMediaUrls(spotId, d.id, data.media);
+        }
+        all.push(
+          mapFirestoreDiscussionToEntity(
+            { id: d.id, data: () => ({ ...data, media: mediaUrls }) } as any,
+            spotId
+          )
+        );
+      }
+
+      return all.slice(offset, offset + limit);
+    } catch (error) {
+      console.error('[DiscussionRepository] getDiscussionsByUser:', error);
+      throw error;
+    }
+  }
+
+  async updateDiscussion(
+    discussionId: string,
+    updates: Partial<DiscussionDetails>,
+    spotId?: string
+  ): Promise<Discussion> {
+    try {
+      // Resolve spotId if not provided
+      let resolvedSpotId = spotId;
+      if (!resolvedSpotId) {
+        const found = await this.findDiscussionById(discussionId);
+        if (!found) throw new Error('Discussion not found');
+        resolvedSpotId = found.spotId;
+      }
+
+      console.log('[DiscussionRepository] updateDiscussion:', resolvedSpotId, discussionId, updates);
+
+      const discussionRef = doc(firestore, this.getDiscussionDocPath(resolvedSpotId, discussionId));
       const existingSnap = await getDoc(discussionRef);
       if (!existingSnap.exists()) throw new Error('Discussion not found');
       const existingData = existingSnap.data() as any;
@@ -149,7 +308,6 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       if (updates.media) {
         const { local, remote } = this.separateLocalAndRemoteMedia(updates.media);
 
-        // Compute URLs to delete (those previously present but not in remote set)
         const existingUrls = existingData.media || [];
         const normalizeUrl = (url: string) => {
           if (!url.startsWith('http')) return url;
@@ -178,37 +336,46 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
         }
 
         if (urlsToDelete.length > 0) {
-          console.log('[DiscussionRepository] Removing media from storage:', urlsToDelete);
           await this.deleteMediaFiles(urlsToDelete);
         }
 
-        // Upload local files
-        let uploaded: string[] = [];
         if (local.length > 0) {
-          uploaded = await this.uploadDiscussionMedia(existingData.spotId, discussionId, local);
+          const uploaded = await this.uploadDiscussionMedia(resolvedSpotId, discussionId, local);
+          finalMedia = [...remote, ...uploaded];
+        } else {
+          finalMedia = [...remote];
         }
-
-        finalMedia = [...remote, ...uploaded];
       }
 
-      const updatesWithTimestamp = { ...updates, media: finalMedia, updatedAt: Timestamp.now() } as any;
+      const updatesWithTimestamp: any = {
+        ...updates,
+        media: finalMedia,
+        updatedAt: Timestamp.now(),
+      };
       if (updates.title) {
-        updatesWithTimestamp.titleLower = (updates.title || '').toLowerCase();
+        updatesWithTimestamp.titleLower = updates.title.toLowerCase();
       }
       await updateDoc(discussionRef, updatesWithTimestamp);
 
       const finalSnap = await getDoc(discussionRef);
       if (!finalSnap.exists()) throw new Error('Discussion not found after update');
-      return mapFirestoreDiscussionToEntity(finalSnap);
+      return mapFirestoreDiscussionToEntity(finalSnap, resolvedSpotId);
     } catch (error) {
       console.error('[DiscussionRepository] updateDiscussion:', error);
       throw error;
     }
   }
 
-  async deleteDiscussion(discussionId: string): Promise<void> {
+  async deleteDiscussion(discussionId: string, spotId?: string): Promise<void> {
     try {
-      const discussionRef = doc(firestore, `discussions/${discussionId}`);
+      let resolvedSpotId = spotId;
+      if (!resolvedSpotId) {
+        const found = await this.findDiscussionById(discussionId);
+        if (!found) return; // Already doesn't exist
+        resolvedSpotId = found.spotId;
+      }
+
+      const discussionRef = doc(firestore, this.getDiscussionDocPath(resolvedSpotId, discussionId));
       await runTransaction(firestore, async (tr) => {
         const f = await tr.get(discussionRef);
         if (!f.exists()) return;
@@ -220,27 +387,18 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
     }
   }
 
-  async voteDiscussion(discussionId: string, userId: string, isLike: boolean): Promise<void> {
-    return await voteRepository.vote('discussion', discussionId, userId, isLike);
-  }
-
-  async removeDiscussionVote(discussionId: string, userId: string): Promise<void> {
-    return await voteRepository.removeVote('discussion', discussionId, userId);
-  }
-
-  async getUserVoteDiscussion(discussionId: string, userId: string): Promise<boolean | null> {
-    return await voteRepository.getUserVote('discussion', discussionId, userId);
-  }
-
-  // uploads media to Storage / discussions/{discussionId}/
   async uploadDiscussionMedia(spotId: string, discussionId: string, mediaUris: string[]): Promise<string[]> {
     try {
       if (!mediaUris || mediaUris.length === 0) return [];
-      console.log('[DiscussionRepository] Upload diagnostics:', { spotId, discussionId, fileCount: mediaUris.length, storageBucket: storage.app.options.storageBucket });
+      console.log('[DiscussionRepository] Upload diagnostics:', {
+        spotId,
+        discussionId,
+        fileCount: mediaUris.length,
+        storageBucket: storage.app.options.storageBucket,
+      });
       const downloadUrls: string[] = [];
       for (let i = 0; i < mediaUris.length; i++) {
         const uri = mediaUris[i];
-        // If it's already a remote URL (http/https) just include as-is
         if (uri.startsWith('http://') || uri.startsWith('https://')) {
           downloadUrls.push(uri);
           continue;
@@ -248,9 +406,9 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
         const extension = this.getFileExtension(uri);
         const uniqueId = push(dbRef(getDatabase())).key || `${Date.now()}_${i}`;
         const fileName = `${uniqueId}${extension}`;
-        const storagePath = `discussions/${discussionId}/${fileName}`;
+        const storagePath = `spots/${spotId}/discussions/${discussionId}/${fileName}`;
         const storageRef = ref(storage, storagePath);
-        // If it's a storage path (already in storage) convert to download URL
+
         if (uri.startsWith('discussions/') || uri.startsWith('spots/') || uri.startsWith('reviews/')) {
           try {
             const url = await getDownloadURL(ref(storage, uri));
@@ -258,23 +416,18 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
             continue;
           } catch (err) {
             console.warn('[DiscussionRepository] Could not get download URL for storage path', uri, err);
-            // fall through to attempt upload (may fail)
           }
         }
 
-        // upload if local URI
         console.log('[DiscussionRepository] uploadDiscussionMedia: Uploading', uri, 'to', storagePath);
-        console.log('[DiscussionRepository] file type check:', { isLocal: uri.startsWith('file://') || uri.startsWith('content://'), isHttp: uri.startsWith('http') });
         let blob: Blob | null = null;
         try {
           const response = await fetch(uri);
           blob = await response.blob();
         } catch (fetchErr) {
           console.warn('[DiscussionRepository] uploadDiscussionMedia: fetch failed for uri', uri, fetchErr);
-          // fallback: read with FileSystem as base64 and convert to blob
           try {
-              const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' as any });
-            // Convert base64 to Uint8Array using a safe helper
+            const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' as any });
             const base64ToBytes = (b64: string) => {
               if (typeof global?.atob === 'function') {
                 const binaryString = global.atob(b64);
@@ -293,7 +446,7 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
             const bytes = base64ToBytes(base64);
             blob = new Blob([bytes.buffer]);
           } catch (fsErr) {
-            console.error('[DiscussionRepository] uploadDiscussionMedia: fallback FileSystem failed for uri', uri, fsErr);
+            console.error('[DiscussionRepository] uploadDiscussionMedia: fallback FileSystem failed', uri, fsErr);
             throw fsErr;
           }
         }
@@ -309,10 +462,11 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
     }
   }
 
-  /**
-   * Convierte rutas de Storage a URLs completas
-   */
-  private async getDiscussionMediaUrls(spotId: string, discussionId: string, mediaPaths: string[]): Promise<string[]> {
+  private async getDiscussionMediaUrls(
+    spotId: string,
+    discussionId: string,
+    mediaPaths: string[]
+  ): Promise<string[]> {
     try {
       const urls = await Promise.all(
         mediaPaths.map(async (path) => {
@@ -334,9 +488,6 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
     }
   }
 
-  /**
-   * Deletes files from storage given storage paths (or URL paths)
-   */
   private async deleteMediaFiles(storagePaths: string[]): Promise<void> {
     try {
       const deletePromises = storagePaths.map(async (path) => {
@@ -351,7 +502,6 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       await Promise.all(deletePromises);
     } catch (error) {
       console.error('[DiscussionRepository] Error deleting media files:', error);
-      // Do not throw - deletion failure should not block other steps
     }
   }
 
@@ -368,17 +518,41 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       if (uri.startsWith('http://') || uri.startsWith('https://')) {
         remote.push(uri);
       } else if (uri.startsWith('discussions/') || uri.startsWith('spots/') || uri.startsWith('reviews/')) {
-        // Storage paths are considered remote as they have already been uploaded
         remote.push(uri);
       } else if (uri.startsWith('file://') || uri.startsWith('content://')) {
         local.push(uri);
       } else {
-        // Unknown format - treat as local (most app-local URIs are file://)
         local.push(uri);
       }
     }
-    console.log('[DiscussionRepository] separateLocalAndRemoteMedia:', { total: mediaUris.length, localCount: local.length, remoteCount: remote.length });
     return { local, remote };
+  }
+
+  // ==================== VOTE METHODS ====================
+
+  /**
+   * Vota en una discussion (like o dislike)
+   * Delega al voteRepository usando el path correcto
+   */
+  async voteDiscussion(spotId: string, discussionId: string, userId: string, isLike: boolean): Promise<void> {
+    const discussionPath = `spots/${spotId}/discussions/${discussionId}`;
+    return await voteRepository.vote(discussionPath, userId, isLike);
+  }
+
+  /**
+   * Elimina el voto de un usuario en una discussion
+   */
+  async removeDiscussionVote(spotId: string, discussionId: string, userId: string): Promise<void> {
+    const discussionPath = `spots/${spotId}/discussions/${discussionId}`;
+    return await voteRepository.removeVote(discussionPath, userId);
+  }
+
+  /**
+   * Obtiene el voto actual de un usuario en una discussion
+   */
+  async getDiscussionVote(spotId: string, discussionId: string, userId: string): Promise<boolean | null> {
+    const discussionPath = `spots/${spotId}/discussions/${discussionId}`;
+    return await voteRepository.getUserVote(discussionPath, userId);
   }
 }
 

@@ -18,13 +18,24 @@ export interface FirestoreDiscussionData {
   isDeleted?: boolean;
 }
 
-export function mapFirestoreDiscussionToEntity(doc: any): Discussion {
+export function mapFirestoreDiscussionToEntity(doc: any, spotId?: string): Discussion {
   const data = doc.data ? doc.data() : doc;
+
+  // Try to extract spotId from document path if not provided
+  let resolvedSpotId = spotId;
+  if (!resolvedSpotId && doc.ref?.path) {
+    const pathSegments = doc.ref.path.split('/');
+    if (pathSegments[0] === 'spots') {
+      resolvedSpotId = pathSegments[1];
+    }
+  }
+  // Fallback to data.spotId if still not resolved, ensure it's never undefined
+  const finalSpotId: string = resolvedSpotId || data.spotId || '';
 
   return {
     id: doc.id || data.id,
     details: {
-      spotId: data.spotId || undefined, // Convert empty string to undefined
+      spotId: finalSpotId,
       title: data.title,
       description: data.description,
       tags: data.tags || [],

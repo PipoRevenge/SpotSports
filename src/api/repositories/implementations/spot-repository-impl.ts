@@ -2,7 +2,7 @@ import { SportSpotRating, Spot, SpotDetails } from '@/src/entities/spot/model/sp
 import { firestore, storage } from '@/src/lib/firebase-config';
 import { GeoPoint } from '@/src/types/geopoint';
 import { ref as dbRef, getDatabase, push } from 'firebase/database';
-import { addDoc, collection, doc, GeoPoint as FirebaseGeoPoint, limit as firestoreLimit, getDoc, getDocs, orderBy, query, Timestamp, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, doc, GeoPoint as FirebaseGeoPoint, limit as firestoreLimit, getDoc, getDocs, orderBy, query, setDoc, Timestamp, updateDoc, where } from 'firebase/firestore';
 import { getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 import { distanceBetween, geohashForLocation, geohashQueryBounds } from 'geofire-common';
 import { ISpotRepository, SpotSearchFilters } from '../interfaces/i-spot-repository';
@@ -14,7 +14,8 @@ import { SpotMapper } from '../mappers/spot-mapper';
  */
 export class SpotRepositoryImpl implements ISpotRepository {
   private readonly COLLECTION_NAME = 'spots';
-  private readonly SPOT_SPORT_METRICS_COLLECTION = 'spot_sport_metrics';
+  // CHANGED: sport_metrics is now a subcollection under spots
+  // Path: spots/{spotId}/sport_metrics/{sportId}
 
   /**
    * Crear un nuevo spot
@@ -172,6 +173,7 @@ export class SpotRepositoryImpl implements ISpotRepository {
 
   /**
    * Obtener calificaciones de deportes para un spot
+   * UPDATED: Now uses subcollection spots/{spotId}/sport_metrics/{sportId}
    */
   async getSportRatings(spotId: string): Promise<SportSpotRating[]> {
     try {
@@ -179,35 +181,29 @@ export class SpotRepositoryImpl implements ISpotRepository {
         throw new Error('Valid spot ID is required');
       }
 
-      const spotRef = doc(firestore, this.COLLECTION_NAME, spotId);
-      
-      // Obtener las métricas de deportes
-      const metricsQuery = query(
-        collection(firestore, this.SPOT_SPORT_METRICS_COLLECTION),
-        where('spot_ref', '==', spotRef)
-      );
-
-      const metricsSnap = await getDocs(metricsQuery);
+      // NEW STRUCTURE: sport_metrics is a subcollection under spots
+      const metricsRef = collection(firestore, `spots/${spotId}/sport_metrics`);
+      const metricsSnap = await getDocs(metricsRef);
       const ratings: SportSpotRating[] = [];
 
       for (const metricDoc of metricsSnap.docs) {
         const metricData = metricDoc.data();
+        // The document ID is the sportId
+        const sportId = metricDoc.id;
         
-        // Obtener información del deporte
-        const sportRef = metricData.sport_ref;
-        if (sportRef) {
-          const sportSnap = await getDoc(sportRef);
-          if (sportSnap.exists()) {
-            const sportData = sportSnap.data() as { name?: string; description?: string };
-            
-            ratings.push({
-              sportId: sportSnap.id,
-              sportName: sportData.name || 'Unknown Sport',
-              sportDescription: sportData.description || 'No description available',
-              rating: metricData.avg_rating || 0, // ACTUALIZADO: avg_quality → avg_rating
-              difficulty: metricData.avg_difficulty || 0,
-            });
-          }
+        // Get sport info from sports collection
+        const sportRef = doc(firestore, `sports/${sportId}`);
+        const sportSnap = await getDoc(sportRef);
+        if (sportSnap.exists()) {
+          const sportData = sportSnap.data() as { name?: string; description?: string };
+          
+          ratings.push({
+            sportId: sportId,
+            sportName: sportData.name || 'Unknown Sport',
+            sportDescription: sportData.description || 'No description available',
+            rating: metricData.avg_rating || 0,
+            difficulty: metricData.avg_difficulty || 0,
+          });
         }
       }
 
@@ -234,39 +230,31 @@ export class SpotRepositoryImpl implements ISpotRepository {
   }
 
   /**
-   * Crear documentos en spot_sport_metrics para cada deporte disponible
+   * Crear documentos en sport_metrics subcollection para cada deporte disponible
+   * Uses sportId as document ID for easy access and updates
+   * Path: spots/{spotId}/sport_metrics/{sportId}
    */
   private async createSpotSportMetrics(spotId: string, sportIds: string[]): Promise<void> {
     try {
-      const metricsCollection = collection(firestore, this.SPOT_SPORT_METRICS_COLLECTION);
-      
-      // Crear una referencia al documento del spot
-      const spotRef = doc(firestore, this.COLLECTION_NAME, spotId);
-      
-      // Crear un documento para cada deporte
+      // Create a document for each sport using sportId as the document ID
       const createPromises = sportIds.map(async (sportId) => {
-        // Crear referencia al deporte
-        const sportRef = doc(firestore, 'sports', sportId);
-        
-        // Crear documento en spot_sport_metrics
         const metricData = {
-          spot_ref: spotRef,
-          sport_ref: sportRef,
           avg_difficulty: 0,
-          avg_rating: 0, // ACTUALIZADO: avg_quality → avg_rating
+          avg_rating: 0,
           review_count: 0,
-          sum_difficulty: 0, // NUEVA ESTRUCTURA: agregar sumas
-          sum_rating: 0,     // NUEVA ESTRUCTURA: agregar sumas
+          sum_difficulty: 0,
+          sum_rating: 0,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
         };
         
-        // Usar addDoc para generar ID automático
-        const docRef = await addDoc(metricsCollection, metricData);
-        console.log(`Created metric document: ${docRef.id}`);
+        // Use setDoc with sportId as document ID - creates or overwrites
+        const metricDocRef = doc(firestore, `spots/${spotId}/sport_metrics/${sportId}`);
+        await setDoc(metricDocRef, metricData, { merge: true });
+        
+        console.log(`Created/updated sport_metrics for sport: ${sportId}`);
       });
       
-      // Ejecutar todas las creaciones en paralelo
       await Promise.all(createPromises);
     } catch (error) {
       console.error('Error creating spot sport metrics:', error);
@@ -594,25 +582,18 @@ export class SpotRepositoryImpl implements ISpotRepository {
     if (filters.sportCriteria && filters.sportCriteria.length > 0) {
       const spotsWithCriteria = await Promise.all(
         filtered.map(async (spot) => {
-          const spotRef = doc(firestore, this.COLLECTION_NAME, spot.id);
-          const metricsQuery = query(
-            collection(firestore, this.SPOT_SPORT_METRICS_COLLECTION),
-            where('spot_ref', '==', spotRef)
-          );
-          
-          const metricsSnap = await getDocs(metricsQuery);
+          // NEW STRUCTURE: sport_metrics is subcollection under spot
+          const metricsRef = collection(firestore, `spots/${spot.id}/sport_metrics`);
+          const metricsSnap = await getDocs(metricsRef);
           const spotMetrics = new Map<string, { difficulty: number; quality: number }>();
           
           for (const metricDoc of metricsSnap.docs) {
             const metricData = metricDoc.data();
-            const sportRef = metricData.sport_ref;
-            
-            if (sportRef) {
-              spotMetrics.set(sportRef.id, {
-                difficulty: metricData.avg_difficulty || 0,
-                quality: metricData.avg_rating || 0, // ACTUALIZADO: avg_quality → avg_rating
-              });
-            }
+            // Document ID is the sportId
+            spotMetrics.set(metricDoc.id, {
+              difficulty: metricData.avg_difficulty || 0,
+              quality: metricData.avg_rating || 0,
+            });
           }
           
           const matchesAnyCriteria = filters.sportCriteria!.some(criteria => {

@@ -1,13 +1,12 @@
 ========================================
-Estructura de Datos Firestore (Agrupada)
+Estructura de Datos Firestore (Subcollections)
 ========================================
 
 [COLECCIÓN RAÍZ]
 sports/
   [sportId]
-    // Info Básica
     name: string
-    descripcion: string
+    description: string
 
 ----------------------------------------
 
@@ -17,7 +16,7 @@ spots/
     // Info Básica
     name: string
     description: string
-    gallery: string[] // Lista de urls
+    gallery: string[]
 
     // Contacto
     contactEmail: string
@@ -43,159 +42,161 @@ spots/
     // Metadatos
     createdAt: timestamp
     updatedAt: timestamp
-    createdBy: reference //referencia al usuario
-    
-----------------------------------------
-    
-[COLECCIÓN RAÍZ]
-reviews/
-  [reviewId] // Formato: {userId}_{spotId}
-    // Contenido de la Review (General)
-    content: string
-    rating: number           // Rating Overall del Spot
-    gallery: string[]       // URLs de descarga
-    
-    // Referencias
-    spotId: string          
-    userId: string
-    SportReviews: array (de strings de sports ratings)
-    sportRatings: map    // Mapa donde la key es el 'sportId'
-      [sportId]:
-        sportRating: number  // Rating específico para este deporte
-        difficulty: number // Dificultad para este deporte
-        content?: string   // Comentario opcional *solo* para este deporte
-    
-    // Métricas de Interacción (planas)
-    likesCount: number
-    dislikesCount: number
-    commentsCount: number
-    reports: number
-    
-    // Metadatos y Estado
-    createdAt: timestamp
-    updatedAt?: timestamp
-    isDeleted?: boolean
-    
+    createdBy: reference
+
+    // ============ SUBCOLECCIONES ============
+
     [SUBCOLECCIÓN]
-    /votes
-      [userId]
-        isLike: boolean //true = like; false= dislike;
+    /reviews
+      [reviewId] // Formato: {userId}_{spotId}
+        // Contenido de la Review
+        content: string
+        rating: number
+        gallery: string[]
+        
+        // Referencias (spotId implícito en path)
+        userId: string
+        sportRatings: map
+          [sportId]:
+            sportRating: number
+            difficulty: number
+            content?: string
+        
+        // Métricas de Interacción
+        likesCount: number
+        dislikesCount: number
+        commentsCount: number
+        reports: number
+        
+        // Metadatos
         createdAt: timestamp
+        updatedAt?: timestamp
+        isDeleted?: boolean
+        
+        [SUBCOLECCIÓN]
+        /comments
+          [commentId]
+            userId: string
+            // Nuevo: identificadores explícitos para limpieza de referencias y queries
+            contextId: string  // ID del contexto (spotId). Opcional: se puede inferir del path
+            sourceType: 'review' // or 'discussion' - indica si el comentario pertenece a una review o discussion
+            sourceId: string  // ID del recurso padre (reviewId o discussionId)
+            // IMPORTANT: `sourceRef` is REQUIRED and must be stored as a DocumentReference to the parent document (review or discussion)
+            sourceRef: reference  // REQUIRED: Referencia al documento padre (review o discussion)
+            parentId: string  // reviewId o commentId para respuestas
+            level: number     // 0 = directo, 1+ = respuesta anidada
+            content: string
+            media: string[]
+            tags: string[]
+            likesCount: number
+            dislikesCount: number
+            commentsCount: number
+            reports: number
+            createdAt: timestamp
+            updatedAt?: timestamp
+            isDeleted: boolean
+            
+            [SUBCOLECCIÓN]
+            /votes
+              [userId]
+                isLike: boolean
+                createdAt: timestamp
+        
+        [SUBCOLECCIÓN]
+        /votes
+          [userId]
+            isLike: boolean
+            createdAt: timestamp
 
-----------------------------------------
-
-[COLECCIÓN RAÍZ]
-discussions/
-  [discussionId]
-    // Referencias
-    userId: string          // Creador de la discusión
-    spotId: string          // Vacío para discusiones generales
-    
-    // Contenido
-    title: string
-    titleLower: string      // Para búsquedas case-insensitive
-    description: string
-    tags: string[]          // Ej: ['Q&A', 'Tips', 'Events']
-    media: string[]         // URLs de archivos multimedia
-    
-    // Métricas de Interacción
-    likesCount: number
-    dislikesCount: number
-    commentsCount: number
-    reports: number
-    
-    // Metadatos y Estado
-    createdAt: timestamp
-    updatedAt?: timestamp
-    isDeleted: boolean
-    
     [SUBCOLECCIÓN]
-    /votes
-      [userId]
-        isLike: boolean //true = like; false= dislike;
+    /discussions
+      [discussionId]
+        // Referencias (spotId implícito en path)
+        userId: string
+        
+        // Contenido
+        title: string
+        titleLower: string
+        description: string
+        tags: string[]
+        media: string[]
+        
+        // Métricas de Interacción
+        likesCount: number
+        dislikesCount: number
+        commentsCount: number
+        reports: number
+        
+        // Metadatos
         createdAt: timestamp
+        updatedAt?: timestamp
+        isDeleted: boolean
+        
+        [SUBCOLECCIÓN]
+        /comments
+          [commentId]
+            userId: string
+            // Nuevo: identificadores explícitos para limpieza de referencias y queries
+            contextId: string  // ID del contexto (spotId). Opcional: se puede inferir del path
+            sourceType: 'discussion' // indicates this comment belongs to a discussion
+            sourceId: string  // discussionId or other source id
+            // Backwards compatibility
+            // IMPORTANT: `sourceRef` is REQUIRED and must be stored as a DocumentReference to the parent document (review or discussion)
+            sourceRef: reference  // REQUIRED: Referencia al documento padre (review o discussion)
+            parentId: string    // discussionId o commentId para respuestas
+            level: number
+            content: string
+            media: string[]
+            tags: string[]
+            likesCount: number
+            dislikesCount: number
+            commentsCount: number
+            reports: number
+            createdAt: timestamp
+            updatedAt?: timestamp
+            isDeleted: boolean
+            
+            [SUBCOLECCIÓN]
+            /votes
+              [userId]
+                isLike: boolean
+                createdAt: timestamp
+        
+        [SUBCOLECCIÓN]
+        /votes
+          [userId]
+            isLike: boolean
+            createdAt: timestamp
 
-----------------------------------------
-
-[COLECCIÓN RAÍZ]
-comments/
-  [commentId]
-    // Referencias y Jerarquía
-    userId: string          // Creador del comentario
-    parentId: string        // ID del padre (reviewId, discussionId, o commentId)
-    type: string            // 'review' | 'discussion' (tipo del recurso raíz)
-    level: number           // 0 = comentario directo, 1+ = respuesta anidada
-    
-    // Contenido
-    content: string 
-    media: string[]         // URLs de archivos multimedia
-    tags: string[]          // Tags opcionales
-    
-    // Métricas de interacción
-    likesCount: number
-    dislikesCount: number
-    commentsCount: number   // Contador de respuestas
-    reports: number
-    
-    // Metadatos
-    createdAt: timestamp
-    updatedAt?: timestamp
-    isDeleted: boolean
-    
     [SUBCOLECCIÓN]
-    /votes
-      [userId]
-        isLike: boolean //true = like; false= dislike;
+    /sport_metrics
+      [sportId]
+        // Métricas Calculadas (spot_ref implícito, sport_ref es el doc ID)
+        avg_difficulty: number
+        avg_rating: number
+        review_count: number
+        sum_difficulty: number
+        sum_rating: number
         createdAt: timestamp
-
-----------------------------------------
-
-[COLECCIÓN RAÍZ]
-spot_sport_metrics/
-  [idSpotMetrics]
-    // (Documento de agregación para queries Spot+Sport busqueda por deportes y medias)
-    
-    // Referencias Principales
-    spot_ref: reference (a spot/[spotId])
-    sport_ref: reference (a sport/[sportId])
-    
-    // Métricas Calculadas
-    avg_difficulty: number  
-    avg_rating: number      // ( sportRating se promedia aquí como avg_quality)
-    
-    review_count: number    // Para llevar la cuenta del total de reviews hechas sobre este deporte en ese sport
-    sum_difficulty: number  // Para llevar la cuenta y en caso de que actualice una review no tenga que recalcularse entero
-    sum_rating: number      //  
-    
-    
-    // Metadatos
-    createdAt: timestamp
-    updatedAt: timestamp
-
+        updatedAt: timestamp
 
 ----------------------------------------
 
 [COLECCIÓN RAÍZ]
 users/
   [userId]
-    //detalles del usuario
-    userName: string //(unico)
+    userName: string
     fullName: string
     bio: string
     birthDate: timestamp
     email: string
     profileUrl: string
-    phoneNumber:string
-
-    //Estado Verificación
-    isVerified:false
-    
-
-    //Metadatos
+    phoneNumber: string
+    isVerified: boolean
     createdAt: timestamp
     updatedAt: timestamp
 
-    //Contadores
+    // Contadores
     favoriteSpotsCount: number
     reviewsCount: number
     followersCount: number
@@ -203,15 +204,47 @@ users/
     commentsCount: number
 
     [SUBCOLECCIÓN]
-      followers/
-        [idUser]
-          createdAt: timestamp
+    /followers
+      [idUser]
+        createdAt: timestamp
+    
     [SUBCOLECCIÓN]
-      following/
-        [idUser]
-          createdAt: timestamp
+    /following
+      [idUser]
+        createdAt: timestamp
 
+    [SUBCOLECCIÓN]
+    /saved_spots
+      [savedSpotId]
+        spotId: string
+        categories: array (de strings: 'Favorites', 'Visited', 'WantToVisit')
+        createdAt: timestamp
+        updatedAt: timestamp
 
+    [SUBCOLECCIÓN]
+    /favoriteSports
+      [sportId]
+        sportId: string
+        addedAt: timestamp
+
+========================================
+Collection Group Queries
+========================================
+
+Para recuperar contenido del usuario a través de múltiples spots:
+
+// Obtener todas las reviews del usuario
+collectionGroup('reviews').where('userId', '==', userId)
+
+// Obtener todas las discussions del usuario
+collectionGroup('discussions').where('userId', '==', userId)
+
+// Obtener todos los comments del usuario
+collectionGroup('comments').where('userId', '==', userId)
+
+NOTA: Requiere crear índices en Firebase Console para collectionGroup queries.
+
+NOTA ADICIONAL: En la práctica, los documentos de `comments` ahora incluyen campos explícitos `contextId`, `sourceType` y `sourceId` (además de `sourceRef` opcional) para facilitar queries específicas por usuario y la extracción de contexto sin depender únicamente de la ruta del documento. Si se usa `collectionGroup('comments')`, se puede priorizar los campos explícitos; en caso de que no estén disponibles, extraer `contextId`/`sourceType`/`sourceId` a partir del `doc.ref.path`.
 
 ========================================
 Estructura de Datos Firebase Storage
@@ -233,43 +266,10 @@ spots/
     discussions/
       [discussionId]/
         {uuid}.jpeg|.mp4
-
-
-    
-
-
-    
-
-
-
-
-
-    
-
-
-    
-
-
-
-
-    
-
-  
-
-
-  
-""
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    comments/
+      [commentId]/
+        {uuid}.jpeg|.mp4
+[Directorio]
+comments/
+  [commentId]/
+    {uuid}.jpeg|.mp4

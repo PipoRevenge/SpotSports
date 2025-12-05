@@ -2,12 +2,14 @@ import { Text } from '@/src/components/ui/text';
 import { View } from '@/src/components/ui/view';
 import { VStack } from '@/src/components/ui/vstack';
 import { useUser } from '@/src/context/user-context';
+import { UserCommentList } from '@/src/features/comment';
+import { UserDiscussionList } from '@/src/features/discussion';
 import { useFollow } from '@/src/features/relationships';
 import { UserReviewList } from '@/src/features/review';
-import { useAllSportsMap } from '@/src/hooks/use-sports';
 import { ProfileActivityTabs, ProfileHeader } from '@/src/features/user';
 import { useProfile } from '@/src/features/user/hooks/use-profile';
 import { FollowStatus, ProfileActionType } from '@/src/features/user/types/profile-types';
+import { useAllSportsMap } from '@/src/hooks/use-sports';
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
@@ -162,6 +164,27 @@ export default function UserProfile() {
                                     },
                                 });
                             }}
+                        />
+                    )}
+                    discussionsSlot={(
+                        <UserDiscussionList
+                            userId={user?.id}
+                            onNavigateToDiscussion={(discussionId, spotId) => {
+                                router.push(`/discussion/${discussionId}`);
+                            }}
+                            onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
+                        />
+                    )}
+                    commentsSlot={(
+                        <UserCommentList
+                            userId={user?.id}
+                            onNavigateToReview={(reviewId, spotId) => {
+                                router.push(`/spot/${spotId}`);
+                            }}
+                            onNavigateToDiscussion={(discussionId, spotId) => {
+                                router.push(`/discussion/${discussionId}`);
+                            }}
+                            onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
                         />
                     )}
                 />

@@ -26,7 +26,9 @@ import { UserFirebase, UserMapper } from '../mappers/user-mapper';
 
 export class UserRepositoryImpl implements IUserRepository {
     private readonly USERS_COLLECTION = 'users';
-    private readonly RELATIONSHIPS_COLLECTION = 'relationships';
+    // Subcollections bajo users/{userId}
+    private readonly FOLLOWERS_SUBCOLLECTION = 'followers';
+    private readonly FOLLOWING_SUBCOLLECTION = 'following';
     private readonly SAVED_SPOTS_SUBCOLLECTION = 'saved_spots';
     private readonly FAVORITE_SPORTS_SUBCOLLECTION = 'favoriteSports';
 
@@ -270,22 +272,23 @@ export class UserRepositoryImpl implements IUserRepository {
     async getFollowers(userId: string, options?: { limit?: number; startAfter?: any }): Promise<{ items: User[]; lastVisible?: any }> {
         try {
             const limit = options?.limit || 20;
+            // ESTRUCTURA: users/{userId}/followers/{followerId}
+            const followersRef = collection(firestore, this.USERS_COLLECTION, userId, this.FOLLOWERS_SUBCOLLECTION);
             let q = query(
-                collection(firestore, this.RELATIONSHIPS_COLLECTION),
-                where('followed', '==', userId),
+                followersRef,
                 orderBy('createdAt', 'desc')
             );
             if (options?.startAfter) {
                 q = query(
-                    collection(firestore, this.RELATIONSHIPS_COLLECTION),
-                    where('followed', '==', userId),
+                    followersRef,
                     where('createdAt', '<', options.startAfter),
                     orderBy('createdAt', 'desc')
                 );
             }
             q = query(q as any, firestoreLimit(limit));
             const snapshot = await getDocs(q);
-            const followerIds: string[] = snapshot.docs.map(d => d.data().follower);
+            // El ID del documento es el followerId
+            const followerIds: string[] = snapshot.docs.map(d => d.id);
             const users = await this.batchGetUsersByIds(followerIds);
             const lastVisible = snapshot.docs[snapshot.docs.length - 1]?.data().createdAt;
             return { items: users, lastVisible };
@@ -298,22 +301,23 @@ export class UserRepositoryImpl implements IUserRepository {
     async getFollowing(userId: string, options?: { limit?: number; startAfter?: any }): Promise<{ items: User[]; lastVisible?: any }> {
         try {
             const limit = options?.limit || 20;
+            // ESTRUCTURA: users/{userId}/following/{followedId}
+            const followingRef = collection(firestore, this.USERS_COLLECTION, userId, this.FOLLOWING_SUBCOLLECTION);
             let q = query(
-                collection(firestore, this.RELATIONSHIPS_COLLECTION),
-                where('follower', '==', userId),
+                followingRef,
                 orderBy('createdAt', 'desc')
             );
             if (options?.startAfter) {
                 q = query(
-                    collection(firestore, this.RELATIONSHIPS_COLLECTION),
-                    where('follower', '==', userId),
+                    followingRef,
                     where('createdAt', '<', options.startAfter),
                     orderBy('createdAt', 'desc')
                 );
             }
             q = query(q as any, firestoreLimit(limit));
             const snapshot = await getDocs(q);
-            const followedIds: string[] = snapshot.docs.map(d => d.data().followed);
+            // El ID del documento es el followedId
+            const followedIds: string[] = snapshot.docs.map(d => d.id);
             const users = await this.batchGetUsersByIds(followedIds);
             const lastVisible = snapshot.docs[snapshot.docs.length - 1]?.data().createdAt;
             return { items: users, lastVisible };
@@ -652,27 +656,38 @@ export class UserRepositoryImpl implements IUserRepository {
 
     async followUser(userId: string, targetUserId: string): Promise<void> {
         try {
-            const docId = `${userId}_${targetUserId}`;
-            const relRef = doc(firestore, this.RELATIONSHIPS_COLLECTION, docId);
+            // ESTRUCTURA: 
+            // - users/{userId}/following/{targetUserId}
+            // - users/{targetUserId}/followers/{userId}
             const followerRef = doc(firestore, this.USERS_COLLECTION, userId);
             const followedRef = doc(firestore, this.USERS_COLLECTION, targetUserId);
+            
+            // Subcollection references
+            const followingDocRef = doc(firestore, this.USERS_COLLECTION, userId, this.FOLLOWING_SUBCOLLECTION, targetUserId);
+            const followersDocRef = doc(firestore, this.USERS_COLLECTION, targetUserId, this.FOLLOWERS_SUBCOLLECTION, userId);
 
             await runTransaction(firestore, async (transaction) => {
-                const relDoc = await transaction.get(relRef);
-                if (relDoc.exists()) {
+                const followingDoc = await transaction.get(followingDocRef);
+                if (followingDoc.exists()) {
                     // already following
                     return;
                 }
 
-                transaction.set(relRef, {
-                    follower: userId,
-                    followed: targetUserId,
-                    createdAt: Timestamp.now()
+                const now = Timestamp.now();
+                
+                // Añadir a la subcolección following del usuario
+                transaction.set(followingDocRef, {
+                    createdAt: now
+                });
+                
+                // Añadir a la subcolección followers del usuario objetivo
+                transaction.set(followersDocRef, {
+                    createdAt: now
                 });
 
                 // Update counters
-                transaction.update(followedRef, { followersCount: increment(1), updatedAt: Timestamp.now() });
-                transaction.update(followerRef, { followingCount: increment(1), updatedAt: Timestamp.now() });
+                transaction.update(followedRef, { followersCount: increment(1), updatedAt: now });
+                transaction.update(followerRef, { followingCount: increment(1), updatedAt: now });
             });
         } catch (error) {
             console.error('Error following user:', error);
@@ -682,22 +697,34 @@ export class UserRepositoryImpl implements IUserRepository {
 
     async unfollowUser(userId: string, targetUserId: string): Promise<void> {
         try {
-            const docId = `${userId}_${targetUserId}`;
-            const relRef = doc(firestore, this.RELATIONSHIPS_COLLECTION, docId);
+            // ESTRUCTURA: 
+            // - users/{userId}/following/{targetUserId}
+            // - users/{targetUserId}/followers/{userId}
             const followerRef = doc(firestore, this.USERS_COLLECTION, userId);
             const followedRef = doc(firestore, this.USERS_COLLECTION, targetUserId);
+            
+            // Subcollection references
+            const followingDocRef = doc(firestore, this.USERS_COLLECTION, userId, this.FOLLOWING_SUBCOLLECTION, targetUserId);
+            const followersDocRef = doc(firestore, this.USERS_COLLECTION, targetUserId, this.FOLLOWERS_SUBCOLLECTION, userId);
 
             await runTransaction(firestore, async (transaction) => {
-                const relDoc = await transaction.get(relRef);
-                if (!relDoc.exists()) {
+                const followingDoc = await transaction.get(followingDocRef);
+                if (!followingDoc.exists()) {
                     // Nothing to do
                     return;
                 }
 
-                transaction.delete(relRef);
+                const now = Timestamp.now();
+                
+                // Eliminar de la subcolección following del usuario
+                transaction.delete(followingDocRef);
+                
+                // Eliminar de la subcolección followers del usuario objetivo
+                transaction.delete(followersDocRef);
+                
                 // Decrement counters
-                transaction.update(followedRef, { followersCount: increment(-1), updatedAt: Timestamp.now() });
-                transaction.update(followerRef, { followingCount: increment(-1), updatedAt: Timestamp.now() });
+                transaction.update(followedRef, { followersCount: increment(-1), updatedAt: now });
+                transaction.update(followerRef, { followingCount: increment(-1), updatedAt: now });
             });
         } catch (error) {
             console.error('Error unfollowing user:', error);
@@ -707,10 +734,10 @@ export class UserRepositoryImpl implements IUserRepository {
 
     async isFollowing(followerId: string, followedId: string): Promise<boolean> {
         try {
-            const docId = `${followerId}_${followedId}`;
-            const relRef = doc(firestore, this.RELATIONSHIPS_COLLECTION, docId);
-            const relDoc = await getDoc(relRef);
-            return relDoc.exists();
+            // ESTRUCTURA: users/{followerId}/following/{followedId}
+            const followingDocRef = doc(firestore, this.USERS_COLLECTION, followerId, this.FOLLOWING_SUBCOLLECTION, followedId);
+            const followingDoc = await getDoc(followingDocRef);
+            return followingDoc.exists();
         } catch (error) {
             console.error('Error checking following status:', error);
             throw new Error('Unable to check following status');

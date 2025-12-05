@@ -12,6 +12,7 @@ import { useUser } from "@/src/context/user-context";
 import { Review } from "@/src/entities/review/model/review";
 import { Spot } from '@/src/entities/spot/model/spot';
 import { User } from "@/src/entities/user/model/user";
+import { useMediaUrls } from "@/src/hooks";
 import { formatDate, getInitials } from "@/src/utils/date-utils";
 import { Image, View } from 'react-native';
 // Import router is not allowed inside feature components; navigation must be handled by the app
@@ -88,6 +89,9 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   const userId = user?.id || review.metadata.createdBy;
   const reviewDate = formatDate(review.metadata.createdAt);
   const isOwnReview = currentUser?.id === userId;
+
+  // Resolver URLs de media
+  const { urls: mediaUrls, loading: mediaLoading } = useMediaUrls(review.details.media);
 
   // Estado local para contadores de votos
   const [likesCount, setLikesCount] = useState(review.activity?.likesCount || 0);
@@ -222,11 +226,12 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
         {review.details.media && review.details.media.length > 0 && (
           <View className="pt-3">
             <MediaCarousel
-              media={review.details.media}
+              media={mediaUrls}
               altText={`Review de ${userName}`}
-              height={9*10}
-              width={16*10}
+              height={90}
+              width={160}
               resizeMode="contain"
+              loading={mediaLoading}
             />
           </View>
         )}
@@ -339,6 +344,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
         {/* Sección de comentarios */}
         <ReviewComments
           reviewId={review.id}
+          spotId={spotId}
           initialCommentsCount={review.activity?.commentsCount || 0}
           onNavigateToProfile={onNavigateToProfile}
           replyModalSlot={commentModalSlot}

@@ -11,6 +11,7 @@ import { ActivityIndicator, Pressable, View } from "react-native";
 
 export interface ReviewCommentsProps {
   reviewId: string;
+  spotId: string; // ID del spot (necesario para votos de comentarios)
   initialCommentsCount?: number;
   onNavigateToProfile?: (userId: string) => void;
   /** Slot for the reply modal - injected from app/ layer */
@@ -27,6 +28,7 @@ export interface ReviewCommentsProps {
  */
 export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   reviewId,
+  spotId,
   initialCommentsCount = 0,
   onNavigateToProfile,
   replyModalSlot,
@@ -50,8 +52,9 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
     loadReplies,
     repliesMap,
   } = useComments({ 
-    parentId: reviewId, 
-    type: 'review', 
+    contextId: spotId,
+    sourceType: 'review',
+    sourceId: reviewId, 
     pageSize: 10,
     autoLoad: true 
   });
@@ -166,7 +169,10 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
               {comments.map((comment) => (
                 <CommentCard 
                   key={comment.id}
-                  comment={comment} 
+                  comment={comment}
+                  contextId={spotId}
+                  sourceType="review"
+                  sourceId={reviewId}
                   currentUserId={currentUser?.id}
                   onDelete={handleDelete}
                   onReply={handleReply}
@@ -207,3 +213,4 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
 
 // Re-export CommentWithUser for convenience
 export type { CommentWithUser };
+

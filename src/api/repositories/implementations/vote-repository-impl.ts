@@ -1,30 +1,27 @@
-import { VoteResourceType } from '@/src/entities/vote/model/vote';
 import { firestore } from '@/src/lib/firebase-config';
 import { doc, getDoc, runTransaction, Timestamp } from 'firebase/firestore';
 import { IVoteRepository } from '../interfaces/i-vote-repository';
 
 /**
  * VoteRepository implementation
- * Votes are stored as subcollection documents under each resource
- * (e.g., reviews/{reviewId}/votes/{userId}) with the document id set to the userId.
- * Each vote document contains only the following fields:
- * - isLike: boolean
- * - createdAt: timestamp
+ * 
+ * Votes are stored as subcollection documents under each resource.
+ * All paths follow the subcollection structure:
+ * 
+ * Subcollection paths:
+ * - spots/{spotId}/reviews/{reviewId}/votes/{userId}
+ * - spots/{spotId}/discussions/{discussionId}/votes/{userId}
+ * - spots/{spotId}/reviews/{reviewId}/comments/{commentId}/votes/{userId}
+ * - spots/{spotId}/discussions/{discussionId}/comments/{commentId}/votes/{userId}
  */
 export class VoteRepositoryImpl implements IVoteRepository {
-  private resourcePath(resourceType: VoteResourceType, resourceId: string) {
-    switch (resourceType) {
-      case 'review': return `reviews/${resourceId}`;
-      case 'discussion': return `discussions/${resourceId}`;
-      case 'comment': return `comments/${resourceId}`;
-      default: return `reviews/${resourceId}`;
-    }
-  }
-
-  async vote(resourceType: VoteResourceType, resourceId: string, userId: string, isLike: boolean): Promise<void> {
+  /**
+   * Vota en un recurso (like o dislike)
+   */
+  async vote(resourcePath: string, userId: string, isLike: boolean): Promise<void> {
     try {
-      const voteRef = doc(firestore, `${this.resourcePath(resourceType, resourceId)}/votes/${userId}`);
-      const resourceRef = doc(firestore, this.resourcePath(resourceType, resourceId));
+      const voteRef = doc(firestore, `${resourcePath}/votes/${userId}`);
+      const resourceRef = doc(firestore, resourcePath);
 
       await runTransaction(firestore, async (transaction) => {
         const voteDoc = await transaction.get(voteRef);
@@ -36,14 +33,12 @@ export class VoteRepositoryImpl implements IVoteRepository {
         const currentDislikes = resourceDoc.data().dislikesCount || 0;
 
         if (!voteDoc.exists()) {
-          // New vote — store only isLike and createdAt (doc id == userId)
           transaction.set(voteRef, { isLike, createdAt: Timestamp.now() });
           if (isLike) transaction.update(resourceRef, { likesCount: currentLikes + 1 });
           else transaction.update(resourceRef, { dislikesCount: currentDislikes + 1 });
         } else {
           const previousVote = voteDoc.data().isLike;
           if (previousVote !== isLike) {
-            // Update only the stored fields: isLike (preserve createdAt)
             transaction.update(voteRef, { isLike });
             if (isLike) {
               transaction.update(resourceRef, { likesCount: currentLikes + 1, dislikesCount: Math.max(0, currentDislikes - 1) });
@@ -51,7 +46,6 @@ export class VoteRepositoryImpl implements IVoteRepository {
               transaction.update(resourceRef, { likesCount: Math.max(0, currentLikes - 1), dislikesCount: currentDislikes + 1 });
             }
           }
-          // If previousVote === isLike, no change (should use removeVote instead)
         }
       });
     } catch (error) {
@@ -60,10 +54,13 @@ export class VoteRepositoryImpl implements IVoteRepository {
     }
   }
 
-  async removeVote(resourceType: VoteResourceType, resourceId: string, userId: string): Promise<void> {
+  /**
+   * Elimina el voto de un usuario
+   */
+  async removeVote(resourcePath: string, userId: string): Promise<void> {
     try {
-      const voteRef = doc(firestore, `${this.resourcePath(resourceType, resourceId)}/votes/${userId}`);
-      const resourceRef = doc(firestore, this.resourcePath(resourceType, resourceId));
+      const voteRef = doc(firestore, `${resourcePath}/votes/${userId}`);
+      const resourceRef = doc(firestore, resourcePath);
 
       await runTransaction(firestore, async (transaction) => {
         const voteDoc = await transaction.get(voteRef);
@@ -82,9 +79,12 @@ export class VoteRepositoryImpl implements IVoteRepository {
     }
   }
 
-  async getUserVote(resourceType: VoteResourceType, resourceId: string, userId: string): Promise<boolean | null> {
+  /**
+   * Obtiene el voto actual de un usuario
+   */
+  async getUserVote(resourcePath: string, userId: string): Promise<boolean | null> {
     try {
-      const voteRef = doc(firestore, `${this.resourcePath(resourceType, resourceId)}/votes/${userId}`);
+      const voteRef = doc(firestore, `${resourcePath}/votes/${userId}`);
       const snap = await getDoc(voteRef);
       if (!snap.exists()) return null;
       return snap.data().isLike ?? null;

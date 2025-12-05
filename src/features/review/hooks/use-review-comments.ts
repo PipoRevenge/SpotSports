@@ -20,9 +20,18 @@ interface UseReviewCommentsReturn {
 
 /**
  * Hook para gestionar comentarios de una review con paginación
+ * @param contextId - ID del contexto (spot)
+ * @param reviewId - ID de la review
  */
-export const useReviewComments = (reviewId: string, pageSize: number = 10): UseReviewCommentsReturn => {
-  const c = useComments({ parentId: reviewId, type: 'review', pageSize, autoLoad: true });
+export const useReviewComments = (contextId: string, reviewId: string, pageSize: number = 10): UseReviewCommentsReturn => {
+  const c = useComments({ 
+    contextId, 
+    sourceType: 'review', 
+    sourceId: reviewId, 
+    pageSize, 
+    autoLoad: true 
+  });
+  
   return {
     comments: c.comments as CommentWithUser[],
     totalComments: c.total,

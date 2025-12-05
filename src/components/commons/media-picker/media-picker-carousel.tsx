@@ -79,8 +79,6 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
   }, [media]);
   
   // Create a small component that only uses the video player hook when rendered
-  const currentMedia = media[previewIndex];
-
   const PreviewVideoPlayer: React.FC<{ uri: string; shouldPlay: boolean }> = ({ uri, shouldPlay }) => {
     const player = useVideoPlayer(uri, (p) => {
       p.loop = false;
@@ -93,7 +91,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
           if (shouldPlay) player.play();
           else player.pause();
         }
-      } catch (err) {
+      } catch {
         // ignore user-level player errors
       }
     }, [shouldPlay, player]);
@@ -112,7 +110,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
   /**
    * Solicita permisos para acceder a la galería
    */
-  const { showError, showInfo, showConfirm, showActionSheet, showSuccess } = useAppAlert();
+  const { showError, showInfo, showConfirm, showActionSheet } = useAppAlert();
 
   const requestPermissions = async (): Promise<boolean> => {
     try {
@@ -300,7 +298,8 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
             // Para imágenes, renderizar normalmente
             <Image
               source={{ uri: item.uri }}
-              className="w-full h-full p-4 bg-black"
+              className="w-full h-full"
+              style={{ backgroundColor: '#000' }}
               resizeMode="contain"
             />
           )}
@@ -310,7 +309,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
           {/* Botón de eliminar */}
           <TouchableOpacity
             onPress={() => removeMedia(index)}
-            className="absolute top-2 right-2 bg-red-500 p-2 pr-4 rounded-full"
+            className="absolute top-2 right-2 bg-red-500 p-2 rounded-full"
           >
             <X size={16} color="#FFF" />
           </TouchableOpacity>
@@ -335,8 +334,8 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
         setCurrentIndex(index);
         carouselRef.current?.scrollToIndex({ index, animated: true });
       }}
-      className={`pr-2 rounded-lg overflow-hidden border-2 ${
-        index === currentIndex ? "border-blue-500" : "border-transparent"
+      className={`mr-2 rounded-lg overflow-hidden border-2 ${
+        index === currentIndex ? "border-blue-500" : "border-gray-300"
       }`}
       style={{ width: THUMBNAIL_SIZE, height: THUMBNAIL_SIZE }}
     >
@@ -475,15 +474,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
         visible={previewVisible}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => {
-          // Pausar el video al cerrar
-          try {
-            if (videoPlayer && shouldCreatePlayer) {
-              videoPlayer.pause();
-            }
-          } catch {}
-          setPreviewVisible(false);
-        }}
+        onRequestClose={() => setPreviewVisible(false)}
       >
         <View className="flex-1 bg-black">
           {/* Botón cerrar */}
@@ -515,15 +506,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
           <View className="absolute bottom-12 left-0 right-0 items-center">
             <HStack space="md" className="bg-black/50 px-4 py-2 rounded-full">
               <TouchableOpacity
-                onPress={() => {
-                  // Pausar video actual antes de cambiar
-                  try {
-                    if (videoPlayer && shouldCreatePlayer) {
-                      videoPlayer.pause();
-                    }
-                  } catch {}
-                  setPreviewIndex((prev) => (prev > 0 ? prev - 1 : media.length - 1));
-                }}
+                onPress={() => setPreviewIndex((prev) => (prev > 0 ? prev - 1 : media.length - 1))}
                 disabled={media.length <= 1}
               >
                 <Text className="text-white font-semibold text-lg">←</Text>
@@ -532,15 +515,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
                 {previewIndex + 1} / {media.length}
               </Text>
               <TouchableOpacity
-                onPress={() => {
-                  // Pausar video actual antes de cambiar
-                  try {
-                    if (videoPlayer && shouldCreatePlayer) {
-                      videoPlayer.pause();
-                    }
-                  } catch {}
-                  setPreviewIndex((prev) => (prev < media.length - 1 ? prev + 1 : 0));
-                }}
+                onPress={() => setPreviewIndex((prev) => (prev < media.length - 1 ? prev + 1 : 0))}
                 disabled={media.length <= 1}
               >
                 <Text className="text-white font-semibold text-lg">→</Text>

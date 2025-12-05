@@ -1,9 +1,16 @@
-import { Comment } from "@/src/entities/comment";
 import { Review, ReviewDetails } from "@/src/entities/review/model/review";
 
 /**
  * Interfaz del repositorio de reviews
- * Define las operaciones CRUD para gestionar reviews
+ * 
+ * Estructura de datos en Firestore:
+ * - spots/{spotId}/reviews/{reviewId} - Review como subcollection del spot
+ * - spots/{spotId}/reviews/{reviewId}/votes/{userId} - Votos de la review
+ * - spots/{spotId}/reviews/{reviewId}/comments/{commentId} - Comentarios de la review
+ * - spots/{spotId}/sport_metrics/{sportId} - Métricas agregadas por deporte
+ * 
+ * NOTA: Comment-related methods have been moved to ICommentRepository.
+ * Use commentRepository for all comment operations.
  */
 export interface IReviewRepository {
   /**
@@ -74,36 +81,6 @@ export interface IReviewRepository {
   deleteReview(reviewId: string, spotId: string): Promise<void>;
 
   /**
-   * Vota en una review (like o dislike)
-   * Si el usuario ya votó, actualiza el voto
-   * @deprecated - Moved to IVoteRepository; use voteRepository.vote('review', reviewId, userId, isLike) instead.
-   * @param spotId - ID del spot
-   * @param reviewId - ID de la review
-   * @param userId - ID del usuario que vota
-   * @param isLike - true para like, false para dislike
-   */
-  voteReview(spotId: string, reviewId: string, userId: string, isLike: boolean): Promise<void>;
-
-  /**
-   * Elimina el voto de una review
-   * @deprecated - Moved to IVoteRepository; use voteRepository.removeVote('review', reviewId, userId) instead.
-   * @param spotId - ID del spot
-   * @param reviewId - ID de la review
-   * @param userId - ID del usuario que quita el voto
-   */
-  removeVote(spotId: string, reviewId: string, userId: string): Promise<void>;
-
-  /**
-   * Obtiene el voto de un usuario en una review
-   * @deprecated - Moved to IVoteRepository; use voteRepository.getUserVote('review', reviewId, userId) instead.
-   * @param spotId - ID del spot
-   * @param reviewId - ID de la review
-   * @param userId - ID del usuario
-   * @returns true si es like, false si es dislike, null si no hay voto
-   */
-  getUserVote(spotId: string, reviewId: string, userId: string): Promise<boolean | null>;
-
-  /**
    * Reporta una review
    * @param reviewId - ID de la review a reportar
    * @param userId - ID del usuario que reporta
@@ -112,56 +89,30 @@ export interface IReviewRepository {
   reportReview(reviewId: string, userId: string, reason: string): Promise<void>;
 
   /**
-   * Obtiene los comentarios de una review con paginación
+   * Vota en una review (like o dislike)
+   * Si el usuario ya votó igual, quita el voto
+   * Si votó diferente, cambia el voto
+   * @param spotId - ID del spot
    * @param reviewId - ID de la review
-   * @param page - Número de página (empezando en 1)
-   * @param pageSize - Cantidad de comentarios por página
-   * @returns Array de comentarios y total de comentarios
-   */
-  getComments(reviewId: string, page: number, pageSize: number): Promise<{ comments: Comment[], total: number }>;
-
-  /**
-   * Añade un comentario a una review
-   * @param reviewId - ID de la review
-   * @param userId - ID del usuario que comenta
-   * @param content - Contenido del comentario
-   * @returns El comentario creado
-   */
-  addComment(reviewId: string, userId: string, content: string): Promise<Comment>;
-
-  /**
-   * Elimina un comentario (soft delete)
-   * @param reviewId - ID de la review
-   * @param commentId - ID del comentario a eliminar
-   */
-  deleteComment(reviewId: string, commentId: string): Promise<void>;
-
-  /**
-   * Vota en un comentario (like o dislike)
-   * @deprecated - Moved to IVoteRepository; use voteRepository.vote('comment', commentId, userId, isLike) instead.
-   * @param reviewId - ID de la review
-   * @param commentId - ID del comentario
    * @param userId - ID del usuario que vota
    * @param isLike - true para like, false para dislike
    */
-  voteComment(reviewId: string, commentId: string, userId: string, isLike: boolean): Promise<void>;
+  voteReview(spotId: string, reviewId: string, userId: string, isLike: boolean): Promise<void>;
 
   /**
-   * Elimina el voto de un comentario
-   * @deprecated - Moved to IVoteRepository; use voteRepository.removeVote('comment', commentId, userId) instead.
+   * Elimina el voto de un usuario en una review
+   * @param spotId - ID del spot
    * @param reviewId - ID de la review
-   * @param commentId - ID del comentario
-   * @param userId - ID del usuario que quita el voto
-   */
-  removeCommentVote(reviewId: string, commentId: string, userId: string): Promise<void>;
-
-  /**
-   * Obtiene el voto de un usuario en un comentario
-   * @deprecated - Moved to IVoteRepository; use voteRepository.getUserVote('comment', commentId, userId) instead.
-   * @param reviewId - ID de la review
-   * @param commentId - ID del comentario
    * @param userId - ID del usuario
-   * @returns true si es like, false si es dislike, null si no hay voto
    */
-  getCommentVote(reviewId: string, commentId: string, userId: string): Promise<boolean | null>;
+  removeReviewVote(spotId: string, reviewId: string, userId: string): Promise<void>;
+
+  /**
+   * Obtiene el voto actual de un usuario en una review
+   * @param spotId - ID del spot
+   * @param reviewId - ID de la review
+   * @param userId - ID del usuario
+   * @returns true = like, false = dislike, null = sin voto
+   */
+  getReviewVote(spotId: string, reviewId: string, userId: string): Promise<boolean | null>;
 }
