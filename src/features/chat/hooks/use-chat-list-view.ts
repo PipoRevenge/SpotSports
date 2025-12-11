@@ -7,7 +7,7 @@ import { saveCachedChatMeta } from '../storage/chats-storage';
 import { getClearThreshold } from '../storage/clear-threshold-storage';
 import { getLastSeen } from '../storage/last-seen-storage';
 import { getCachedMessages } from '../storage/messages-storage';
-import type { ChatListItemView } from '../types/types';
+import type { ChatListItemView } from '../types/chat-types';
 
 
 
