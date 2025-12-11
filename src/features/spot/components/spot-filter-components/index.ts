@@ -5,11 +5,11 @@
 
 // Tipos compartidos
 export type {
-    SportFilterCriteria
-} from '../../types/spot-types';
+  SportFilterCriteria
+} from '../../types/spot-search-types';
 
 export {
-    DISTANCE_CONFIG, RATING_CONFIG
+  DISTANCE_CONFIG, RATING_CONFIG
 } from '../../types/spot-types';
 
 // Componentes principales de filtro

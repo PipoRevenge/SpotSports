@@ -285,6 +285,14 @@ export const validateSpot = (data: unknown) => {
 };
 ```
 
+**Form validation contract (features):**
+
+- Field validators return `string | null` (error message or `null` when valid).
+- Form validators return `{ isValid: boolean; errors: Record<string, string> }`.
+- Use `safeParse` and read messages from `error.issues`; never from `error.errors`.
+- Keep validation error keys aligned with form field names.
+- Preserve existing helpers but mark old boolean validators as deprecated when replacing them.
+
 ### Page Pattern (App Layer)
 
 ```tsx

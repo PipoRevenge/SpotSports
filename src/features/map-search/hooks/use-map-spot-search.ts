@@ -2,7 +2,7 @@ import { sportRepository, spotRepository } from "@/src/api/repositories";
 
 import { Sport as SportEntity } from "@/src/entities/sport/model/sport";
 import { Spot } from "@/src/entities/spot/model/spot";
-import { SpotSearchFilters } from '@/src/entities/spot/types/spot-search-types';
+import { SpotSearchFilters } from '@/src/features/spot/types/spot-search-types';
 import { DifficultyLevel } from "@/src/types/difficulty";
 import { useCallback, useEffect, useState } from "react";
 import { Region } from "react-native-maps";

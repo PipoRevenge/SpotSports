@@ -1,6 +1,12 @@
 import { ReviewFormData, ReviewSportFormData } from "../types/review-types";
 import { REVIEW_ERROR_MESSAGES, REVIEW_VALIDATION_LIMITS } from "./review-constants";
 
+export type ValidationErrors = Record<string, string>;
+export interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationErrors;
+}
+
 /**
  * Valida el contenido de la review
  */
@@ -77,32 +83,20 @@ export const validateMedia = (mediaCount: number): string | null => {
 /**
  * Valida todos los campos del formulario de review
  */
-export const validateReviewForm = (formData: ReviewFormData): { [key: string]: string } => {
-  const errors: { [key: string]: string } = {};
+export const validateReviewForm = (formData: ReviewFormData): ValidationResult => {
+  const errors: ValidationErrors = {};
 
-  // Validar contenido
   const contentError = validateReviewContent(formData.content);
-  if (contentError) {
-    errors.content = contentError;
-  }
+  if (contentError) errors.content = contentError;
 
-  // Validar rating general
   const ratingError = validateOverallRating(formData.rating);
-  if (ratingError) {
-    errors.rating = ratingError;
-  }
+  if (ratingError) errors.rating = ratingError;
 
-  // Validar deportes
   const sportsError = validateReviewSports(formData.reviewSports);
-  if (sportsError) {
-    errors.reviewSports = sportsError;
-  }
+  if (sportsError) errors.reviewSports = sportsError;
 
-  // Validar media
   const mediaError = validateMedia(formData.media.length);
-  if (mediaError) {
-    errors.media = mediaError;
-  }
+  if (mediaError) errors.media = mediaError;
 
-  return errors;
+  return { isValid: Object.keys(errors).length === 0, errors };
 };

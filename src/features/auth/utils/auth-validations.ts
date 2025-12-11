@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+// Validation result shape used across features
+export type ValidationErrors = Record<string, string>;
+export interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationErrors;
+}
+
 /**
  * Zod schema for email validation
  */
@@ -75,40 +82,88 @@ export const signUpFormSchema = z.object({
   }
 );
 
-/**
- * Validates email
- */
-export const validateEmail = (email: string): boolean => {
-  return emailSchema.safeParse(email).success;
+// ============ Field-level validators (return string | null) ============
+
+export const validateEmailField = (email: string): string | null => {
+  const result = emailSchema.safeParse(email);
+  return result.success ? null : result.error.issues[0]?.message ?? 'Invalid email';
+};
+
+export const validatePasswordField = (password: string): string | null => {
+  const result = passwordSchema.safeParse(password);
+  return result.success ? null : result.error.issues[0]?.message ?? 'Invalid password';
+};
+
+export const validateUsernameField = (username: string): string | null => {
+  const result = usernameSchema.safeParse(username);
+  return result.success ? null : result.error.issues[0]?.message ?? 'Invalid username';
+};
+
+export const validateBirthDateField = (date: Date | null): string | null => {
+  if (!date) return 'Birth date is required';
+  const result = birthDateSchema.safeParse(date);
+  return result.success ? null : result.error.issues[0]?.message ?? 'Invalid birth date';
+};
+
+// ============ Form validators (return unified shape) ============
+
+export const validateSignIn = (payload: { email: string; password: string }): ValidationResult => {
+  const result = signInFormSchema.safeParse(payload);
+  if (result.success) {
+    return { isValid: true, errors: {} };
+  }
+  const errors: ValidationErrors = {};
+  result.error.issues.forEach((err) => {
+    const field = err.path[0];
+    if (typeof field === 'string' && !errors[field]) {
+      errors[field] = err.message;
+    }
+  });
+  return { isValid: false, errors };
+};
+
+export const validateSignUp = (payload: { email: string; password: string; confirmPassword: string; username: string; birthDate: Date | null }): ValidationResult => {
+  const result = signUpFormSchema.safeParse(payload);
+  if (result.success) {
+    return { isValid: true, errors: {} };
+  }
+  const errors: ValidationErrors = {};
+  result.error.issues.forEach((err) => {
+    const field = err.path[0];
+    if (typeof field === 'string' && !errors[field]) {
+      errors[field] = err.message;
+    }
+  });
+  return { isValid: false, errors };
 };
 
 /**
- * Validates password
+/**
+ * @deprecated Use validateEmailField which returns string | null
  */
-export const validatePassword = (password: string): boolean => {
-  return passwordSchema.safeParse(password).success;
-};
+export const validateEmail = (email: string): boolean => emailSchema.safeParse(email).success;
 
 /**
- * Validates passwords match
+ * @deprecated Use validatePasswordField which returns string | null
+ */
+export const validatePassword = (password: string): boolean => passwordSchema.safeParse(password).success;
+
+/**
+ * @deprecated Prefer validateSignUp to surface field errors
  */
 export const validatePasswordsMatch = (password: string, confirmPassword: string): boolean => {
   return password === confirmPassword && password.length > 0;
 };
 
 /**
- * Validates username
+ * @deprecated Use validateUsernameField which returns string | null
  */
-export const validateUsername = (username: string): boolean => {
-  return usernameSchema.safeParse(username).success;
-};
+export const validateUsername = (username: string): boolean => usernameSchema.safeParse(username).success;
 
 /**
- * Validates username format (alias for backward compatibility)
+ * @deprecated Use validateUsernameField; kept for backward compatibility
  */
-export const validateUserNameFormat = (username: string): boolean => {
-  return validateUsername(username);
-};
+export const validateUserNameFormat = (username: string): boolean => validateUsername(username);
 
 /**
  * Generates username suggestions based on full name
@@ -151,45 +206,24 @@ export const generateUserNameSuggestions = (fullName: string): string[] => {
 };
 
 /**
- * Validates birth date
+/**
+ * @deprecated Use validateBirthDateField which returns string | null
  */
 export const validateBirthDate = (date: Date | null): boolean => {
   if (!date) return false;
   return birthDateSchema.safeParse(date).success;
 };
 
-export interface ValidationResult {
-  isValid: boolean;
-  errors: {
-    email?: boolean;
-    password?: boolean;
-    confirmPassword?: boolean;
-    username?: boolean;
-    birthDate?: boolean;
-  };
-}
-
 /**
- * Validates sign in form
+ * @deprecated Use validateSignIn which returns field messages
  */
 export const validateSignInForm = (email: string, password: string): ValidationResult => {
-  const result = signInFormSchema.safeParse({ email, password });
-  
-  if (result.success) {
-    return { isValid: true, errors: {} };
-  }
-  
-  const errors: ValidationResult['errors'] = {};
-  result.error.errors.forEach((error) => {
-    const field = error.path[0] as keyof ValidationResult['errors'];
-    errors[field] = true;
-  });
-
-  return { isValid: false, errors };
+  const { isValid, errors } = validateSignIn({ email, password });
+  return { isValid, errors };
 };
 
 /**
- * Validates sign up form
+ * @deprecated Use validateSignUp which returns field messages
  */
 export const validateSignUpForm = (
   email: string,
@@ -198,23 +232,6 @@ export const validateSignUpForm = (
   username: string,
   birthDate: Date | null
 ): ValidationResult => {
-  const result = signUpFormSchema.safeParse({
-    email,
-    password,
-    confirmPassword,
-    username,
-    birthDate,
-  });
-  
-  if (result.success) {
-    return { isValid: true, errors: {} };
-  }
-  
-  const errors: ValidationResult['errors'] = {};
-  result.error.errors.forEach((error) => {
-    const field = error.path[0] as keyof ValidationResult['errors'];
-    errors[field] = true;
-  });
-
-  return { isValid: false, errors };
+  const { isValid, errors } = validateSignUp({ email, password, confirmPassword, username, birthDate });
+  return { isValid, errors };
 };

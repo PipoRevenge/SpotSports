@@ -1,6 +1,6 @@
 import { FlatList } from '@/src/components/ui/flat-list';
 import React, { useCallback, useMemo } from 'react';
-import type { ChatListItemView } from '../types';
+import type { ChatListItemView } from '../types/chat-types';
 import { ChatListItem } from './chat-list-item';
 
 interface ChatListProps {

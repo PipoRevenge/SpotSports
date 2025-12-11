@@ -6,7 +6,7 @@ import { View } from '@/src/components/ui/view';
 import { Image as ImageIcon, Users as UsersIcon, Video as VideoIcon } from 'lucide-react-native';
 import React, { useCallback, useMemo } from 'react';
 import type { GestureResponderEvent } from 'react-native';
-import type { ChatListItemProps } from '../types';
+import type { ChatListItemProps } from '../types/chat-types';
 
 const MAX_PREVIEW_LENGTH = 60;
 

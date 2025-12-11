@@ -19,7 +19,7 @@ export const useCreateSpot = () => {
   /**
    * Función para crear un nuevo spot
    */
-  const createSpot = async (formData: SpotCreateFormData): Promise<boolean> => {
+  const createSpot = async (formData: SpotCreateFormData): Promise<string | null> => {
     setState({ isLoading: true, error: null, success: false });
 
     try {
@@ -30,7 +30,7 @@ export const useCreateSpot = () => {
           error: "Debes estar autenticado para crear un spot", 
           success: false 
         });
-        return false;
+        return null;
       }
 
       // Verificar que el usuario tenga username
@@ -40,7 +40,7 @@ export const useCreateSpot = () => {
           error: "El usuario debe tener un nombre de usuario configurado", 
           success: false 
         });
-        return false;
+        return null;
       }
 
       // Validar formulario
@@ -53,7 +53,7 @@ export const useCreateSpot = () => {
           error: firstError || "Datos del formulario inválidos", 
           success: false 
         });
-        return false;
+        return null;
       }
 
       // Preparar datos para el repositorio
@@ -72,10 +72,10 @@ export const useCreateSpot = () => {
       };
 
       // Llamar al repositorio para crear el spot con el userId y username
-      await spotRepository.createSpot(spotDetails, user.id, user.userDetails.userName);
+      const spotId = await spotRepository.createSpot(spotDetails, user.id, user.userDetails.userName);
 
       setState({ isLoading: false, error: null, success: true });
-      return true;
+      return spotId;
 
     } catch (error) {
       console.error("Error creating spot:", error);
@@ -93,7 +93,7 @@ export const useCreateSpot = () => {
         error: errorMessage, 
         success: false 
       });
-      return false;
+      return null;
     }
   };
 

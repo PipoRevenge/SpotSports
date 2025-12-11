@@ -4,9 +4,9 @@
 export { SelectedSpotProvider, useSelectedSpot } from '../../context/selected-spot-context';
 
 // Types
-export type { SpotSearchFilters } from './components/spot-search/spot-search-filter-modal';
+export type { SportFilterCriteria, SpotSearchFilters } from './types/spot-search-types';
 export { DISTANCE_CONFIG, RATING_CONFIG } from './types/spot-types';
-export type { MediaItem, SportFilterCriteria, SpotCreateFormData, SpotCreateFormProps, SpotFormErrors, SpotFormState } from './types/spot-types';
+export type { MediaItem, SpotCreateFormData, SpotCreateFormProps, SpotFormErrors, SpotFormState } from './types/spot-types';
 
 // Components - Create
 export { SpotCreateForm } from './components/spot-create/spot-create-form';

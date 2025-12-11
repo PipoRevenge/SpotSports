@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
+export type ValidationErrors = Record<string, string>;
 export interface ValidationResult {
   isValid: boolean;
-  error?: string;
-  fieldErrors?: Record<string, string>;
+  errors: ValidationErrors;
 }
 
 export interface ProfileData {
@@ -97,108 +97,83 @@ export const profileDataSchema = z.object({
   photoURL: z.string().url('Invalid photo URL').optional(),
 });
 
+// ============ Field-level helpers ============
+
+export const validateFullNameField = (fullName?: string): string | null => {
+  const parsed = fullNameSchema.safeParse(fullName);
+  return parsed.success ? null : parsed.error.issues[0]?.message ?? 'Invalid full name';
+};
+
+export const validateBioField = (bio?: string): string | null => {
+  const parsed = bioSchema.safeParse(bio);
+  return parsed.success ? null : parsed.error.issues[0]?.message ?? 'Invalid bio';
+};
+
+export const validatePhoneNumberField = (phoneNumber?: string): string | null => {
+  const parsed = phoneNumberSchema.safeParse(phoneNumber);
+  return parsed.success ? null : parsed.error.issues[0]?.message ?? 'Invalid phone number';
+};
+
+export const validateBirthDateField = (birthDate?: string): string | null => {
+  if (!birthDate) return null; // optional
+  const parsed = birthDateSchema.safeParse(birthDate);
+  return parsed.success ? null : parsed.error.issues[0]?.message ?? 'Invalid birth date';
+};
+
+// ============ Form validator ============
+
+export const validateProfileForm = (profileData: ProfileData): ValidationResult => {
+  const result = profileDataSchema.safeParse(profileData);
+  if (result.success) return { isValid: true, errors: {} };
+
+  const errors: ValidationErrors = {};
+  result.error.issues.forEach((issue) => {
+    const field = issue.path[0];
+    if (typeof field === 'string' && !errors[field]) {
+      errors[field] = issue.message;
+    }
+  });
+
+  return { isValid: false, errors };
+};
+
 /**
  * Validates full name
  */
 export const validateFullName = (fullName?: string): ValidationResult => {
-  if (!fullName || fullName.trim().length === 0) {
-    return { isValid: false, error: 'Full name is required' };
-  }
-
-  const result = fullNameSchema.safeParse(fullName);
-  
-  if (result.success) {
-    return { isValid: true };
-  }
-  
-  return {
-    isValid: false,
-    error: result.error.errors[0].message
-  };
+  const error = validateFullNameField(fullName);
+  return { isValid: !error, errors: error ? { fullName: error } : {} };
 };
 
 /**
  * Validates bio
  */
 export const validateBio = (bio?: string): ValidationResult => {
-  const result = bioSchema.safeParse(bio);
-  
-  if (result.success) {
-    return { isValid: true };
-  }
-  
-  return {
-    isValid: false,
-    error: result.error.errors[0].message
-  };
+  const error = validateBioField(bio);
+  return { isValid: !error, errors: error ? { bio: error } : {} };
 };
 
 /**
  * Validates phone number
  */
 export const validatePhoneNumber = (phoneNumber?: string): ValidationResult => {
-  if (!phoneNumber || phoneNumber.trim().length === 0) {
-    return { isValid: true }; // Phone is optional
-  }
-
-  const result = phoneNumberSchema.safeParse(phoneNumber);
-  
-  if (result.success) {
-    return { isValid: true };
-  }
-  
-  return {
-    isValid: false,
-    error: result.error.errors[0].message
-  };
+  const error = validatePhoneNumberField(phoneNumber);
+  return { isValid: !error, errors: error ? { phoneNumber: error } : {} };
 };
 
 /**
  * Validates birth date
  */
 export const validateBirthDate = (birthDate?: string): ValidationResult => {
-  if (!birthDate) {
-    return { isValid: true }; // Birth date is optional
-  }
-
-  const result = birthDateSchema.safeParse(birthDate);
-  
-  if (result.success) {
-    return { isValid: true };
-  }
-  
-  return {
-    isValid: false,
-    error: result.error.errors[0].message
-  };
+  const error = validateBirthDateField(birthDate);
+  return { isValid: !error, errors: error ? { birthDate: error } : {} };
 };
 
 /**
  * Main validation for all profile data
  */
 export const validateProfileData = (profileData: ProfileData): ValidationResult => {
-  const result = profileDataSchema.safeParse(profileData);
-  
-  if (result.success) {
-    return { isValid: true };
-  }
-  
-  const fieldErrors: Record<string, string> = {};
-  
-  result.error.errors.forEach((error) => {
-    const field = error.path[0] as string;
-    if (!fieldErrors[field]) {
-      fieldErrors[field] = error.message;
-    }
-  });
-  
-  const firstError = Object.values(fieldErrors)[0];
-  
-  return {
-    isValid: false,
-    error: firstError,
-    fieldErrors
-  };
+  return validateProfileForm(profileData);
 };
 
 /**

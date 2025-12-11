@@ -15,6 +15,7 @@ export interface IUserRepository {
   createUser(userId: string, userData: Partial<UserDetails>): Promise<boolean>;
   getUserById(userId: string): Promise<User>;
   updateUserProfile(userId: string, userData: Partial<User>): Promise<User>;
+  incrementActivityCounters(userId: string, counters: { commentsDelta?: number; discussionsDelta?: number; reviewsDelta?: number; }): Promise<void>;
   uploadProfilePhoto(userId: string, photoUri: string): Promise<string>;
   
   // Métodos de saved_spots (subcolección)

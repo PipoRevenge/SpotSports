@@ -15,5 +15,5 @@ export * from './hooks/use-create-chat';
 export * from './hooks/use-delete-chat';
 export * from './hooks/use-messages';
 export * from './hooks/use-send-message';
-export * from './types';
+export * from './types/chat-types';
 

@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { CreateSportData } from '../types/sport-types';
 
+export type ValidationErrors = Record<string, string>;
+export interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationErrors;
+}
+
 /**
  * Esquema de validación para crear un deporte
  */
@@ -18,78 +24,62 @@ export const createSportSchema = z.object({
   icon: z.string().optional(),
 });
 
+// ============ Field-level helpers ============
+
+export const validateSportNameField = (name: string): string | null => {
+  const parsed = createSportSchema.shape.name.safeParse(name);
+  return parsed.success ? null : parsed.error.issues[0]?.message ?? 'Invalid sport name';
+};
+
+export const validateSportDescriptionField = (description: string): string | null => {
+  const parsed = createSportSchema.shape.description.safeParse(description);
+  return parsed.success ? null : parsed.error.issues[0]?.message ?? 'Invalid sport description';
+};
+
+export const validateSportCategoryField = (category?: string): string | null => {
+  const parsed = createSportSchema.shape.category.safeParse(category);
+  return parsed.success ? null : parsed.error.issues[0]?.message ?? null;
+};
+
+// ============ Form validator ============
+
+export const validateSportForm = (data: CreateSportData): ValidationResult => {
+  const result = createSportSchema.safeParse(data);
+  if (result.success) return { isValid: true, errors: {} };
+
+  const errors: ValidationErrors = {};
+  result.error.issues.forEach((issue) => {
+    const field = issue.path[0];
+    if (typeof field === 'string' && !errors[field]) {
+      errors[field] = issue.message;
+    }
+  });
+
+  return { isValid: false, errors };
+};
+
 /**
  * Valida los datos para crear un deporte
  */
 export const validateCreateSport = (data: CreateSportData): { success: boolean; errors?: Record<string, string> } => {
-  const result = createSportSchema.safeParse(data);
-  
-  if (result.success) {
-    return { success: true };
-  }
-  
-  const errors: Record<string, string> = {};
-  result.error.errors.forEach((error) => {
-    const field = error.path[0] as string;
-    errors[field] = error.message;
-  });
-  
-  return { success: false, errors };
+  const result = validateSportForm(data);
+  return result.isValid ? { success: true } : { success: false, errors: result.errors };
 };
 
 /**
  * Valida el nombre del deporte
  */
-export const validateSportName = (name: string): string | null => {
-  if (!name?.trim()) {
-    return 'Sport name is required';
-  }
-  
-  if (name.trim().length < 2) {
-    return 'Name must be at least 2 characters long';
-  }
-  
-  if (name.trim().length > 50) {
-    return 'Name cannot be longer than 50 characters';
-  }
-  
-  return null;
-};
+export const validateSportName = (name: string): string | null => validateSportNameField(name);
 
 /**
  * Valida la descripción del deporte
  */
-export const validateSportDescription = (description: string): string | null => {
-  if (!description?.trim()) {
-    return 'Sport description is required';
-  }
-  
-  if (description.trim().length < 5) {
-    return 'Description must be at least 5 characters long';
-  }
-  
-  if (description.trim().length > 200) {
-    return 'Description cannot be longer than 200 characters';
-  }
-  
-  return null;
-};
+export const validateSportDescription = (description: string): string | null => validateSportDescriptionField(description);
 
 /**
  * Valida la categoría del deporte (opcional)
  */
-export const validateSportCategory = (category?: string): string | null => {
-  // La categoría es opcional
-  if (!category?.trim()) {
-    return null; // No hay error si está vacía
-  }
-  
-  if (category.trim().length > 30) {
-    return 'Category cannot be longer than 30 characters';
-  }
-  
-  return null;
-};
+export const validateSportCategory = (category?: string): string | null => validateSportCategoryField(category);
 
 /**
  * Valida que al menos un deporte esté seleccionado

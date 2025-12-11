@@ -6,6 +6,7 @@ import { DiscussionForm } from "@/src/features/discussion/components/discussion-
 import { useSpotDetails } from "@/src/features/spot/hooks/use-spot-details";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
+import { ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function DiscussionCreatePage() {
@@ -63,14 +64,20 @@ export default function DiscussionCreatePage() {
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
-      <DiscussionForm
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <DiscussionForm
         onSubmit={handleSubmit}
         isSubmitting={isCreating}
         spotSports={
           sportRatings?.map((sr) => ({ id: sr.sportId, name: sr.sportName })) ??
           []
         }
-      />
+        />
+      </ScrollView>
     </SafeAreaView>
   );
 }

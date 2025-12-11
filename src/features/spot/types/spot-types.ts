@@ -9,7 +9,7 @@ export interface MediaItem {
   duration?: number;
 }
 
-// SportFilterCriteria is defined in entities/spot and imported above
+// SportFilterCriteria is defined in spot-search-types for search-related UI
 
 /**
  * Constantes para el rating

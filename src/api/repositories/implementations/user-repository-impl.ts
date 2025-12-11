@@ -1,23 +1,23 @@
 import { SavedSpot, SpotCategory } from '@/src/entities/user/model/spot-collection';
 import { User, UserDetails } from '@/src/entities/user/model/user';
 import {
-    addDoc,
-    arrayRemove,
-    arrayUnion,
-    collection,
-    deleteDoc,
-    doc,
-    limit as firestoreLimit,
-    getDoc,
-    getDocs,
-    increment,
-    orderBy,
-    query,
-    runTransaction,
-    setDoc,
-    Timestamp,
-    updateDoc,
-    where
+  addDoc,
+  arrayRemove,
+  arrayUnion,
+  collection,
+  deleteDoc,
+  doc,
+  limit as firestoreLimit,
+  getDoc,
+  getDocs,
+  increment,
+  orderBy,
+  query,
+  runTransaction,
+  setDoc,
+  Timestamp,
+  updateDoc,
+  where
 } from 'firebase/firestore';
 import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
 import { firestore } from '../../../lib/firebase-config';
@@ -86,6 +86,7 @@ export class UserRepositoryImpl implements IUserRepository {
                 // Activity inicial
                 reviewsCount: 0,
                 commentsCount: 0,
+                discussionsCount: 0,
                 favoriteSpotsCount: 0,
                 followersCount: 0,
                 followingCount: 0,
@@ -227,6 +228,36 @@ export class UserRepositoryImpl implements IUserRepository {
         } catch (error) {
             console.error('Error updating user:', error);
             throw new Error('Unable to update user');
+        }
+    }
+
+    async incrementActivityCounters(
+        userId: string,
+        counters: { commentsDelta?: number; discussionsDelta?: number; reviewsDelta?: number; }
+    ): Promise<void> {
+        try {
+            const updates: Record<string, any> = { updatedAt: Timestamp.now() };
+
+            if (counters.commentsDelta && counters.commentsDelta !== 0) {
+                updates.commentsCount = increment(counters.commentsDelta);
+            }
+            if (counters.discussionsDelta && counters.discussionsDelta !== 0) {
+                updates.discussionsCount = increment(counters.discussionsDelta);
+            }
+            if (counters.reviewsDelta && counters.reviewsDelta !== 0) {
+                updates.reviewsCount = increment(counters.reviewsDelta);
+            }
+
+            // No updates to apply
+            if (Object.keys(updates).length === 1) {
+                return;
+            }
+
+            const userRef = doc(firestore, this.USERS_COLLECTION, userId);
+            await updateDoc(userRef, updates);
+        } catch (error) {
+            console.error('Error incrementing user activity counters:', error);
+            throw new Error('Unable to update user activity counters');
         }
     }
 

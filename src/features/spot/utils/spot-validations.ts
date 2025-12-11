@@ -1,6 +1,12 @@
 import { GeoPoint } from '@/src/types/geopoint';
 import { z } from 'zod';
-import { MediaItem, SpotCreateFormData, SpotFormErrors } from "../types/spot-types";
+import { MediaItem, SpotCreateFormData } from "../types/spot-types";
+
+export type ValidationErrors = Record<string, string>;
+export interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationErrors;
+}
 
 // Regex patterns for validations
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -64,7 +70,7 @@ export const validateSpotName = (name: string): string | null => {
     .max(100, 'El nombre del spot no puede tener más de 100 caracteres')
     .safeParse(name?.trim());
   
-  return result.success ? null : result.error.errors[0].message;
+  return result.success ? null : result.error.issues[0]?.message ?? 'Nombre inválido';
 };
 
 /**
@@ -76,7 +82,7 @@ export const validateSpotDescription = (description: string): string | null => {
     .max(500, 'La descripción no puede tener más de 500 caracteres')
     .safeParse(description?.trim());
   
-  return result.success ? null : result.error.errors[0].message;
+  return result.success ? null : result.error.issues[0]?.message ?? 'Descripción inválida';
 };
 
 /**
@@ -87,7 +93,7 @@ export const validateAvailableSports = (sports: string[]): string | null => {
     .min(1, 'Debe seleccionar al menos un deporte')
     .safeParse(sports);
   
-  return result.success ? null : result.error.errors[0].message;
+  return result.success ? null : result.error.issues[0]?.message ?? 'Deporte inválido';
 };
 
 /**
@@ -98,7 +104,7 @@ export const validateMedia = (media: MediaItem[]): string | null => {
     .min(1, 'Debe añadir al menos una foto o video del spot')
     .safeParse(media);
   
-  return result.success ? null : result.error.errors[0].message;
+  return result.success ? null : result.error.issues[0]?.message ?? 'Media inválida';
 };
 
 /**
@@ -111,7 +117,7 @@ export const validateLocation = (location: GeoPoint | null): string | null => {
     })
     .safeParse(location);
   
-  return result.success ? null : result.error.errors[0].message;
+  return result.success ? null : result.error.issues[0]?.message ?? 'Ubicación inválida';
 };
 
 /**
@@ -126,7 +132,7 @@ export const validateContactEmail = (email?: string): string | null => {
     .regex(EMAIL_REGEX, 'El formato del email no es válido')
     .safeParse(email.trim());
   
-  return result.success ? null : result.error.errors[0].message;
+  return result.success ? null : result.error.issues[0]?.message ?? 'Email inválido';
 };
 
 /**
@@ -141,7 +147,7 @@ export const validateContactWebsite = (website?: string): string | null => {
     .regex(URL_REGEX, 'El formato de la URL no es válido')
     .safeParse(website.trim());
   
-  return result.success ? null : result.error.errors[0].message;
+  return result.success ? null : result.error.issues[0]?.message ?? 'URL inválida';
 };
 
 /**
@@ -149,7 +155,7 @@ export const validateContactWebsite = (website?: string): string | null => {
  */
 export const validateSpotCreateForm = (formData: SpotCreateFormData): {
   isValid: boolean;
-  errors: SpotFormErrors;
+  errors: ValidationErrors;
 } => {
   const result = spotCreateFormSchema.safeParse(formData);
   
@@ -157,12 +163,12 @@ export const validateSpotCreateForm = (formData: SpotCreateFormData): {
     return { isValid: true, errors: {} };
   }
   
-  const errors: SpotFormErrors = {};
+  const errors: ValidationErrors = {};
   
-  result.error.errors.forEach((error) => {
-    const field = error.path[0] as keyof SpotFormErrors;
+  result.error.issues.forEach((issue) => {
+    const field = issue.path[0] as string;
     if (!errors[field]) {
-      errors[field] = error.message;
+      errors[field] = issue.message;
     }
   });
   

@@ -121,12 +121,12 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
     }
 
     // Crear spot
-    const success = await createSpot(formData);
+    const spotId = await createSpot(formData);
     
-    if (success) {
+    if (spotId) {
       showSuccess('El spot ha sido creado correctamente', '¡Éxito!');
       // call onSuccess afterwards
-      onSuccess?.('mock-spot-id');
+      onSuccess?.(spotId);
     }
   };
 

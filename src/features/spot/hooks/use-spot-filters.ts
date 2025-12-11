@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import type { SpotSearchFilters } from "../components/spot-search/spot-search-filter-modal";
+import type { SpotSearchFilters } from "../types/spot-search-types";
 
 const DEFAULT_FILTERS: SpotSearchFilters = {
   sports: [],

@@ -19,6 +19,7 @@ export interface UserMetadata {
 export interface UserActivity {
   reviewsCount: number;
   commentsCount: number;
+  discussionsCount: number;
   favoriteSpotsCount: number;
   followersCount: number;
   followingCount: number;

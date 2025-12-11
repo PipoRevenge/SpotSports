@@ -183,11 +183,13 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
    */
   const handleSubmit = async () => {
     // Validar formulario
-    const errors = validateReviewForm(formData);
+    const validation = validateReviewForm(formData);
 
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      showError('Please fix the errors before submitting', 'Validation Error');
+    if (!validation.isValid) {
+      const firstField = Object.keys(validation.errors)[0];
+      const firstMessage = firstField ? `${firstField}: ${validation.errors[firstField]}` : 'Revisa los campos obligatorios';
+      setFormErrors(validation.errors as ReviewFormErrors);
+      showError(firstMessage, 'Error de validación');
       return;
     }
 

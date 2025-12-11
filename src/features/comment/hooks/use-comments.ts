@@ -48,8 +48,19 @@ export function useComments({
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [repliesMap, setRepliesMap] = useState<Record<string, { comments: CommentWithUser[]; page: number; total: number; hasMore: boolean }>>({});
-  const { user } = useUser();
+  const { user, setUser } = useUser();
   const commentsRef = useRef<CommentWithUser[]>(comments);
+
+  const incrementUserCommentsContext = useCallback(() => {
+    if (!user) return;
+    setUser({
+      ...user,
+      activity: {
+        ...user.activity,
+        commentsCount: (user.activity.commentsCount || 0) + 1,
+      },
+    });
+  }, [setUser, user]);
 
   useEffect(() => { commentsRef.current = comments; }, [comments]);
   
@@ -143,6 +154,14 @@ export function useComments({
       // prepend to list
       setComments(prev => [enriched, ...prev]);
       setTotal(prev => prev + 1);
+
+      // Incrementar contador de comentarios del usuario (remoto y contexto)
+      try {
+        await userRepository.incrementActivityCounters(user.id, { commentsDelta: 1 });
+        incrementUserCommentsContext();
+      } catch (counterError) {
+        console.warn('[useComments] Failed to increment user commentsCount', counterError);
+      }
       return comment;
     } catch (err) {
       console.error('[useComments] addComment:', err);
@@ -208,6 +227,14 @@ export function useComments({
           ? { ...c, commentsCount: (c.commentsCount || 0) + 1 } 
           : c
       ));
+
+      // Incrementar contador de comentarios del usuario (remoto y contexto)
+      try {
+        await userRepository.incrementActivityCounters(user.id, { commentsDelta: 1 });
+        incrementUserCommentsContext();
+      } catch (counterError) {
+        console.warn('[useComments] Failed to increment user commentsCount (reply)', counterError);
+      }
       
       return reply;
     } catch (err) {

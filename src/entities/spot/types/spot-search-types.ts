@@ -1,18 +1,3 @@
-import { SimpleSport } from '@/src/entities/sport/model/sport';
-import { DifficultyLevel } from '@/src/types/difficulty';
+// Deprecated: types moved to feature layer (src/features/spot/types/spot-search-types)
+export { SportFilterCriteria, SpotSearchFilters } from '@/src/features/spot/types/spot-search-types';
 
-export interface SportFilterCriteria {
-  sportId: string;
-  difficulty?: DifficultyLevel;
-  minRating?: number;
-}
-
-export interface SpotSearchFilters {
-  sports: SimpleSport[];
-  sportCriteria: SportFilterCriteria[];
-  maxDistance?: number; // Optional: only applies when defined
-  minRating: number;
-  onlyVerified: boolean;
-}
-
-export default SpotSearchFilters;

@@ -23,6 +23,7 @@ export interface UserFirebase {
   reviewsCount?: number;
   commentsCount?: number;
   favoriteSpotsCount?: number;
+  discussionsCount?: number;
   followersCount?: number; // ACTUALIZADO: agregado
   followingCount?: number; // ACTUALIZADO: agregado
 }
@@ -63,6 +64,7 @@ export class UserMapper {
     const activity: UserActivity = {
       reviewsCount: firebaseUser.reviewsCount || 0,
       commentsCount: firebaseUser.commentsCount || 0,
+      discussionsCount: firebaseUser.discussionsCount || 0,
       favoriteSpotsCount: firebaseUser.favoriteSpotsCount || 0,
       followersCount: firebaseUser.followersCount || 0,
       followingCount: firebaseUser.followingCount || 0,
@@ -100,6 +102,7 @@ export class UserMapper {
       // UserActivity -> campos planos
       reviewsCount: user.activity.reviewsCount,
       commentsCount: user.activity.commentsCount,
+      discussionsCount: user.activity.discussionsCount,
       favoriteSpotsCount: user.activity.favoriteSpotsCount,
       followersCount: user.activity.followersCount,
       followingCount: user.activity.followingCount,
@@ -147,6 +150,9 @@ export class UserMapper {
       }
       if (activity.commentsCount !== undefined) {
         firebaseUpdate.commentsCount = activity.commentsCount;
+      }
+      if (activity.discussionsCount !== undefined) {
+        firebaseUpdate.discussionsCount = activity.discussionsCount;
       }
       if (activity.favoriteSpotsCount !== undefined) {
         firebaseUpdate.favoriteSpotsCount = activity.favoriteSpotsCount;

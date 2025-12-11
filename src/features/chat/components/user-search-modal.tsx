@@ -6,7 +6,7 @@ import { View } from '@/src/components/ui/view';
 import React from 'react';
 import { Modal } from 'react-native';
 import { UserSearchResult } from '../hooks/use-chat-user-search';
-import type { ChatListItemView } from '../types';
+import type { ChatListItemView } from '../types/chat-types';
 import { ChatListItem } from './chat-list-item';
 
 interface UserSearchModalProps {

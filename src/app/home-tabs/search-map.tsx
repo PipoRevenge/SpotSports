@@ -51,6 +51,7 @@ export default function SearchMapScreen() {
   const [createSpotLocation, setCreateSpotLocation] = useState<GeoPoint | null>(null);
   const hasSearchedRef = useRef(false);
   const shouldSearchAfterFiltersRef = useRef(false);
+  const shouldRefreshAfterCreateRef = useRef(false);
 
   // ==================== HOOKS DE FEATURES ====================
   // Contexto de Spot Seleccionado para mantener sincronización global
@@ -102,6 +103,16 @@ export default function SearchMapScreen() {
         });
       }
     }, [selectedSpotId, showSpotCard, selectedSpot, refreshAll])
+  );
+
+  // Re-ejecutar la búsqueda cuando volvemos desde la creación de un spot
+  useFocusEffect(
+    useCallback(() => {
+      if (shouldRefreshAfterCreateRef.current) {
+        shouldRefreshAfterCreateRef.current = false;
+        searchSpots();
+      }
+    }, [searchSpots])
   );
 
   /**
@@ -194,6 +205,7 @@ export default function SearchMapScreen() {
    */
   const handleCreateSpotPress = useCallback(() => {
     if (createSpotLocation) {
+      shouldRefreshAfterCreateRef.current = true;
       router.push({
         pathname: '/spot/create-spot',
         params: {

@@ -6,7 +6,7 @@ import { Slider, SliderFilledTrack, SliderThumb, SliderTrack } from "@/src/compo
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { SimpleSport as SportSimple } from "@/src/entities/sport/model/sport";
-import { SportFilterCriteria } from "@/src/entities/spot/types/spot-search-types";
+import { SportFilterCriteria } from "@/src/features/spot/types/spot-search-types";
 import { DIFFICULTY_LEVELS, DifficultyLevel } from "@/src/types/difficulty";
 import { ChevronDownIcon, ChevronUpIcon, XIcon } from "lucide-react-native";
 import React, { useState } from "react";

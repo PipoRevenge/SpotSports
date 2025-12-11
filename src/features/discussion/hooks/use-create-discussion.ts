@@ -1,5 +1,6 @@
-import { discussionRepository } from '@/src/api/repositories';
+import { discussionRepository, userRepository } from '@/src/api/repositories';
 import { MediaItem } from '@/src/components/commons/media-picker/media-picker-carousel';
+import { useUser } from '@/src/context/user-context';
 import { useCallback, useState } from 'react';
 
 interface CreateDiscussionData {
@@ -13,6 +14,25 @@ interface CreateDiscussionData {
 export function useCreateDiscussion() {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user, setUser } = useUser();
+
+  const incrementDiscussionCounters = useCallback(async (authorId: string) => {
+    try {
+      await userRepository.incrementActivityCounters(authorId, { discussionsDelta: 1 });
+    } catch (counterError) {
+      console.warn('[useCreateDiscussion] Failed to increment discussion counter', counterError);
+    }
+
+    if (user?.id === authorId) {
+      setUser({
+        ...user,
+        activity: {
+          ...user.activity,
+          discussionsCount: (user.activity.discussionsCount || 0) + 1,
+        },
+      });
+    }
+  }, [setUser, user]);
 
   const createDiscussion = useCallback(async (userId: string, discussionData: CreateDiscussionData) => {
     setIsCreating(true);
@@ -37,10 +57,12 @@ export function useCreateDiscussion() {
         if (finalMedia.length > 0) {
           console.log('[useCreateDiscussion] updating discussion with media', finalMedia);
           await discussionRepository.updateDiscussion(discussion.id, { media: finalMedia }, spotId);
-          const updated = await discussionRepository.getDiscussionById(discussion.id, spotId);
-          return updated;
+            const updated = await discussionRepository.getDiscussionById(discussion.id, spotId);
+            await incrementDiscussionCounters(userId);
+            return updated;
         }
       }
+      await incrementDiscussionCounters(userId);
 
       return discussion;
     } catch (err) {
@@ -49,7 +71,7 @@ export function useCreateDiscussion() {
     } finally {
       setIsCreating(false);
     }
-  }, []);
+  }, [incrementDiscussionCounters]);
 
   return { createDiscussion, isCreating, error };
 }
