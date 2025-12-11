@@ -4,19 +4,19 @@ import { firestore, storage } from '@/src/lib/firebase-config';
 import * as FileSystem from 'expo-file-system';
 import { ref as dbRef, getDatabase, push } from 'firebase/database';
 import {
-    addDoc,
-    collection,
-    collectionGroup,
-    doc,
-    limit as firestoreLimit,
-    getDoc,
-    getDocs,
-    orderBy,
-    query,
-    runTransaction,
-    Timestamp,
-    updateDoc,
-    where,
+  addDoc,
+  collection,
+  collectionGroup,
+  doc,
+  limit as firestoreLimit,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  runTransaction,
+  Timestamp,
+  updateDoc,
+  where,
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { IDiscussionRepository } from '../interfaces/i-discussion-repository';

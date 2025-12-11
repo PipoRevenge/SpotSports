@@ -7,6 +7,7 @@ export interface ImagePickerOptions {
   allowsEditing?: boolean;
   aspect?: [number, number];
   quality?: number;
+  allowsMultipleSelection?: boolean;
 }
 
 export interface ImagePickerResult {
@@ -15,6 +16,7 @@ export interface ImagePickerResult {
   height?: number;
   cancelled?: boolean;
   canceled?: boolean;
+  type?: 'image' | 'video';
 }
 
 export const useImagePicker = () => {
@@ -44,7 +46,7 @@ export const useImagePicker = () => {
         return false;
       }
       return true;
-    } catch (error) {
+    } catch {
       showErrorToast("Failed to request permissions");
       return false;
     }
@@ -80,9 +82,35 @@ export const useImagePicker = () => {
         height: asset.height,
         canceled: false,
       };
-    } catch (error) {
+    } catch {
       showErrorToast("Failed to pick image");
       return { uri: null, canceled: true };
+    }
+  };
+
+  const pickMultiple = async (options?: ImagePickerOptions): Promise<ImagePickerResult[]> => {
+    // Request permissions first
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return [];
+    try {
+      const defaultOptions: ImagePickerOptions & { allowsMultipleSelection: boolean } = {
+        allowsEditing: false,
+        aspect: [1, 1] as [number, number],
+        quality: 0.8,
+        allowsMultipleSelection: true,
+      };
+
+      const merged = { ...defaultOptions, ...options };
+      const resolvedOptions = merged.allowsMultipleSelection ? { ...merged, allowsEditing: false } : merged;
+
+      const result = await ExpoImagePicker.launchImageLibraryAsync(resolvedOptions);
+
+      if (result.canceled || !result.assets || result.assets.length === 0) return [];
+
+      return result.assets.map(asset => ({ uri: asset.uri ?? null, width: asset.width, height: asset.height, canceled: false, type: asset.type as ('image'|'video') }));
+    } catch {
+      showErrorToast('Failed to pick images');
+      return [];
     }
   };
 
@@ -95,8 +123,8 @@ export const useImagePicker = () => {
         return { uri: null, canceled: true };
       }
 
-      const defaultOptions: ImagePickerOptions & { mediaTypes: typeof ExpoImagePicker.MediaTypeOptions.Images } = {
-        mediaTypes: ExpoImagePicker.MediaTypeOptions.Images,
+      const defaultOptions: ImagePickerOptions & { mediaTypes: ExpoImagePicker.MediaType[] } = {
+        mediaTypes: ["images", "videos"],
         allowsEditing: true,
         aspect: [1, 1] as [number, number],
         quality: 0.8,
@@ -118,7 +146,7 @@ export const useImagePicker = () => {
         height: asset.height,
         canceled: false,
       };
-    } catch (error) {
+    } catch {
       showErrorToast("Failed to take photo");
       return { uri: null, canceled: true };
     }
@@ -126,6 +154,7 @@ export const useImagePicker = () => {
 
   return {
     pickImage,
+    pickMultiple,
     takePhoto,
     requestPermissions,
   };

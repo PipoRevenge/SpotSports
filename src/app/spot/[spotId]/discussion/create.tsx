@@ -1,4 +1,5 @@
 import { useAppAlert } from "@/src/context/app-alert-context";
+import { useSelectedSpot } from '@/src/context/selected-spot-context';
 import { useUser } from "@/src/context/user-context";
 import { useCreateDiscussion } from "@/src/features/discussion";
 import { DiscussionForm } from "@/src/features/discussion/components/discussion-create/discussion-form";
@@ -15,6 +16,7 @@ export default function DiscussionCreatePage() {
   const spotId = params.spotId as string | undefined;
   const { sportRatings } = useSpotDetails(spotId);
   const { showSuccess, showError } = useAppAlert();
+  const { bumpDiscussionRefresh } = useSelectedSpot();
 
   const handleSubmit = async (payload: {
     title: string;
@@ -42,7 +44,18 @@ export default function DiscussionCreatePage() {
         return;
       }
       showSuccess("Discussion created");
-      router.push(`/discussion/${newDiscussion.id}`);
+      // Navigate to the nested spot discussion route
+      const targetSpotId = spotId || newDiscussion.details?.spotId;
+      if (targetSpotId) {
+        // Replace the create route so back goes to the spot page, not back to the create page
+        // Also bump the discussion refresh counter so any lists update
+        try {
+          bumpDiscussionRefresh();
+        } catch {
+          // ignore if context not available
+        }
+        router.replace({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: { spotId: targetSpotId, discussionId: newDiscussion.id } });
+      }
     } catch {
       showError("Error creating discussion");
     }

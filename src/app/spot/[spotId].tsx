@@ -71,6 +71,7 @@ export const SpotPage = () => {
     reviewsError,
     selectSpot,
     refreshAll,
+    discussionRefreshCount,
   } = useSelectedSpot();
   // debug logs removed for production
 
@@ -80,6 +81,8 @@ export const SpotPage = () => {
       selectSpot(spotId, true);
     }
   }, [spotId, selectSpot, selectedSpot]);
+
+  
 
   // Hook de eliminación
   const { deleteReview, isLoading: isDeleting } = useReviewDelete(async () => {
@@ -162,7 +165,13 @@ export const SpotPage = () => {
   };
 
   const { user } = useUser();
-  const { discussions } = useDiscussionLoad({ pageSize: 6, spotId });
+  const { discussions, refresh: refreshDiscussions } = useDiscussionLoad({ pageSize: 6, spotId });
+
+  useEffect(() => {
+    if (!spotId) return;
+    if (!discussionRefreshCount) return;
+    refreshDiscussions();
+  }, [discussionRefreshCount, spotId, refreshDiscussions]);
   const handleNavigateToProfile = (userIdToNavigate: string) => {
     if (!userIdToNavigate) return;
     if (userIdToNavigate === user?.id) {
@@ -495,9 +504,10 @@ export const SpotPage = () => {
                 <Text className="text-xl font-bold pb-2">Discussions</Text>
                 {user?.id && (
                   <Button
-                    onPress={() =>
-                      router.push(`/discussion/create?spotId=${spotId}`)
-                    }
+                    onPress={() => {
+                      if (!spotId) return;
+                      router.push({ pathname: `/spot/[spotId]/discussion/create`, params: { spotId } });
+                    }}
                     variant="outline"
                   >
                     <ButtonText>Create</ButtonText>
@@ -513,9 +523,10 @@ export const SpotPage = () => {
                     {user?.id && (
                       <Button
                         className="mt-4"
-                        onPress={() =>
-                          router.push(`/discussion/create?spotId=${spotId}`)
-                        }
+                        onPress={() => {
+                          if (!spotId) return;
+                          router.push({ pathname: `/spot/[spotId]/discussion/create`, params: { spotId } });
+                        }}
                       >
                         <ButtonText className="text-white">
                           Create Discussion
@@ -529,7 +540,10 @@ export const SpotPage = () => {
                       <DiscussionCard
                         key={discussion.id}
                         discussion={discussion}
-                        onPress={(id) => router.push(`/discussion/${id}`)}
+                        onPress={(id) => {
+                          if (!spotId) return;
+                          router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: { spotId, discussionId: id } });
+                        }}
                         spotSports={availableSports ?? []}
                       />
                     ) : (

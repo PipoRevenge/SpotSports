@@ -16,6 +16,10 @@ export default function MyFeedScreen() {
         <ButtonText>Ver todos los usuarios</ButtonText>
       </Button>
 
+      <Button variant="outline" onPress={() => { router.push('/chat'); }}>
+        <ButtonText>Ver chats</ButtonText>
+      </Button>
+
 
     </VStack>
   );

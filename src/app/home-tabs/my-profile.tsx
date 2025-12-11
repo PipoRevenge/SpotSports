@@ -155,7 +155,11 @@ export default function MyProfile() {
                                 <UserDiscussionList
                                     userId={user?.id}
                                     onNavigateToDiscussion={(discussionId, spotId) => {
-                                        router.push(`/discussion/${discussionId}`);
+                                        if (spotId) {
+                                            router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: { spotId, discussionId } });
+                                        } else {
+                                            router.push('/');
+                                        }
                                     }}
                                     onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
                                 />
@@ -167,7 +171,11 @@ export default function MyProfile() {
                                         router.push(`/spot/${spotId}`);
                                     }}
                                     onNavigateToDiscussion={(discussionId, spotId) => {
-                                        router.push(`/discussion/${discussionId}`);
+                                        if (spotId) {
+                                            router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: { spotId, discussionId } });
+                                        } else {
+                                            router.push('/');
+                                        }
                                     }}
                                     onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
                                 />

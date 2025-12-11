@@ -3,10 +3,11 @@ import { HStack } from '@/src/components/ui/hstack';
 import { Pressable } from '@/src/components/ui/pressable';
 import { Text } from '@/src/components/ui/text';
 import { VStack } from '@/src/components/ui/vstack';
+import { useSelectedSpot } from '@/src/context/selected-spot-context';
 import { useUser } from '@/src/context/user-context';
 import { useDiscussionLoad } from '@/src/features/discussion';
 import { DiscussionCard } from '@/src/features/discussion/components/discussion-list/discussion-card';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowDownWideNarrow, Clock, Flame, MapPin, Users } from 'lucide-react-native';
 import React from 'react';
 import { FlatList, View } from 'react-native';
@@ -39,13 +40,16 @@ export default function DiscussionsPage() {
   
   const { user } = useUser();
   const router = useRouter();
+  const { spotId } = useLocalSearchParams<{ spotId: string }>();
+  const { discussionRefreshCount } = useSelectedSpot();
   
   // Separate refreshing state
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
   const handleCreate = () => {
-    // Create general discussion (no spotId)
-    router.push('/discussion/create');
+    // Create a discussion for this spot (nested route)
+    if (!spotId) return;
+    router.push({ pathname: `/spot/[spotId]/discussion/create`, params: { spotId } });
   };
 
   const handleRefresh = React.useCallback(async () => {
@@ -53,6 +57,12 @@ export default function DiscussionsPage() {
     await refresh();
     setIsRefreshing(false);
   }, [refresh]);
+
+  React.useEffect(() => {
+    // When the selected spot's discussion counter is bumped, refresh lists
+    if (!spotId) return;
+    refresh();
+  }, [discussionRefreshCount, spotId, refresh]);
 
   const handleSortChange = (newSort: SortOption) => {
     if (newSort !== sortBy) {
@@ -137,7 +147,10 @@ export default function DiscussionsPage() {
             renderItem={({ item }) => (
               <DiscussionCard 
                 discussion={item} 
-                onPress={(id) => router.push(`/discussion/${id}`)} 
+                onPress={(id) => {
+                  if (!spotId) return;
+                  router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: { spotId, discussionId: id } });
+                }} 
               />
             )}
             onEndReached={() => { if (hasMore) loadMore(); }}

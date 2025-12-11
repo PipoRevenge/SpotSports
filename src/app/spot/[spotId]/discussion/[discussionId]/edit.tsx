@@ -33,7 +33,10 @@ export default function DiscussionEditPage() {
     try {
       const updated = await updateDiscussion(id, { title: payload.title, description: payload.description, tags: payload.tags }, payload.media);
       showSuccess('Discussion updated');
-      router.push(`/discussion/${updated.id}`);
+      const spotIdFromDetails = updated.details?.spotId;
+      if (spotIdFromDetails) {
+        router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: { spotId: spotIdFromDetails, discussionId: updated.id } });
+      }
     } catch (_err) {
       console.error(_err);
       showError('Failed to update discussion');

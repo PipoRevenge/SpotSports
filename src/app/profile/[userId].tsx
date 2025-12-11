@@ -166,12 +166,17 @@ export default function UserProfile() {
                             }}
                         />
                     )}
-                    discussionsSlot={(
+                            discussionsSlot={(
                         <UserDiscussionList
                             userId={user?.id}
-                            onNavigateToDiscussion={(discussionId, spotId) => {
-                                router.push(`/discussion/${discussionId}`);
-                            }}
+                                    onNavigateToDiscussion={(discussionId, spotId) => {
+                                        if (spotId) {
+                                            router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: { spotId, discussionId } });
+                                        } else {
+                                            // fallback to root if spotId not present
+                                            router.push('/');
+                                        }
+                                    }}
                             onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
                         />
                     )}
@@ -181,9 +186,13 @@ export default function UserProfile() {
                             onNavigateToReview={(reviewId, spotId) => {
                                 router.push(`/spot/${spotId}`);
                             }}
-                            onNavigateToDiscussion={(discussionId, spotId) => {
-                                router.push(`/discussion/${discussionId}`);
-                            }}
+                                    onNavigateToDiscussion={(discussionId, spotId) => {
+                                        if (spotId) {
+                                            router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: { spotId, discussionId } });
+                                        } else {
+                                            router.push('/');
+                                        }
+                                    }}
                             onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
                         />
                     )}

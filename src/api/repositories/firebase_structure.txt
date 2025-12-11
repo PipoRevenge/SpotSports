@@ -139,8 +139,7 @@ spots/
             // Nuevo: identificadores explícitos para limpieza de referencias y queries
             contextId: string  // ID del contexto (spotId). Opcional: se puede inferir del path
             sourceType: 'discussion' // indicates this comment belongs to a discussion
-            sourceId: string  // discussionId or other source id
-            // Backwards compatibility
+            sourceId: string  // discussionId or other source id.Opcional: se puede inferir del path
             // IMPORTANT: `sourceRef` is REQUIRED and must be stored as a DocumentReference to the parent document (review or discussion)
             sourceRef: reference  // REQUIRED: Referencia al documento padre (review o discussion)
             parentId: string    // discussionId o commentId para respuestas

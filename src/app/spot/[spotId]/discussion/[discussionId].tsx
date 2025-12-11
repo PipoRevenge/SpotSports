@@ -374,7 +374,11 @@ export default function DiscussionPage() {
 
   const handleEditPress = React.useCallback(() => {
     if (discussion) {
-      router.push(`/discussion/${discussion.id}/edit`);
+      // Navigate to nested edit route using the discussion's spotId
+      const spotId = discussion?.details?.spotId;
+      if (spotId) {
+        router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]/edit`, params: { spotId, discussionId: discussion.id } });
+      }
     }
   }, [discussion, router]);
 

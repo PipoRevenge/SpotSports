@@ -425,43 +425,8 @@ import { Button, ButtonText } from '@/components/ui/button';
 - **Constants**: `SCREAMING_SNAKE_CASE` (e.g., `MAX_SPOTS`)
 - **Types/Interfaces**: `PascalCase` (e.g., `Spot`, `SpotFormData`)
 
-## 🧪 Testing Guidelines
 
-```tsx
-// Component tests
-import { render, fireEvent } from '@testing-library/react-native';
 
-describe('SpotCard', () => {
-  it('should call onPress when pressed', () => {
-    const onPress = jest.fn();
-    const { getByTestId } = render(
-      <SpotCard spot={mockSpot} onPress={onPress} />
-    );
-    
-    fireEvent.press(getByTestId('spot-card'));
-    expect(onPress).toHaveBeenCalledWith(mockSpot);
-  });
-});
-```
-
-## 🚀 Common Commands
-
-```bash
-# Start development server
-npm start
-
-# Run on Android
-npm run android
-
-# Run on iOS
-npm run ios
-
-# Lint code
-npm run lint
-
-# Clear cache and restart
-npx expo start --clear
-```
 
 ## 📚 Key Libraries & Their Uses
 

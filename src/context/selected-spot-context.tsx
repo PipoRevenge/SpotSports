@@ -1,8 +1,8 @@
 import { reviewRepository, sportRepository, spotRepository, userRepository } from "@/src/api/repositories";
 import { Review } from "@/src/entities/review/model/review";
+import { SimpleSport } from "@/src/entities/sport/model/sport";
 import { SportSpotRating, Spot } from "@/src/entities/spot/model/spot";
 import { User } from "@/src/entities/user/model/user";
-import { SimpleSport } from "@/src/entities/sport/model/sport";
 import React, { createContext, useCallback, useContext, useState } from "react";
 
 /**
@@ -99,6 +99,15 @@ interface SelectedSpotContextValue {
    * Limpia la selección
    */
   clearSelection: () => void;
+  
+    /**
+     * Internal counter to force components to refresh discussions when a new one is created
+     */
+    discussionRefreshCount: number;
+    /**
+     * Bumps the discussion refresh counter to notify listeners a change occurred
+     */
+    bumpDiscussionRefresh: () => void;
 }
 
 const SelectedSpotContext = createContext<SelectedSpotContextValue | undefined>(undefined);
@@ -126,6 +135,8 @@ export const SelectedSpotProvider: React.FC<SelectedSpotProviderProps> = ({ chil
   // Errors
   const [spotError, setSpotError] = useState<string | null>(null);
   const [reviewsError, setReviewsError] = useState<string | null>(null);
+    // Discussion refresh counter
+    const [discussionRefreshCount, setDiscussionRefreshCount] = useState<number>(0);
 
   /**
    * Carga las reviews de un spot y los datos de usuarios
@@ -305,6 +316,9 @@ export const SelectedSpotProvider: React.FC<SelectedSpotProviderProps> = ({ chil
     }
   }, [selectedSpot]);
 
+    const bumpDiscussionRefresh = useCallback(() => {
+      setDiscussionRefreshCount(prev => prev + 1);
+    }, []);
   /**
    * Limpia la selección actual
    */
@@ -334,6 +348,8 @@ export const SelectedSpotProvider: React.FC<SelectedSpotProviderProps> = ({ chil
     refreshReviews,
     refreshSpotCounters,
     clearSelection,
+      discussionRefreshCount,
+      bumpDiscussionRefresh,
   };
 
   return <SelectedSpotContext.Provider value={value}>{children}</SelectedSpotContext.Provider>;
