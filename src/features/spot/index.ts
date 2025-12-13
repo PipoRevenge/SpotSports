@@ -3,6 +3,12 @@
 // Context
 export { SelectedSpotProvider, useSelectedSpot } from '../../context/selected-spot-context';
 
+// Hooks - Optimized with React Query
+export { useSpotCounters } from './hooks/use-spot-counters';
+export { useSpotData } from './hooks/use-spot-data';
+export { useSpotDetails } from './hooks/use-spot-details';
+export { useSpotPrefetch } from './hooks/use-spot-prefetch';
+
 // Types
 export type { SportFilterCriteria, SpotSearchFilters } from './types/spot-search-types';
 export { DISTANCE_CONFIG, RATING_CONFIG } from './types/spot-types';

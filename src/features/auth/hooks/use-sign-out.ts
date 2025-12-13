@@ -1,5 +1,6 @@
 import { authRepository } from '@/src/api/repositories';
 import { useUser } from '@/src/context/user-context';
+import { clearAuthToken } from '@/src/features/auth/storage/token-storage';
 import { useState } from 'react';
 
 export const useSignOut = () => {
@@ -12,6 +13,7 @@ export const useSignOut = () => {
       setIsLoading(true);
       
       await authRepository.logout();
+      await clearAuthToken();
       
       // Clear user data
       setUser(null);

@@ -2,6 +2,7 @@ import { authRepository, userRepository } from '@/src/api/repositories';
 import { useAppAlert } from '@/src/context/app-alert-context';
 import { useUser } from '@/src/context/user-context';
 import { UserDetails } from '@/src/entities/user/model/user';
+import { saveAuthToken } from '@/src/features/auth/storage/token-storage';
 import { useState } from 'react';
 
 interface UseSignUpReturn {
@@ -77,6 +78,11 @@ export const useSignUp = (): UseSignUpReturn => {
       
       if (!userCreated) {
         throw new Error('No se pudo crear el perfil de usuario');
+      }
+
+      const token = await authRepository.getIdToken(true);
+      if (token) {
+        await saveAuthToken(token);
       }
 
 

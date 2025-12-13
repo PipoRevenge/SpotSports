@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import { sportRepository } from '@/src/api/repositories';
 import { SimpleSport } from '@/src/entities/sport/model/sport';
+import { useQuery } from '@/src/lib/react-query';
+import { useCallback } from 'react';
 
 export interface UseSportsMapResult {
   sportsMap: Map<string, SimpleSport>;
@@ -11,73 +12,58 @@ export interface UseSportsMapResult {
 }
 
 export const useSportsMapByIds = (ids: string[] = []): UseSportsMapResult => {
-  const [sportsMap, setSportsMap] = useState<Map<string, SimpleSport>>(new Map());
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      if (!ids || ids.length === 0) {
-        setSportsMap(new Map());
-        return;
-      }
+  const query = useQuery({
+    queryKey: ['sports', 'byIds', ids],
+    enabled: ids.length > 0,
+    meta: { persist: true },
+    staleTime: 10 * 60_000,
+    queryFn: async () => {
       const sports = await sportRepository.getSportsByIds(ids);
       const map = new Map<string, SimpleSport>();
       sports.forEach(s => map.set(s.id, { id: s.id, name: s.details.name, description: s.details.description, category: s.details.category }));
-      setSportsMap(map);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error loading sports');
-    } finally {
-      setLoading(false);
-    }
-  }, [ids]);
+      return map;
+    },
+  });
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const getSportName = useCallback((id: string) => {
-    return sportsMap.get(id)?.name;
-  }, [sportsMap]);
+  const getSportName = useCallback(
+    (id: string) => query.data?.get(id)?.name,
+    [query.data]
+  );
 
   return {
-    sportsMap,
-    loading,
-    error,
+    sportsMap: query.data ?? new Map(),
+    loading: query.isLoading || query.isFetching,
+    error: query.error ? (query.error as Error).message : null,
     getSportName,
-    reload: load,
+    reload: async () => { await query.refetch(); }, // satisfies () => Promise<void>
   };
 };
 
 export const useAllSportsMap = (): UseSportsMapResult => {
-  const [sportsMap, setSportsMap] = useState<Map<string, SimpleSport>>(new Map());
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
+  const query = useQuery({
+    queryKey: ['sports', 'allMap'],
+    meta: { persist: true },
+    staleTime: 30 * 60_000,
+    queryFn: async () => {
       const sports = await sportRepository.getAllSports();
       const map = new Map<string, SimpleSport>();
       sports.forEach(s => map.set(s.id, { id: s.id, name: s.details.name, description: s.details.description, category: s.details.category }));
-      setSportsMap(map);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error loading sports');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return map;
+    },
+  });
 
-  useEffect(() => { load(); }, [load]);
+  const getSportName = useCallback(
+    (id: string) => query.data?.get(id)?.name,
+    [query.data]
+  );
 
-  const getSportName = useCallback((id: string) => {
-    return sportsMap.get(id)?.name;
-  }, [sportsMap]);
-
-  return { sportsMap, loading, error, getSportName, reload: load };
+  return {
+    sportsMap: query.data ?? new Map(),
+    loading: query.isLoading || query.isFetching,
+    error: query.error ? (query.error as Error).message : null,
+    getSportName,
+    reload: async () => { await query.refetch(); }, // satisfies () => Promise<void>
+  };
 };
 
 export default useSportsMapByIds;

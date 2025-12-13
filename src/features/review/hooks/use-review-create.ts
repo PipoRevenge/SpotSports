@@ -1,7 +1,8 @@
 import { reviewRepository } from "@/src/api/repositories";
 import { useAppAlert } from '@/src/context/app-alert-context';
 import { useUser } from "@/src/context/user-context";
-import { ReviewDetails } from "@/src/entities/review/model/review";
+import { Review, ReviewDetails } from "@/src/entities/review/model/review";
+import { useMutation, useQueryClient } from "@/src/lib/react-query";
 import { useState } from "react";
 import { CreateReviewData } from "../types/review-types";
 import { REVIEW_ERROR_MESSAGES, REVIEW_SUCCESS_MESSAGES } from "../utils/review-constants";
@@ -17,15 +18,13 @@ export const useReviewCreate = (onSuccess?: () => void) => {
   const [error, setError] = useState<string | null>(null);
   const { user } = useUser();
   const { showError, showSuccess } = useAppAlert();
+  const queryClient = useQueryClient();
 
   /**
    * Crea una nueva review
    */
-  const createReview = async (reviewData: CreateReviewData): Promise<void> => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
+  const mutation = useMutation({
+    mutationFn: async (reviewData: CreateReviewData) => {
       if (!user) {
         throw new Error("User must be authenticated to create a review");
       }
@@ -43,26 +42,32 @@ export const useReviewCreate = (onSuccess?: () => void) => {
         media: reviewData.media,
       };
 
-      const result = await reviewRepository.createReview(user.id, reviewDetails);
-      
-      console.log("[useReviewCreate] Review created successfully:", result.id);
+      return reviewRepository.createReview(user.id, reviewDetails);
+    },
+    onMutate: () => {
+      setIsLoading(true);
+      setError(null);
+    },
+    onSuccess: async (result) => {
       showSuccess(REVIEW_SUCCESS_MESSAGES.CREATED, 'Success');
-      
-      if (onSuccess) {
-        onSuccess();
-      }
-      
-    } catch (err) {
+      await queryClient.invalidateQueries({ queryKey: ['reviews'] });
+      await queryClient.invalidateQueries({ queryKey: ['spot', result.details.spotId] });
+      if (onSuccess) onSuccess();
+    },
+    onError: (err: unknown) => {
       const errorMessage = err instanceof Error 
         ? err.message 
         : REVIEW_ERROR_MESSAGES.CREATE_ERROR;
-      
       setError(errorMessage);
       showError(errorMessage, 'Error');
-      throw err;
-    } finally {
+    },
+    onSettled: () => {
       setIsLoading(false);
-    }
+    },
+  });
+
+  const createReview = async (reviewData: CreateReviewData): Promise<Review> => {
+    return mutation.mutateAsync(reviewData);
   };
 
   /**

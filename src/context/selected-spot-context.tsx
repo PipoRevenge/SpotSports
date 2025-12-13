@@ -1,9 +1,12 @@
-import { reviewRepository, sportRepository, spotRepository, userRepository } from "@/src/api/repositories";
 import { Review } from "@/src/entities/review/model/review";
 import { SimpleSport } from "@/src/entities/sport/model/sport";
 import { SportSpotRating, Spot } from "@/src/entities/spot/model/spot";
 import { User } from "@/src/entities/user/model/user";
-import React, { createContext, useCallback, useContext, useState } from "react";
+import { useSpotReviews } from "@/src/features/review/hooks/use-spot-reviews";
+import { useSpotCounters } from "@/src/features/spot/hooks/use-spot-counters";
+import { useSpotData } from "@/src/features/spot/hooks/use-spot-data";
+import { useQueryClient } from "@/src/lib/react-query";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 /**
  * Contexto para gestionar el spot seleccionado actualmente
@@ -43,6 +46,8 @@ interface SelectedSpotContextValue {
    * Mapa de usuarios (userId -> User) que hicieron reviews
    */
   usersData: Map<string, User>;
+  /** Total de reviews sin filtrar (contador) */
+  totalReviews: number;
   
   // ===== LOADING STATES =====
   /**
@@ -91,6 +96,11 @@ interface SelectedSpotContextValue {
   refreshReviews: () => Promise<void>;
   
   /**
+   * Limpia el cache de reviews y fuerza recarga desde Firebase
+   */
+  clearReviewsCache: () => Promise<void>;
+  
+  /**
    * Refresca solo los contadores del spot (optimizado)
    */
   refreshSpotCounters: () => Promise<void>;
@@ -118,238 +128,169 @@ interface SelectedSpotProviderProps {
 
 /**
  * Provider del contexto de Spot Seleccionado
- * Debe envolver la aplicación o las rutas que necesiten acceder al spot seleccionado
+ * Optimizado con React Query para carga progresiva
  */
 export const SelectedSpotProvider: React.FC<SelectedSpotProviderProps> = ({ children }) => {
-  // Spot data
-  const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null);
-  const [sportRatings, setSportRatings] = useState<SportSpotRating[]>([]);
-  const [availableSports, setAvailableSports] = useState<SimpleSport[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [usersData, setUsersData] = useState<Map<string, User>>(new Map());
+  const queryClient = useQueryClient();
   
-  // Loading states
-  const [loadingSpot, setLoadingSpot] = useState(false);
-  const [loadingReviews, setLoadingReviews] = useState(false);
+  // ID del spot actual
+  const [currentSpotId, setCurrentSpotId] = useState<string | undefined>(undefined);
+  const [shouldLoadReviews, setShouldLoadReviews] = useState(true);
   
-  // Errors
-  const [spotError, setSpotError] = useState<string | null>(null);
-  const [reviewsError, setReviewsError] = useState<string | null>(null);
-    // Discussion refresh counter
-    const [discussionRefreshCount, setDiscussionRefreshCount] = useState<number>(0);
+  // Discussion refresh counter
+  const [discussionRefreshCount, setDiscussionRefreshCount] = useState<number>(0);
 
-  /**
-   * Carga las reviews de un spot y los datos de usuarios
-   */
-  const loadReviewsData = useCallback(async (spotId: string) => {
-    setLoadingReviews(true);
-    setReviewsError(null);
-    
-    try {
-      const fetchedReviews = await reviewRepository.getReviewsBySpot(spotId, 50, 0);
-      setReviews(fetchedReviews);
-      
-      // Cargar datos de usuarios (userId está en metadata.createdBy)
-      const userIds = [...new Set(fetchedReviews.map(r => r.metadata.createdBy))];
-      const usersMap = new Map<string, User>();
-      
-      await Promise.all(
-        userIds.map(async (userId) => {
-          try {
-            const user = await userRepository.getUserById(userId);
-            if (user) {
-              usersMap.set(userId, user);
-            }
-          } catch (err) {
-            console.warn(`[SelectedSpotContext] Failed to load user ${userId}:`, err);
-          }
-        })
-      );
-      
-      setUsersData(usersMap);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to load reviews";
-      setReviewsError(errorMessage);
-      console.error("[SelectedSpotContext] Error loading reviews:", err);
-    } finally {
-      setLoadingReviews(false);
-    }
-  }, []);
+  // Hook 1: Cargar datos del spot (progresivo: spot -> ratings -> sports)
+  const {
+    spot,
+    sportRatings,
+    availableSports,
+    isLoading: loadingSpot,
+    error: spotError,
+    refetch: refetchSpot,
+  } = useSpotData(currentSpotId);
 
-  /**
-   * Carga el spot y sus sport ratings
-   */
-  const loadSpotData = useCallback(async (spotId: string) => {
-    setLoadingSpot(true);
-    setSpotError(null);
-    
-    try {
-      const spot = await spotRepository.getSpotById(spotId);
-      if (!spot) {
-        throw new Error("Spot not found");
-      }
-      
-      const [ratings, sportsWithNames] = await Promise.all([
-        spotRepository.getSportRatings(spotId),
-        // Obtener deportes disponibles con detalles completos
-        spot.details.availableSports.length > 0
-          ? sportRepository.getSportsByIds(spot.details.availableSports).then(sports => 
-              sports.map(sport => ({
-                id: sport.id,
-                name: sport.details.name,
-                description: sport.details.description,
-                category: sport.details.category
-              }))
-            )
-          : Promise.resolve([])
-      ]);
-      
-      setSelectedSpot(spot);
-      setSportRatings(ratings);
-      setAvailableSports(sportsWithNames);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to load spot";
-      setSpotError(errorMessage);
-      console.error("[SelectedSpotContext] Error loading spot:", err);
-      throw err;
-    } finally {
-      setLoadingSpot(false);
-    }
-  }, []);
+  // Hook 2: Cargar reviews (solo si shouldLoadReviews es true)
+  const spotIdForReviews = shouldLoadReviews ? currentSpotId : undefined;
+  
+  const {
+    reviews,
+    totalReviews,
+    usersData,
+    loading: loadingReviewsQuery,
+    error: reviewsError,
+    refetch: refetchReviews,
+    clearCache: clearReviewsCache,
+  } = useSpotReviews(spotIdForReviews);
+
+  // Debug log para rastrear cambios de estado
+  useEffect(() => {
+    console.log('[SelectedSpotContext] State changed - currentSpotId:', currentSpotId, 'shouldLoadReviews:', shouldLoadReviews, 'spotIdForReviews:', spotIdForReviews);
+  }, [currentSpotId, shouldLoadReviews, spotIdForReviews]);
+
+  // Debug log para rastrear reviews cargadas
+  useEffect(() => {
+    console.log('[SelectedSpotContext] Reviews updated - count:', reviews.length, 'loading:', loadingReviewsQuery);
+  }, [reviews, loadingReviewsQuery]);
+
+  // Hook 3: Cargar contadores (opcional, se puede activar después)
+  const { refetch: refetchCounters } = useSpotCounters(currentSpotId);
+
+  // Loading states combinados
+  const loadingReviews = shouldLoadReviews ? loadingReviewsQuery : false;
 
   /**
    * Selecciona un spot (carga desde servidor si se pasa un ID)
-   * shouldLoadReviews: Si se pasa false, no carga las reviews automáticamente (para modal)
+   * shouldLoadReviewsFlag: Si se pasa false, no carga las reviews automáticamente
    */
-  const selectSpot = useCallback(async (spotOrId: Spot | string, shouldLoadReviews: boolean = true) => {
-    setSpotError(null);
-    setReviewsError(null);
-    
+  const selectSpot = useCallback(async (spotOrId: Spot | string, shouldLoadReviewsFlag: boolean = true) => {
     let spotId: string;
     
-    // Si ya es un objeto Spot, usarlo directamente
+    // Si ya es un objeto Spot, solo actualizar el ID
     if (typeof spotOrId === "object") {
-      setSelectedSpot(spotOrId);
       spotId = spotOrId.id;
-      
-      // No cargar nada más si es un objeto (viene del modal del mapa)
-      if (!shouldLoadReviews) {
-        return;
-      }
     } else {
-      // Si es un ID, cargar desde el servidor
       spotId = spotOrId;
-      await loadSpotData(spotId);
     }
     
-    // Cargar reviews si se requiere
-    if (shouldLoadReviews) {
-      await loadReviewsData(spotId);
-    }
-  }, [loadSpotData, loadReviewsData]);
+    console.log('[SelectedSpotContext] selectSpot called - spotId:', spotId, 'shouldLoadReviews:', shouldLoadReviewsFlag);
+    
+    // Actualizar el flag primero para que esté listo cuando el spotId cambie
+    setShouldLoadReviews(shouldLoadReviewsFlag);
+    // Actualizar el ID del spot actual (esto activará los hooks)
+    setCurrentSpotId(spotId);
+  }, []);
 
   /**
    * Refresca todos los datos del spot actual
    */
   const refreshAll = useCallback(async () => {
-    if (!selectedSpot) {
+    if (!currentSpotId) {
       console.warn("[SelectedSpotContext] No spot selected to refresh");
       return;
     }
     
     await Promise.all([
-      loadSpotData(selectedSpot.id),
-      loadReviewsData(selectedSpot.id)
+      refetchSpot(),
+      refetchReviews(),
+      refetchCounters(),
     ]);
-  }, [selectedSpot, loadSpotData, loadReviewsData]);
+  }, [currentSpotId, refetchSpot, refetchReviews, refetchCounters]);
 
   /**
    * Refresca solo el spot y sport ratings
    */
   const refreshSpotData = useCallback(async () => {
-    if (!selectedSpot) {
+    if (!currentSpotId) {
       console.warn("[SelectedSpotContext] No spot selected to refresh");
       return;
     }
     
-    await loadSpotData(selectedSpot.id);
-  }, [selectedSpot, loadSpotData]);
+    await refetchSpot();
+  }, [currentSpotId, refetchSpot]);
 
   /**
    * Refresca solo las reviews
    */
   const refreshReviews = useCallback(async () => {
-    if (!selectedSpot) {
+    if (!currentSpotId) {
       console.warn("[SelectedSpotContext] No spot selected to refresh reviews");
       return;
     }
     
-    await loadReviewsData(selectedSpot.id);
-  }, [selectedSpot, loadReviewsData]);
+    await refetchReviews();
+  }, [currentSpotId, refetchReviews]);
 
   /**
    * Refresca solo los contadores del spot (optimizado)
    */
   const refreshSpotCounters = useCallback(async () => {
-    if (!selectedSpot) {
+    if (!currentSpotId) {
       console.warn("[SelectedSpotContext] No spot selected to refresh counters");
       return;
     }
     
-    try {
-      const counters = await spotRepository.getSpotCounters(selectedSpot.id);
-      if (counters) {
-        // Solo actualizar los contadores del spot actual
-        setSelectedSpot(prev => prev ? {
-          ...prev,
-          activity: {
-            ...prev.activity,
-            favoritesCount: counters.favoritesCount,
-            visitedCount: counters.visitedCount,
-            wantToVisitCount: counters.wantToVisitCount,
-            reviewsCount: counters.reviewsCount,
-          }
-        } : null);
-      }
-    } catch (err) {
-      console.error("[SelectedSpotContext] Error refreshing spot counters:", err);
-    }
-  }, [selectedSpot]);
+    await refetchCounters();
+  }, [currentSpotId, refetchCounters]);
 
-    const bumpDiscussionRefresh = useCallback(() => {
-      setDiscussionRefreshCount(prev => prev + 1);
-    }, []);
+  const bumpDiscussionRefresh = useCallback(() => {
+    setDiscussionRefreshCount(prev => prev + 1);
+  }, []);
+
   /**
    * Limpia la selección actual
    */
   const clearSelection = useCallback(() => {
-    setSelectedSpot(null);
-    setSportRatings([]);
-    setAvailableSports([]);
-    setReviews([]);
-    setUsersData(new Map());
-    setSpotError(null);
-    setReviewsError(null);
-  }, []);
+    setCurrentSpotId(undefined);
+    setShouldLoadReviews(true);
+    
+    // Invalidar queries relacionadas
+    if (currentSpotId) {
+      // Remove spot-related queries (this will also remove spot->reviews queries)
+      queryClient.removeQueries({ queryKey: ['spot', currentSpotId] });
+    }
+  }, [currentSpotId, queryClient]);
 
   const value: SelectedSpotContextValue = {
-    selectedSpot,
+    selectedSpot: spot,
     sportRatings,
     availableSports,
     reviews,
+    totalReviews,
     usersData,
     loadingSpot,
     loadingReviews,
-    spotError,
-    reviewsError,
+    spotError: spotError ?? null,
+    reviewsError: reviewsError ?? null,
     selectSpot,
     refreshAll,
     refreshSpotData,
     refreshReviews,
+    clearReviewsCache,
     refreshSpotCounters,
     clearSelection,
-      discussionRefreshCount,
-      bumpDiscussionRefresh,
+    discussionRefreshCount,
+    bumpDiscussionRefresh,
   };
 
   return <SelectedSpotContext.Provider value={value}>{children}</SelectedSpotContext.Provider>;

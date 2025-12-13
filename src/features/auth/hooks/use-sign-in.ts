@@ -1,5 +1,6 @@
 import { authRepository } from '@/src/api/repositories';
 import { useUser } from '@/src/context/user-context';
+import { saveAuthToken } from '@/src/features/auth/storage/token-storage';
 import { useState } from 'react';
 
 interface SignInResult {
@@ -25,6 +26,10 @@ export const useSignIn = (): UseSignInReturn => {
       setError(null);
 
       await authRepository.login(email, password);
+      const token = await authRepository.getIdToken();
+      if (token) {
+        await saveAuthToken(token);
+      }
       
       // Navigation will be handled by the UserContext when auth state changes
       return { success: true };

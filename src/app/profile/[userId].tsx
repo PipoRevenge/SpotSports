@@ -149,22 +149,14 @@ export default function UserProfile() {
                     userId={user?.id}
                     reviewsSlot={(
                         <UserReviewList
-                            userId={user?.id}
-                            profileUser={user}
-                            onNavigateToProfile={handleNavigateToProfile}
-                            onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
-                            getSportName={getSportName}
-                            onEdit={(reviewId, spotId, spotSports) => {
-                                if (!spotId) return;
-                                router.push({
-                                    pathname: `/spot/review/[spotId]/edit-review`,
-                                    params: {
-                                        spotId,
-                                        spotSports: spotSports ? JSON.stringify(spotSports) : JSON.stringify([]),
-                                    },
-                                });
-                            }}
-                        />
+                                userId={user?.id}
+                                profileUser={user}
+                                onNavigateToProfile={handleNavigateToProfile}
+                                onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
+                                getSportName={getSportName}
+                                // Disallow editing/deleting reviews from profile view
+                                allowManage={false}
+                            />
                     )}
                             discussionsSlot={(
                         <UserDiscussionList

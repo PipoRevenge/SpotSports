@@ -80,4 +80,15 @@ export class AuthRepositoryImpl implements IAuthRepository {
             });
         });
     }
+
+    async getIdToken(forceRefresh = false): Promise<string | null> {
+        const currentUser = auth.currentUser;
+        if (!currentUser) return null;
+        try {
+            return await currentUser.getIdToken(forceRefresh);
+        } catch (error) {
+            console.error('Error obtaining ID token:', error);
+            return null;
+        }
+    }
 }

@@ -1,7 +1,8 @@
 import { discussionRepository, userRepository } from '@/src/api/repositories';
 import { MediaItem } from '@/src/components/commons/media-picker/media-picker-carousel';
 import { useUser } from '@/src/context/user-context';
-import { useCallback, useState } from 'react';
+import { useMutation, useQueryClient } from '@/src/lib/react-query';
+import { useCallback } from 'react';
 
 interface CreateDiscussionData {
   spotId: string;
@@ -12,9 +13,8 @@ interface CreateDiscussionData {
 }
 
 export function useCreateDiscussion() {
-  const [isCreating, setIsCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { user, setUser } = useUser();
+  const queryClient = useQueryClient();
 
   const incrementDiscussionCounters = useCallback(async (authorId: string) => {
     try {
@@ -34,44 +34,41 @@ export function useCreateDiscussion() {
     }
   }, [setUser, user]);
 
-  const createDiscussion = useCallback(async (userId: string, discussionData: CreateDiscussionData) => {
-    setIsCreating(true);
-    setError(null);
-    try {
+  const mutation = useMutation({
+    mutationFn: async ({ userId, discussionData }: { userId: string; discussionData: CreateDiscussionData }) => {
       const { spotId, media: mediaItems = [], ...rest } = discussionData;
-      
-      // Create discussion without media first
       const dataToCreate = { ...rest, media: [] };
-      console.log('[useCreateDiscussion] createDiscussion payload', { userId, spotId, dataToCreate });
       const discussion = await discussionRepository.createDiscussion(spotId, userId, dataToCreate as any);
 
-      // If there are local media URIs, upload them and then update the discussion
       const rawUris = mediaItems.map(m => (typeof m === 'string' ? m : m.uri));
       const localUris = rawUris.filter(uri => uri && !uri.match(/^https?:\/\//));
       const remoteUris = rawUris.filter(uri => uri && uri.match(/^https?:\/\//));
 
       if (localUris.length > 0) {
-        console.log('[useCreateDiscussion] uploading localUris', localUris);
         const uploaded = await discussionRepository.uploadDiscussionMedia(spotId, discussion.id, localUris);
         const finalMedia = [...remoteUris, ...uploaded];
         if (finalMedia.length > 0) {
-          console.log('[useCreateDiscussion] updating discussion with media', finalMedia);
           await discussionRepository.updateDiscussion(discussion.id, { media: finalMedia }, spotId);
-            const updated = await discussionRepository.getDiscussionById(discussion.id, spotId);
-            await incrementDiscussionCounters(userId);
-            return updated;
+          const updated = await discussionRepository.getDiscussionById(discussion.id, spotId);
+          return updated;
         }
       }
-      await incrementDiscussionCounters(userId);
-
       return discussion;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create discussion');
-      throw err;
-    } finally {
-      setIsCreating(false);
-    }
-  }, [incrementDiscussionCounters]);
+    },
+    onSuccess: async (newDiscussion, variables) => {
+      // Increment counters and update cache
+      try {
+        await incrementDiscussionCounters(variables.userId);
+      } catch (e) {
+        console.warn(e);
+      }
+      // Invalidate or update query cache
+      await queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'discussions' });
+      if (newDiscussion) {
+        queryClient.setQueryData(['discussion', newDiscussion.id, variables.discussionData.spotId], newDiscussion);
+      }
+    },
+  });
 
-  return { createDiscussion, isCreating, error };
+  return { createDiscussion: (userId: string, discussionData: CreateDiscussionData) => mutation.mutateAsync({ userId, discussionData }), isCreating: mutation.isPending || false, error: (mutation.error as Error | null)?.message ?? null };
 }

@@ -1,6 +1,7 @@
 import { discussionRepository } from '@/src/api/repositories';
 import { Discussion } from '@/src/entities/discussion/model/discussion';
-import { useCallback, useEffect, useState } from 'react';
+import { useInfiniteQuery } from '@/src/lib/react-query';
+import type { InfiniteData } from '@tanstack/react-query';
 
 interface UseDiscussionLoadOptions {
   pageSize?: number;
@@ -11,39 +12,32 @@ interface UseDiscussionLoadOptions {
 }
 
 export function useDiscussionLoad({ pageSize = 12, sort = 'newest', tag, search, spotId }: UseDiscussionLoadOptions) {
-  const [discussions, setDiscussions] = useState<Discussion[]>([]);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
+  const queryKey = ['discussions', { pageSize, sort, tag, search, spotId }];
 
-  const load = useCallback(async (p = 1) => {
-    setLoading(true);
-    try {
-      // Updated to use options object with optional spotId
-      const { discussions: f, total: t } = await discussionRepository.getDiscussions({ 
-        page: p, 
-        pageSize, 
-        sort, 
-        tag, 
-        search, 
-        spotId 
-      });
-      if (p === 1) setDiscussions(f);
-      else setDiscussions(prev => [...prev, ...f]);
-      setTotal(t);
-      setHasMore(f.length === pageSize);
-      setPage(p);
-    } catch (error) {
-      console.error('[useDiscussionLoad] load discussions', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [pageSize, sort, tag, search, spotId]);
+  const infiniteQuery = useInfiniteQuery<{ items: Discussion[]; total: number }, Error, InfiniteData<{ items: Discussion[]; total: number }, number>, typeof queryKey, number>({
+    queryKey,
+    queryFn: async ({ pageParam = 1 }: { pageParam?: number }) => {
+      const pageNumber = typeof pageParam === 'number' ? pageParam : 1;
+      const { discussions: f, total: t } = await discussionRepository.getDiscussions({ page: pageNumber, pageSize, sort, tag, search, spotId });
+      return { items: f, total: t };
+    },
+    getNextPageParam: (lastPage, pages) => {
+      const gotFullPage = lastPage.items.length === pageSize;
+      if (!gotFullPage) return undefined;
+      return pages.length + 1;
+    },
+    initialPageParam: 1,
+  });
 
-  useEffect(() => {
-    load(1);
-  }, [load]);
+  const typedData = infiniteQuery.data as InfiniteData<{ items: Discussion[]; total: number }, number> | undefined;
+  const discussions = typedData?.pages.flatMap((p) => p.items) ?? [];
+  const total = typedData?.pages?.[0]?.total ?? 0;
+  const loading = infiniteQuery.isLoading;
+  const page = typedData ? typedData.pages.length : 0;
+  const hasMore = infiniteQuery.hasNextPage ?? false;
 
-  return { discussions, total, loading, page, hasMore, loadMore: () => load(page + 1), refresh: () => load(1) };
+  const loadMore = () => infiniteQuery.fetchNextPage();
+  const refresh = () => infiniteQuery.refetch();
+
+  return { discussions, total, loading, page, hasMore, loadMore, refresh };
 }

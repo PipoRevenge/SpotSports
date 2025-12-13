@@ -3,8 +3,9 @@ import { sportRepository, spotRepository } from "@/src/api/repositories";
 import { Sport as SportEntity } from "@/src/entities/sport/model/sport";
 import { Spot } from "@/src/entities/spot/model/spot";
 import { SpotSearchFilters } from '@/src/features/spot/types/spot-search-types';
+import { useQuery, useQueryClient } from '@/src/lib/react-query';
 import { DifficultyLevel } from "@/src/types/difficulty";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Region } from "react-native-maps";
 import { calculateDistance, calculateSearchArea } from "../utils/map-helpers";
 
@@ -127,6 +128,7 @@ export const useMapSpotSearch = ({
   initialFilters,
   autoSearch = true,
 }: UseMapSpotSearchProps = {}): UseMapSpotSearchReturn => {
+  const queryClient = useQueryClient();
   // ==================== ESTADO ====================
   const [spots, setSpots] = useState<Spot[]>([]);
   const [filteredSpots, setFilteredSpots] = useState<Spot[]>([]);
@@ -177,61 +179,51 @@ export const useMapSpotSearch = ({
    * - Si NO hay maxDistance pero hay región del mapa: busca en el área visible
    * - Si no hay ninguno: busca sin filtro de ubicación
    */
-  const searchSpots = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  // useQuery-based repoFilters to fetch spots
+  const repoFilters = useMemo(() => {
+    let searchLocation: { latitude: number; longitude: number } | undefined;
+    let searchRadius: number | undefined;
 
-    try {
-      let searchLocation: { latitude: number; longitude: number } | undefined;
-      let searchRadius: number | undefined;
-
-      // Determinar ubicación y radio de búsqueda
-      if (filters.maxDistance !== undefined) {
-        // CASO 1: Usuario especificó distancia máxima -> buscar desde su ubicación
-        searchLocation = userLocation;
-        searchRadius = filters.maxDistance;
-      } else if (mapRegion) {
-        // CASO 2: No hay maxDistance -> buscar en área visible del mapa
-        const area = calculateSearchArea(mapRegion);
-        searchLocation = area.centerLocation;
-        searchRadius = area.calculatedRadius;
-      } else {
-        // CASO 3: No hay ni maxDistance ni región -> usar ubicación del usuario sin radio
-        searchLocation = userLocation;
-        searchRadius = undefined;
-      }
-
-      // Construir filtros para el repositorio
-      const repoFilters = {
-        searchQuery: searchQuery.trim() || undefined,
-        location: searchLocation,
-        maxDistance: searchRadius,
-        sportIds: filters.sports.map(s => s.id),
-        sportCriteria: filters.sportCriteria.map(criteria => ({
-          sportId: criteria.sportId,
-          difficulty: criteria.difficulty ? mapDifficultyToRepoFormat(criteria.difficulty) : undefined,
-          minRating: criteria.minRating,
-        })),
-        minRating: filters.minRating,
-        onlyVerified: filters.onlyVerified,
-        sortBy: 'distance' as const,
-        sortOrder: 'asc' as const,
-        limit: 100,
-      };
-
-      // Llamar al repositorio
-      const results = await spotRepository.searchSpots(repoFilters);
-      
-      setSpots(results);
-      setFilteredSpots(results);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al buscar spots");
-      setSpots([]);
-      setFilteredSpots([]);
-    } finally {
-      setLoading(false);
+    if (filters.maxDistance !== undefined) {
+      searchLocation = userLocation;
+      searchRadius = filters.maxDistance;
+    } else if (mapRegion) {
+      const area = calculateSearchArea(mapRegion);
+      searchLocation = area.centerLocation;
+      searchRadius = area.calculatedRadius;
+    } else {
+      searchLocation = userLocation;
+      searchRadius = undefined;
     }
+
+    return {
+      searchQuery: searchQuery.trim() || undefined,
+      location: searchLocation,
+      maxDistance: searchRadius,
+      sportIds: filters.sports.map(s => s.id),
+      sportCriteria: filters.sportCriteria.map(criteria => ({
+        sportId: criteria.sportId,
+        difficulty: criteria.difficulty ? mapDifficultyToRepoFormat(criteria.difficulty) : undefined,
+        minRating: criteria.minRating,
+      })),
+      minRating: filters.minRating,
+      onlyVerified: filters.onlyVerified,
+      sortBy: 'distance' as const,
+      sortOrder: 'asc' as const,
+      limit: 100,
+    };
   }, [searchQuery, filters, userLocation, mapRegion]);
+
+  const spotsQuery = useQuery({
+    queryKey: ['spots', repoFilters],
+    queryFn: async () => await spotRepository.searchSpots(repoFilters),
+    enabled: true,
+  });
+
+  const searchSpots = useCallback(async () => {
+    // Invalidate or refetch spots query
+    await queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'spots' });
+  }, [queryClient]);
 
   /**
    * Resetea los filtros
@@ -261,6 +253,7 @@ export const useMapSpotSearch = ({
   const refetchSpot = useCallback(async (spotId: string) => {
     try {
       // Primero verificar si está en caché y no ha expirado
+
       const cachedSpot = getCachedSpot(spotId);
       if (cachedSpot) {
         // Actualizar con datos en caché inmediatamente
@@ -329,25 +322,48 @@ export const useMapSpotSearch = ({
   /**
    * Cargar deportes al inicializar
    */
-  useEffect(() => {
-    const loadSports = async () => {
-      setLoadingSports(true);
-      try {
-        const sports = await sportRepository.getAllSports();
-        const map = new Map<string, string>();
-        sports.forEach((sport: SportEntity) => {
-          map.set(sport.id, sport.details.name);
-        });
-        setSportsMap(map);
-      } catch {
-        // Error silencioso - los deportes se cargarán en el próximo intento
-      } finally {
-        setLoadingSports(false);
-      }
-    };
+  const sportsQuery = useQuery({
+    queryKey: ['sports', 'all'],
+    queryFn: async () => await sportRepository.getAllSports(),
+    enabled: true,
+  });
 
-    loadSports();
-  }, []);
+  // Keep a small local state for the sports map
+  useEffect(() => {
+    setLoadingSports(sportsQuery.isLoading);
+    if (!sportsQuery.data) return;
+
+    const map = new Map<string, string>();
+
+    // react-query cache might hold either an array of SportEntity (from repo) or a Map (from a Map hook)
+    // We handle both to avoid runtime errors when the cached value shape differs.
+    if (Array.isArray(sportsQuery.data)) {
+      (sportsQuery.data as SportEntity[]).forEach((sport) => {
+        if (sport && sport.id && sport.details && sport.details.name) map.set(sport.id, sport.details.name);
+      });
+    } else if ((sportsQuery.data as any)?.get && typeof (sportsQuery.data as any).get === 'function') {
+      // Map<id, SimpleSport> or Map<id, string>
+      (sportsQuery.data as Map<string, any>).forEach((value, key) => {
+        if (!value) return;
+        if (typeof value === 'string') map.set(key, value);
+        else if (value.name) map.set(key, value.name);
+        else if (value.details?.name) map.set(key, value.details.name);
+      });
+    } else {
+      // Fallback: try treating it as an iterable
+      try {
+        for (const sport of (sportsQuery.data as any)) {
+          if (sport && sport.id && (sport.details?.name || sport.name)) {
+            map.set(sport.id, sport.details?.name || sport.name);
+          }
+        }
+      } catch (_e) {
+        // ignore
+      }
+    }
+
+    setSportsMap(map);
+  }, [sportsQuery.data, sportsQuery.isLoading]);
 
   /**
    * Ordenar spots cuando cambia el criterio de ordenamiento
@@ -403,6 +419,16 @@ export const useMapSpotSearch = ({
       searchSpots();
     }
   }, [autoSearch, userLocation, mapRegion, searchSpots]);
+
+  // Keep local state derived from react-query result
+  useEffect(() => {
+    setLoading(spotsQuery.isLoading);
+    setError(spotsQuery.isError ? (spotsQuery.error as Error)?.message || 'Error al buscar spots' : null);
+    if (spotsQuery.data) {
+      setSpots(spotsQuery.data);
+      setFilteredSpots(spotsQuery.data);
+    }
+  }, [spotsQuery.data, spotsQuery.isLoading, spotsQuery.isError, spotsQuery.error]);
 
   return {
     spots,

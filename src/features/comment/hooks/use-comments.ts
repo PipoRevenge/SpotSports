@@ -1,6 +1,7 @@
 import { commentRepository, userRepository } from '@/src/api/repositories';
 import { useUser } from '@/src/context/user-context';
 import { Comment, CommentSourceType } from '@/src/entities/comment/model/comment';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@/src/lib/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface UseCommentsParams {
@@ -44,26 +45,17 @@ export function useComments({
   const [comments, setComments] = useState<CommentWithUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [repliesMap, setRepliesMap] = useState<Record<string, { comments: CommentWithUser[]; page: number; total: number; hasMore: boolean }>>({});
-  const { user, setUser } = useUser();
+  const { user } = useUser();
   const commentsRef = useRef<CommentWithUser[]>(comments);
 
-  const incrementUserCommentsContext = useCallback(() => {
-    if (!user) return;
-    setUser({
-      ...user,
-      activity: {
-        ...user.activity,
-        commentsCount: (user.activity.commentsCount || 0) + 1,
-      },
-    });
-  }, [setUser, user]);
+  // Note: we rely on React Query for remote counters; we still update the local user via repository calls
 
   useEffect(() => { commentsRef.current = comments; }, [comments]);
   
+  const queryClient = useQueryClient();
   // Use refs to store stable values for the load function
   const contextIdRef = useRef(contextId);
   const sourceTypeRef = useRef(sourceType);
@@ -78,21 +70,14 @@ export function useComments({
     pageSizeRef.current = pageSize;
   }, [contextId, sourceType, sourceId, pageSize]);
 
-  const load = useCallback(async (p = 1) => {
-    if (!contextIdRef.current || !sourceIdRef.current) {
-      console.warn('[useComments] Missing contextId or sourceId, skipping load');
-      return;
-    }
-    setLoading(true);
-    try {
-      const { comments: c, total: t } = await commentRepository.getCommentsByParent(
-        contextIdRef.current,
-        sourceTypeRef.current,
-        sourceIdRef.current,
-        p,
-        pageSizeRef.current
-      );
-      // Enrich with user data
+  const commentsQuery = useInfiniteQuery<any, any>({
+    queryKey: ['comments', { contextId, sourceType, sourceId, pageSize }],
+    initialPageParam: 1,
+    queryFn: async (ctx: any) => {
+      const pageParam = ctx.pageParam ?? 1;
+      if (!contextId || !sourceId) return { comments: [], total: 0 };
+      const { comments: c, total: t } = await commentRepository.getCommentsByParent(contextId, sourceType, sourceId, pageParam as number, pageSize);
+      // Enrich with users
       const enriched = await Promise.all(c.map(async (cm) => {
         try {
           const userData = await userRepository.getUserById(cm.userId);
@@ -101,242 +86,145 @@ export function useComments({
           return { ...cm } as CommentWithUser;
         }
       }));
-      if (p === 1) {
-        const prev = commentsRef.current;
-        if (prev.length === enriched.length && prev.every((c, idx) => c.id === enriched[idx].id)) {
-          // No change
-        } else {
-          setComments(enriched);
-        }
-      } else setComments(prev => [...prev, ...enriched]);
-      setTotal(t);
-      setHasMore(c.length === pageSizeRef.current);
-      setPage(p);
-    } catch (err) {
-      console.error('[useComments] load:', err);
-      setError(err instanceof Error ? err.message : 'Error loading comments');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return { items: enriched, total: t };
+    },
+    getNextPageParam: (lastPage: any, pages: any) => lastPage.items.length === pageSize ? pages.length + 1 : undefined,
+    enabled: !!contextId && !!sourceId && autoLoad,
+  });
 
-  const loadMore = useCallback(async () => {
-    if (loading) return;
-    if (!hasMore) return;
-    await load(page + 1);
-  }, [loading, load, page, hasMore]);
+  // sync to local state as some components expect the state shape
+  useEffect(() => {
+    const data = (commentsQuery.data?.pages ?? []) as any[];
+    const flattened = data.flatMap(p => p.items);
+    setComments(flattened);
+    setTotal(data[0]?.total ?? 0);
+    setHasMore(Boolean(commentsQuery.hasNextPage));
+    // page count is available via commentsQuery.data.pages.length if needed
+    setLoading(commentsQuery.isLoading);
+    setError(commentsQuery.isError ? (commentsQuery.error as Error)?.message ?? 'Error loading comments' : null);
+  }, [commentsQuery.data, commentsQuery.isLoading, commentsQuery.isError, commentsQuery.error, commentsQuery.hasNextPage]);
 
-  const refresh = useCallback(async () => {
-    await load(1);
-  }, [load]);
+  const loadMore = useCallback(async () => { await commentsQuery.fetchNextPage(); }, [commentsQuery]);
 
-  const addComment = useCallback(async (content: string, media?: string[], tags?: string[], level: number = 0) => {
-    if (!user?.id) {
-      throw new Error('User must be authenticated to comment');
-    }
-    if (!contextId || !sourceId) {
-      throw new Error('contextId and sourceId are required to add comments');
-    }
-    try {
-      const comment = await commentRepository.addComment(
-        contextId,
-        sourceType,
-        sourceId,
-        sourceId, // parentId for level 0 is the sourceId
-        user.id,
-        level,
-        content,
-        media,
-        tags
-      );
-      // Enrich by current user
-      const enriched = { ...comment, userName: user.userDetails.userName, userProfileUrl: user.userDetails.photoURL } as CommentWithUser;
-      // prepend to list
-      setComments(prev => [enriched, ...prev]);
-      setTotal(prev => prev + 1);
+  const refresh = useCallback(async () => { await commentsQuery.refetch(); }, [commentsQuery]);
 
-      // Incrementar contador de comentarios del usuario (remoto y contexto)
-      try {
-        await userRepository.incrementActivityCounters(user.id, { commentsDelta: 1 });
-        incrementUserCommentsContext();
-      } catch (counterError) {
-        console.warn('[useComments] Failed to increment user commentsCount', counterError);
-      }
+  const addCommentMutation = useMutation({
+    mutationFn: async ({ content, media, tags, level }: { content: string; media?: string[]; tags?: string[]; level?: number }) => {
+      if (!user?.id) throw new Error('User must be authenticated to comment');
+      if (!contextId || !sourceId) throw new Error('contextId and sourceId are required to add comments');
+      const comment = await commentRepository.addComment(contextId, sourceType, sourceId, sourceId, user.id, level ?? 0, content, media, tags);
       return comment;
-    } catch (err) {
-      console.error('[useComments] addComment:', err);
-      throw err;
-    }
-  }, [contextId, sourceType, sourceId, user?.id, user?.userDetails?.userName, user?.userDetails?.photoURL]);
-
-  const addReply = useCallback(async (parentCommentId: string, content: string, media?: string[], level: number = 1) => {
-    if (!user?.id) {
-      throw new Error('User must be authenticated to reply');
-    }
-    if (!contextId || !sourceId) {
-      throw new Error('contextId and sourceId are required to add replies');
-    }
-    try {
-      const reply = await commentRepository.addComment(
-        contextId,
-        sourceType,
-        sourceId,
-        parentCommentId, // parentId is the comment we're replying to
-        user.id,
-        level,
-        content,
-        media,
-        undefined
-      );
-      // Enrich by current user
-      const enriched = { ...reply, userName: user.userDetails.userName, userProfileUrl: user.userDetails.photoURL } as CommentWithUser;
-      
-      // Add to replies map
-      setRepliesMap(prev => {
-        const clone = { ...prev } as typeof prev;
-        const current = clone[parentCommentId];
-        if (current) {
-          clone[parentCommentId] = {
-            ...current,
-            comments: [...current.comments, enriched],
-            total: current.total + 1,
-          };
-        } else {
-          clone[parentCommentId] = {
-            comments: [enriched],
-            page: 1,
-            total: 1,
-            hasMore: false,
-          };
-        }
-
-        // Update parent comment's commentsCount in repliesMap lists
-        Object.keys(clone).forEach(key => {
-          clone[key] = {
-            ...clone[key],
-            comments: clone[key].comments.map(c => c.id === parentCommentId ? ({ ...c, commentsCount: (c.commentsCount || 0) + 1 }) : c)
-          };
-        });
-
-        return clone;
+    },
+    onSuccess: async (comment) => {
+      // Optimistically prepend to the first page of comments
+      queryClient.setQueryData(['comments', { contextId, sourceType, sourceId, pageSize }], (old: any) => {
+        if (!old) return old;
+        const first = old.pages?.[0]?.items ?? [];
+        const newFirst = [comment, ...first];
+        const newPages = [{ ...old.pages[0], items: newFirst }, ...old.pages.slice(1)];
+        return { ...old, pages: newPages };
       });
-      
-      // Update commentsCount on the parent comment locally
-      setComments(prev => prev.map(c => 
-        c.id === parentCommentId 
-          ? { ...c, commentsCount: (c.commentsCount || 0) + 1 } 
-          : c
-      ));
-
-      // Incrementar contador de comentarios del usuario (remoto y contexto)
       try {
-        await userRepository.incrementActivityCounters(user.id, { commentsDelta: 1 });
-        incrementUserCommentsContext();
-      } catch (counterError) {
-        console.warn('[useComments] Failed to increment user commentsCount (reply)', counterError);
+        if (user?.id) await userRepository.incrementActivityCounters(user.id, { commentsDelta: 1 });
+      } catch (e) {
+        console.warn('[useComments] Failed to increment user commentsCount', e);
       }
-      
-      return reply;
-    } catch (err) {
-      console.error('[useComments] addReply:', err);
-      throw err;
+      await queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'userComments' });
     }
-  }, [contextId, sourceType, sourceId, user?.id, user?.userDetails?.userName, user?.userDetails?.photoURL]);
+  });
 
-  const deleteComment = useCallback(async (commentId: string) => {
-    if (!contextId || !sourceId) {
-      throw new Error('contextId and sourceId are required to delete comments');
-    }
-    try {
-      await commentRepository.deleteComment(contextId, sourceType, sourceId, commentId);
-      // Update local lists
-      setComments(prev => prev.filter(c => c.id !== commentId));
-      // Also remove from replies map
-      setRepliesMap(prev => {
-        const clone = { ...prev } as typeof prev;
-        const parentsFound: string[] = [];
-        Object.keys(clone).forEach(key => {
-          const beforeLen = clone[key].comments.length;
-          clone[key] = { ...clone[key], comments: clone[key].comments.filter(c => c.id !== commentId) };
-          const afterLen = clone[key].comments.length;
-          if (afterLen < beforeLen) parentsFound.push(key);
-        });
-        if (parentsFound.length > 0) {
-          setComments(prevComments => prevComments.map(c => parentsFound.includes(c.id) ? ({ ...c, commentsCount: Math.max(0, (c.commentsCount || 0) - 1) }) : c));
-        }
-        return clone;
+  const addReply = useMutation({
+    mutationFn: async ({ parentCommentId, content, media, level }: { parentCommentId: string; content: string; media?: string[]; level?: number }) => {
+      if (!user?.id) throw new Error('User must be authenticated to reply');
+      if (!contextId || !sourceId) throw new Error('contextId and sourceId are required to add replies');
+      return await commentRepository.addComment(contextId, sourceType, sourceId, parentCommentId, user.id, level ?? 1, content, media, undefined);
+    },
+    onSuccess: async (reply, vars) => {
+      // Update the replies list for parentCommentId
+      const parentId = reply.parentId;
+      queryClient.setQueryData(['comments', { contextId, sourceType, sourceId, pageSize }], (old: any) => {
+        if (!old) return old;
+        const pages = old.pages.map((page: any) => ({ ...page, items: page.items.map((c: any) => c.id === parentId ? { ...c, commentsCount: (c.commentsCount || 0) + 1 } : c) }));
+        return { ...old, pages };
       });
-      setTotal(prev => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error('[useComments] deleteComment', error);
-      throw error;
     }
-  }, [contextId, sourceType, sourceId]);
+  });
+
+  const deleteComment = useMutation({
+    mutationFn: async ({ commentId }: { commentId: string }) => {
+      if (!contextId || !sourceId) throw new Error('contextId and sourceId are required to delete comments');
+      return await commentRepository.deleteComment(contextId, sourceType, sourceId, commentId);
+    },
+    onSuccess: async (data, vars) => {
+      const { commentId } = vars as any;
+      // Remove from cache
+      queryClient.setQueryData(['comments', { contextId, sourceType, sourceId, pageSize }], (old: any) => {
+        if (!old) return old;
+        const pages = old.pages.map((page: any) => ({ ...page, items: page.items.filter((c: any) => c.id !== commentId) }));
+        return { ...old, pages };
+      });
+      await queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'userComments' });
+    }
+  });
 
   const loadReplies = useCallback(async (commentId: string) => {
-    if (!contextId || !sourceId) {
-      throw new Error('contextId and sourceId are required to load replies');
-    }
-    try {
-      const current = repliesMap[commentId];
-      const nextPage = current ? current.page + 1 : 1;
-      const { comments: c, total: t } = await commentRepository.getReplies(contextId, sourceType, sourceId, commentId, nextPage, pageSize);
-      const enriched = await Promise.all(c.map(async (cm) => {
-        try {
-          const userData = await userRepository.getUserById(cm.userId);
-          return { ...cm, userName: userData?.userDetails.userName, userProfileUrl: userData?.userDetails.photoURL } as CommentWithUser;
-        } catch {
-          return { ...cm } as CommentWithUser;
-        }
-      }));
-      setRepliesMap(prev => ({
-        ...prev,
-        [commentId]: {
-          comments: current ? [...current.comments, ...enriched] : enriched,
-          page: nextPage,
-          total: t,
-          hasMore: c.length === pageSize,
-        }
-      }));
-    } catch (err) {
-      console.error('[useComments] loadReplies:', err);
-      throw err;
-    }
-  }, [contextId, sourceType, sourceId, repliesMap, pageSize]);
+    if (!contextId || !sourceId) throw new Error('contextId and sourceId are required to load replies');
+    // Use a dedicated query to fetch replies when needed or rely on cache invalidation from mutations
+    const page = repliesMap[commentId]?.page ?? 1;
+    const { comments: c, total: t } = await commentRepository.getReplies(contextId, sourceType, sourceId, commentId, page + 1, pageSize);
+    const enriched = await Promise.all(c.map(async (cm) => {
+      try {
+        const userData = await userRepository.getUserById(cm.userId);
+        return { ...cm, userName: userData?.userDetails.userName, userProfileUrl: userData?.userDetails.photoURL } as CommentWithUser;
+      } catch {
+        return { ...cm } as CommentWithUser;
+      }
+    }));
+    setRepliesMap(prev => ({
+      ...prev,
+      [commentId]: {
+        comments: (prev[commentId]?.comments ?? []).concat(enriched),
+        page: (prev[commentId]?.page ?? 0) + 1,
+        total: t,
+        hasMore: c.length === pageSize,
+      }
+    }));
+  }, [contextId, sourceType, sourceId, pageSize, repliesMap]);
 
-  const voteComment = useCallback(async (commentId: string, isLike: boolean) => {
-    if (!user?.id) throw new Error('User must be authenticated to vote');
-    if (!contextId || !sourceId) throw new Error('contextId and sourceId are required for voting');
-    try {
-      await commentRepository.voteComment(contextId, sourceType, sourceId, commentId, user.id, isLike);
-      setComments(prev => prev.map(c => c.id === commentId ? ({ ...c, likesCount: isLike ? c.likesCount + 1 : Math.max(0, c.likesCount - 1), dislikesCount: !isLike ? c.dislikesCount + 1 : Math.max(0, c.dislikesCount - 1) }) : c));
-    } catch (err) {
-      console.error('[useComments] voteComment', err);
-      throw err;
+  const voteComment = useMutation({
+    mutationFn: async ({ commentId, isLike }: { commentId: string; isLike: boolean }) => {
+      if (!user?.id) throw new Error('User must be authenticated to vote');
+      if (!contextId || !sourceId) throw new Error('contextId and sourceId are required for voting');
+      return await commentRepository.voteComment(contextId, sourceType, sourceId, commentId, user.id, isLike);
+    },
+    onSuccess: async (_, vars) => {
+      const { commentId, isLike } = vars as any;
+      // Update local counters
+      queryClient.setQueryData(['comments', { contextId, sourceType, sourceId, pageSize }], (old: any) => {
+        if (!old) return old;
+        const pages = old.pages.map((page: any) => ({ ...page, items: page.items.map((c: any) => c.id === commentId ? { ...c, likesCount: isLike ? c.likesCount + 1 : Math.max(0, c.likesCount - 1), dislikesCount: !isLike ? c.dislikesCount + 1 : Math.max(0, c.dislikesCount - 1) } : c) }));
+        return { ...old, pages };
+      });
     }
-  }, [user?.id, contextId, sourceType, sourceId]);
+  });
 
-  const removeCommentVote = useCallback(async (commentId: string) => {
-    if (!user?.id) throw new Error('User must be authenticated to remove vote');
-    if (!contextId || !sourceId) throw new Error('contextId and sourceId are required for removing vote');
-    try {
-      await commentRepository.removeCommentVote(contextId, sourceType, sourceId, commentId, user.id);
-    } catch (err) {
-      console.error('[useComments] removeCommentVote', err);
-      throw err;
+  const removeCommentVote = useMutation({
+    mutationFn: async ({ commentId }: { commentId: string }) => {
+      if (!user?.id) throw new Error('User must be authenticated to remove vote');
+      if (!contextId || !sourceId) throw new Error('contextId and sourceId are required for removing vote');
+      return await commentRepository.removeCommentVote(contextId, sourceType, sourceId, commentId, user.id);
+    },
+    onSuccess: async (_, vars) => {
+      const { commentId } = vars as any;
+      queryClient.setQueryData(['comments', { contextId, sourceType, sourceId, pageSize }], (old: any) => {
+        if (!old) return old;
+        const pages = old.pages.map((page: any) => ({ ...page, items: page.items.map((c: any) => c.id === commentId ? ({ ...c, likesCount: Math.max(0, c.likesCount - 1), dislikesCount: Math.max(0, c.dislikesCount - 1) }) : c) }));
+        return { ...old, pages };
+      });
     }
-  }, [user?.id, contextId, sourceType, sourceId]);
+  });
 
-  const getCommentVote = useCallback(async (commentId: string): Promise<boolean | null> => {
-    if (!user?.id) return null;
-    if (!contextId || !sourceId) return null;
-    try {
-      return await commentRepository.getCommentVote(contextId, sourceType, sourceId, commentId, user.id);
-    } catch (err) {
-      console.error('[useComments] getCommentVote', err);
-      return null;
-    }
-  }, [user?.id, contextId, sourceType, sourceId]);
+  // placeholder: per-comment votes should use dedicated hooks (useCommentVote)
 
   // Track if initial load has been done for this source
   const loadedKeyRef = useRef<string | null>(null);
@@ -346,14 +234,14 @@ export function useComments({
   useEffect(() => {
     if (autoLoad && contextId && sourceId && loadedKeyRef.current !== currentKey) {
       loadedKeyRef.current = currentKey;
-      // Reset state when source changes
+      // Reset state when source changes; react-query will load on its own
       setComments([]);
-      setPage(1);
+      // page count reset handled by react-query
       setTotal(0);
       setHasMore(false);
-      load(1).catch(() => {});
+      commentsQuery.refetch().catch(() => {});
     }
-  }, [autoLoad, contextId, sourceId, currentKey, load]);
+  }, [autoLoad, contextId, sourceId, currentKey, commentsQuery]);
 
   return {
     comments,
@@ -363,14 +251,21 @@ export function useComments({
     hasMore,
     loadMore,
     refresh,
-    addComment,
-    addReply,
-    deleteComment,
+    addComment: (content: string, media?: string[], tags?: string[], level?: number) => addCommentMutation.mutateAsync({ content, media, tags, level }),
+    addReply: (parentCommentId: string, content: string, media?: string[], level?: number) => addReply.mutateAsync({ parentCommentId, content, media, level }),
+    deleteComment: (commentId: string) => deleteComment.mutateAsync({ commentId }),
     loadReplies,
     repliesMap,
-    voteComment,
-    removeCommentVote,
-    getCommentVote,
+    voteComment: (commentId: string, isLike: boolean) => voteComment.mutateAsync({ commentId, isLike }),
+    removeCommentVote: (commentId: string) => removeCommentVote.mutateAsync({ commentId }),
+    getCommentVote: async (commentId: string) => {
+      if (!user?.id) return null;
+      try {
+        return await commentRepository.getCommentVote(contextId!, sourceType, sourceId!, commentId, user.id);
+      } catch {
+        return null;
+      }
+    },
   };
 }
 

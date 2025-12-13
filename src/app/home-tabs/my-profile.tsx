@@ -139,16 +139,8 @@ export default function MyProfile() {
                                     onNavigateToProfile={handleNavigateToProfile}
                                     onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
                                     getSportName={getSportName}
-                                    onEdit={(reviewId, spotId, spotSports) => {
-                                        if (!spotId) return;
-                                        router.push({
-                                            pathname: `/spot/review/[spotId]/edit-review`,
-                                            params: {
-                                                spotId,
-                                                spotSports: spotSports ? JSON.stringify(spotSports) : JSON.stringify([]),
-                                            }
-                                        });
-                                    }}
+                                        // Editing or deleting reviews from profile not allowed
+                                        allowManage={false}
                                 />
                             )}
                             discussionsSlot={(

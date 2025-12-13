@@ -1,6 +1,7 @@
 import { spotRepository } from "@/src/api/repositories";
 import { useUser } from "@/src/context/user-context";
 import { SpotDetails } from "@/src/entities/spot/model/spot";
+import { useMutation, useQueryClient } from "@/src/lib/react-query";
 import { useState } from "react";
 import { SpotCreateFormData, SpotFormState } from "../types/spot-types";
 import { validateSpotCreateForm } from "../utils/spot-validations";
@@ -15,55 +16,37 @@ export const useCreateSpot = () => {
     success: false
   });
   const { user } = useUser();
+  const queryClient = useQueryClient();
 
   /**
    * Función para crear un nuevo spot
    */
-  const createSpot = async (formData: SpotCreateFormData): Promise<string | null> => {
-    setState({ isLoading: true, error: null, success: false });
-
-    try {
+  const createSpotMutation = useMutation({
+    mutationFn: async (formData: SpotCreateFormData): Promise<string> => {
       // Verificar que el usuario esté autenticado
       if (!user || !user.id) {
-        setState({ 
-          isLoading: false, 
-          error: "Debes estar autenticado para crear un spot", 
-          success: false 
-        });
-        return null;
+        throw new Error("Debes estar autenticado para crear un spot");
       }
 
       // Verificar que el usuario tenga username
       if (!user.userDetails?.userName) {
-        setState({ 
-          isLoading: false, 
-          error: "El usuario debe tener un nombre de usuario configurado", 
-          success: false 
-        });
-        return null;
+        throw new Error("El usuario debe tener un nombre de usuario configurado");
       }
 
       // Validar formulario
       const validation = validateSpotCreateForm(formData);
-      
       if (!validation.isValid) {
         const firstError = Object.values(validation.errors)[0];
-        setState({ 
-          isLoading: false, 
-          error: firstError || "Datos del formulario inválidos", 
-          success: false 
-        });
-        return null;
+        throw new Error(firstError || "Datos del formulario inválidos");
       }
 
-      // Preparar datos para el repositorio
       const spotDetails: SpotDetails = {
         name: formData.name.trim(),
         description: formData.description.trim(),
         availableSports: formData.availableSports,
-        media: formData.media.map(item => item.uri), // Extraer solo las URIs
+        media: formData.media.map(item => item.uri),
         location: formData.location!,
-        overallRating: 0, // Rating inicial
+        overallRating: 0,
         contactInfo: {
           phone: formData.contactPhone?.trim() || "",
           email: formData.contactEmail?.trim() || "",
@@ -71,28 +54,28 @@ export const useCreateSpot = () => {
         }
       };
 
-      // Llamar al repositorio para crear el spot con el userId y username
-      const spotId = await spotRepository.createSpot(spotDetails, user.id, user.userDetails.userName);
-
+      return spotRepository.createSpot(spotDetails, user.id, user.userDetails.userName);
+    },
+    onSuccess: async (spotId) => {
       setState({ isLoading: false, error: null, success: true });
+      await queryClient.invalidateQueries({ queryKey: ['spots'] });
+      await queryClient.invalidateQueries({ queryKey: ['spot', spotId] });
+    },
+    onMutate: () => {
+      setState({ isLoading: true, error: null, success: false });
+    },
+    onError: (error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message : "Error inesperado al crear el spot";
+      setState({ isLoading: false, error: errorMessage, success: false });
+    },
+    retry: 0,
+  });
+
+  const createSpot = async (formData: SpotCreateFormData): Promise<string | null> => {
+    try {
+      const spotId = await createSpotMutation.mutateAsync(formData);
       return spotId;
-
-    } catch (error) {
-      console.error("Error creating spot:", error);
-      
-      let errorMessage = "Error inesperado al crear el spot";
-      
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === "string") {
-        errorMessage = error;
-      }
-
-      setState({ 
-        isLoading: false, 
-        error: errorMessage, 
-        success: false 
-      });
+    } catch {
       return null;
     }
   };

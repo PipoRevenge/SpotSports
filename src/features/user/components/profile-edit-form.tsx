@@ -82,11 +82,11 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
     // Validar datos antes de enviar
     const validation = validateProfileData(editableData);
     if (!validation.isValid) {
-      if (validation.fieldErrors) {
-        setFormErrors(validation.fieldErrors);
-        return;
-      }
-      showError(validation.error || 'Datos inválidos', 'Error');
+      // Validation provides a map of field errors
+      setFormErrors(validation.errors);
+      // Show a generic error if no specific field-level error is present
+      const genericMessage = Object.values(validation.errors)[0] || 'Datos inválidos';
+      showError(genericMessage, 'Error');
       return;
     }
 

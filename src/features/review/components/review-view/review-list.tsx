@@ -44,6 +44,7 @@ export interface ReviewListProps {
   onCreate?: () => void;
   onDelete?: (reviewId: string) => void;
   onNavigateToProfile?: (userId: string) => void;
+  onClearCache?: () => void; // Nueva prop para limpiar cache
   
   // Comment modal slots (propagated to ReviewCard)
   /** Slot for the reply modal - injected from app/ layer */
@@ -113,6 +114,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
   onCreate,
   onDelete,
   onNavigateToProfile,
+  onClearCache,
   commentModalSlot,
   onOpenReplyModal,
   onOpenNewCommentModal,
@@ -123,22 +125,13 @@ export const ReviewList: React.FC<ReviewListProps> = ({
   // Estado local para detectar si usuario tiene review
   const [hasUserReview, setHasUserReview] = useState(false);
   const [userReviewId, setUserReviewId] = useState<string | null>(null);
-  const { loadReview } = useReviewLoad();
+  const { review: userReview, loadingReview } = useReviewLoad(spotId);
   
   // Verificar si el usuario ya tiene una review
   useEffect(() => {
-    let mounted = true;
-    const checkUserReview = async () => {
-      const existingReview = await loadReview(spotId);
-      if (mounted) {
-        setHasUserReview(!!existingReview);
-        setUserReviewId(existingReview?.id ?? null);
-      }
-    };
-    checkUserReview();
-    
-    return () => { mounted = false; };
-  }, [spotId, loadReview]);
+    setHasUserReview(!!userReview);
+    setUserReviewId(userReview?.id ?? null);
+  }, [userReview]);
 
   // Determinar si realmente no hay reviews en el spot (sin filtros)
   const hasNoReviewsAtAll = totalReviews === 0;
@@ -148,7 +141,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
   /**
    * Estado de carga
    */
-  if (loading) {
+  if (loading || loadingReview) {
     return (
       <VStack className="flex-1 items-center justify-center p-8">
         <ActivityIndicator size="large" color="#3b82f6" />
@@ -224,26 +217,42 @@ export const ReviewList: React.FC<ReviewListProps> = ({
 
       {/* Filtros y contador de reviews */}
       <VStack className="gap-3 px-6 pb-4">
-        {/* Contador de reviews y botón de escribir */}
+        {/* Contador de reviews y botones */}
         <HStack className="justify-between items-center">
           <Text className="text-lg font-bold text-gray-900">
             {reviews.length} {reviews.length === 1 ? "Review" : "Reviews"}
           </Text>
-          <Button
-            size="sm"
-            className="bg-blue-600"
-            onPress={() => {
-              if (hasUserReview) {
-                if (onEdit && userReviewId) onEdit(userReviewId);
-                return;
-              }
-              if (onCreate) onCreate();
-            }}
-          >
-            <ButtonText className="text-white font-semibold">
-              {hasUserReview ? "Actualizar Review" : "Escribir Review"}
-            </ButtonText>
-          </Button>
+          <HStack className="gap-2">
+            {/* Botón de limpiar cache */}
+            {onClearCache && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-gray-400"
+                onPress={onClearCache}
+              >
+                <ButtonText className="text-gray-700 font-semibold">
+                  🔄 Refrescar
+                </ButtonText>
+              </Button>
+            )}
+            {/* Botón de escribir/editar review */}
+            <Button
+              size="sm"
+              className="bg-blue-600"
+              onPress={() => {
+                if (hasUserReview) {
+                  if (onEdit && userReviewId) onEdit(userReviewId);
+                  return;
+                }
+                if (onCreate) onCreate();
+              }}
+            >
+              <ButtonText className="text-white font-semibold">
+                {hasUserReview ? "Actualizar Review" : "Escribir Review"}
+              </ButtonText>
+            </Button>
+          </HStack>
         </HStack>
 
         {/* Filtros y ordenamiento */}

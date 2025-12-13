@@ -2,28 +2,28 @@ import { Review, ReviewDetails, ReviewSport } from "@/src/entities/review/model/
 import { firestore, storage } from "@/src/lib/firebase-config";
 import { ref as dbRef, getDatabase, push } from "firebase/database";
 import {
-    collection,
-    collectionGroup,
-    doc,
-    limit as firestoreLimit,
-    getDoc,
-    getDocs,
-    increment,
-    orderBy,
-    query,
-    runTransaction,
-    Timestamp,
-    where,
-    writeBatch
+  collection,
+  collectionGroup,
+  doc,
+  limit as firestoreLimit,
+  getDoc,
+  getDocs,
+  increment,
+  orderBy,
+  query,
+  runTransaction,
+  Timestamp,
+  where,
+  writeBatch
 } from "firebase/firestore";
 import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { IReviewRepository } from "../interfaces/i-review-repository";
 import {
-    createFirestoreReviewData,
-    FirestoreReviewData,
-    FirestoreSportRating,
-    FirestoreSpotSportMetrics,
-    mapFirestoreToReview
+  createFirestoreReviewData,
+  FirestoreReviewData,
+  FirestoreSportRating,
+  FirestoreSpotSportMetrics,
+  mapFirestoreToReview
 } from "../mappers/review-mapper";
 import { voteRepository } from "./vote-repository-impl";
 
@@ -466,17 +466,20 @@ export class ReviewRepositoryImpl implements IReviewRepository {
     offset: number = 0
   ): Promise<Review[]> {
     try {
+      console.log('[ReviewRepository] Loading reviews for spot:', spotId, 'limit:', limit, 'offset:', offset);
+      
       // ESTRUCTURA: reviews es subcolección de spots
       const reviewsRef = collection(firestore, `spots/${spotId}/reviews`);
       const q = query(
         reviewsRef,
         where("isDeleted", "==", false),
-        orderBy("createdAt", "desc"),
-        firestoreLimit(limit)
+        orderBy("createdAt", "desc")
       );
 
       const querySnapshot = await getDocs(q);
-      const reviews: Review[] = [];
+      const allReviews: Review[] = [];
+
+      console.log('[ReviewRepository] Found', querySnapshot.size, 'reviews in total');
 
       // Cargar cada review con URLs de media
       for (const docSnapshot of querySnapshot.docs) {
@@ -489,10 +492,15 @@ export class ReviewRepositoryImpl implements IReviewRepository {
         }
         
         const reviewDataWithUrls = { ...data, gallery: mediaUrls };
-        reviews.push(mapFirestoreToReview(docSnapshot.id, reviewDataWithUrls));
+        allReviews.push(mapFirestoreToReview(docSnapshot.id, reviewDataWithUrls));
       }
 
-      return reviews;
+      // Aplicar paginación manual
+      const paginatedReviews = allReviews.slice(offset, offset + limit);
+      
+      console.log('[ReviewRepository] Returning', paginatedReviews.length, 'reviews (offset:', offset, 'limit:', limit, ')');
+
+      return paginatedReviews;
     } catch (error) {
       console.error("[ReviewRepository] Error getting reviews by spot:", error);
       throw new Error("Failed to get reviews");

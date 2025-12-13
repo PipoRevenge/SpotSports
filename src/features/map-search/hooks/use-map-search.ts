@@ -1,5 +1,6 @@
+import { useQuery, useQueryClient } from '@/src/lib/react-query';
 import { GeoPoint } from "@/src/types/geopoint";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BaseMapSearchFilters,
   MapSearchState,
@@ -116,43 +117,17 @@ export const useMapSearch = <T, F = BaseMapSearchFilters>(
 
   // Timer para debounce
   const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const queryClient = useQueryClient();
+
+  // Debounced filters to avoid firing queries too often
+  const [debouncedFilters, setDebouncedFilters] = useState<F>(filters);
 
   /**
    * Ejecuta la búsqueda
    */
   const search = useCallback(async () => {
-    try {
-      setState((prev: MapSearchState<T>) => ({ ...prev, isLoading: true, error: null }));
-
-      // Ejecutar función de búsqueda
-      const items = await searchFunction(filters, userLocation);
-
-      // Transformar items a resultados con ubicación y distancia
-      let results = transformToSearchResults(items, getLocation, userLocation);
-
-      // El filtro de distancia ya fue aplicado en el backend/repositorio
-      // NO aplicar filtros adicionales aquí para evitar duplicación
-
-      // Ordenar resultados
-      const baseFilters = filters as unknown as BaseMapSearchFilters;
-      if (baseFilters.sortBy) {
-        results = sortResults(results, baseFilters.sortBy, baseFilters.sortOrder, getters);
-      }
-
-      setState({
-        results,
-        isLoading: false,
-        error: null,
-        totalResults: results.length,
-        hasMore: false, // Por ahora no soportamos paginación
-      });
-    } catch (error) {
-      setState((prev: MapSearchState<T>) => ({
-        ...prev,
-        isLoading: false,
-        error: error instanceof Error ? error.message : "Error desconocido",
-      }));
-    }
+    // Usar React Query para refetch (esta función simplemente invalida la query)
+    queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'mapSearch' });
   }, [filters, userLocation, searchFunction, getLocation, getters]);
 
   /**
@@ -171,12 +146,11 @@ export const useMapSearch = <T, F = BaseMapSearchFilters>(
       }
 
       // Ejecutar búsqueda con debounce solo para cambios en searchQuery
-      if ("searchQuery" in newFilters) {
-        const timeout = setTimeout(() => {
-          // Timeout expirado - la búsqueda se ejecutará vía efecto
-        }, debounceMs);
-        setSearchTimeout(timeout);
-      }
+      const timeout = setTimeout(() => {
+        setDebouncedFilters(prev => ({ ...prev, ...newFilters } as F));
+      }, debounceMs);
+      if (searchTimeout) clearTimeout(searchTimeout);
+      setSearchTimeout(timeout);
     },
     [searchTimeout, debounceMs]
   );
@@ -199,11 +173,43 @@ export const useMapSearch = <T, F = BaseMapSearchFilters>(
    */
   useEffect(() => {
     if (autoSearch) {
-      search();
+      // trigger initial fetch via react-query by setting debounced filters
+      setDebouncedFilters(filters);
     }
     // Solo ejecutar una vez al montar
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoSearch]);
+
+  // Query: ejecutar búsqueda cuando cambian debouncedFilters o userLocation
+  const queryKey = useMemo(() => ['mapSearch', debouncedFilters, userLocation], [debouncedFilters, userLocation]);
+  const query = useQuery({
+    queryKey,
+    queryFn: async () => {
+      const items = await searchFunction(debouncedFilters, userLocation);
+      let results = transformToSearchResults(items, getLocation, userLocation);
+      const baseFilters = debouncedFilters as unknown as BaseMapSearchFilters;
+      if (baseFilters.sortBy) {
+        results = sortResults(results, baseFilters.sortBy, baseFilters.sortOrder, getters);
+      }
+      return results;
+    },
+    enabled: !!debouncedFilters,
+  });
+
+  // Keep the component state in sync with query
+  useEffect(() => {
+    if (query.isLoading) {
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
+      return;
+    }
+    if (query.isError) {
+      setState(prev => ({ ...prev, isLoading: false, error: (query.error as Error)?.message || 'Error desconocido' }));
+      return;
+    }
+    if (query.data) {
+      setState({ results: query.data, isLoading: false, error: null, totalResults: query.data.length, hasMore: false });
+    }
+  }, [query.data, query.isLoading, query.isError, query.error]);
 
   /**
    * Limpiar timeout al desmontar

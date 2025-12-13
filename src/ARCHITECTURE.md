@@ -98,6 +98,16 @@ export default function SearchSpots() {
 }
 ```
 
+### 4. **React Query Guidelines**
+
+- **Dónde vive**: Solo en hooks de feature (capa `features/*/hooks`). No se usa directamente en componentes ni en entidades/repositorios.
+- **Claves**: entidades singulares `['spot', spotId]`, listas `['spots', 'list', filters]`, votos `['review','vote',spotId,reviewId,userId]`, perfil ajeno `['user', userId]`.
+- **Persistencia**: marca queries que deban sobrevivir reinicios con `meta: { persist: true }` o usa prefijos `user/settings/favorites/drafts/ui`. Evita persistir tokens o datos ultra volátiles (feeds en vivo, chats completos).
+- **Stale/GC**: usa `staleTime` según volatilidad (p.ej. spot 2–5min, perfil 5–10min, feeds 30–60s). `gcTime` controla cuánto se mantiene en cache.
+- **Mutaciones**: siempre con `useMutation`; en `onSuccess` invalida las keys afectadas (ej. `['spots']`, `['spot', id]`, `['reviews', spotId]`). Para UX rápida usa updates optimistas (`onMutate`/`onError`).
+- **Tiempo real**: para `onSnapshot`/suscripciones, combina `useQuery` para carga inicial + `queryClient.setQueryData` en el callback de suscripción.
+- **Enabled/params**: añade `enabled` para evitar llamadas con parámetros vacíos; usa `keepPreviousData` en paginación (`useInfiniteQuery`).
+
 ### 4. **Shared Business Models in Entities**
 
 The `src/entities/` folder contains business models (types/interfaces) used across the app.

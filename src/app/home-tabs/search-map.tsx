@@ -20,6 +20,7 @@ import {
 import {
   SpotSearchFilterModal,
   useSelectedSpot,
+  useSpotPrefetch,
 } from "@/src/features/spot";
 import { SpotCollectionSelector } from "@/src/features/spot-collection";
 import { useUserLocation } from "@/src/hooks/use-user-location";
@@ -56,6 +57,9 @@ export default function SearchMapScreen() {
   // ==================== HOOKS DE FEATURES ====================
   // Contexto de Spot Seleccionado para mantener sincronización global
   const { selectedSpot, selectSpot, refreshAll } = useSelectedSpot();
+  
+  // Hook de prefetch para optimizar carga
+  const { prefetchSpotBasic, prefetchSpotFull } = useSpotPrefetch();
   
   // Ubicación del usuario
   const { location: userLocation, isLoading: isLoadingLocation } = useUserLocation(true);
@@ -150,11 +154,15 @@ export default function SearchMapScreen() {
   /**
    * Maneja el press en un marcador del mapa
    * Selecciona el spot y muestra el callout automáticamente
+   * Pre-carga datos básicos para mejorar performance
    */
   const handleMarkerPress = useCallback((spot: Spot) => {
+    // Pre-cargar datos básicos del spot en background
+    prefetchSpotBasic(spot.id);
+    
     selectSpot(spot, false); // No cargar reviews para el modal
     setSelectedSpotId(spot.id);
-  }, [selectSpot]);
+  }, [selectSpot, prefetchSpotBasic]);
 
   /**
    * Maneja el press en el callout
@@ -170,15 +178,19 @@ export default function SearchMapScreen() {
   /**
    * Maneja el press en un spot desde la lista o el card
    * Navega a la página del spot
+   * Pre-carga datos completos antes de navegar para carga instantánea
    */
   const handleSpotPress = useCallback((spot: Spot) => {
-    // Navegar inmediatamente a la página del spot
-    // La página se encargará de cargar los datos completos
-    router.push({
-      pathname: '/spot/[spotId]',
-      params: { spotId: spot.id }
+    // Pre-cargar datos completos (spot + reviews) antes de navegar
+    // Esto hace que la página cargue instantáneamente desde el cache
+    prefetchSpotFull(spot.id).then(() => {
+      // Navegar a la página del spot (datos ya en cache)
+      router.push({
+        pathname: '/spot/[spotId]',
+        params: { spotId: spot.id }
+      });
     });
-  }, []);
+  }, [prefetchSpotFull]);
 
   /**
    * Cierra el card del spot

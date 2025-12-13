@@ -1,7 +1,8 @@
 import { commentRepository } from '@/src/api/repositories';
 import { useUser } from '@/src/context/user-context';
 import { CommentSourceType } from '@/src/entities/comment/model/comment';
-import { useCallback, useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@/src/lib/react-query';
+import { useCallback, useEffect } from 'react';
 
 /**
  * Estado del voto del usuario en un comentario
@@ -52,78 +53,114 @@ export const useCommentVote = (
 ) => {
   const { user } = useUser();
   const userId = user?.id;
+  const queryClient = useQueryClient();
 
-  const [voteState, setVoteState] = useState<CommentVoteState>({
-    isLiked: false,
-    isDisliked: false,
-    isVoting: false,
+  const voteQuery = useQuery({
+    queryKey: ['commentVote', contextId, sourceType, sourceId, commentId, userId],
+    queryFn: async () => {
+      if (!contextId || !sourceType || !sourceId || !commentId || !userId) return null;
+      return await commentRepository.getCommentVote(contextId, sourceType, sourceId, commentId, userId);
+    },
+    enabled: autoFetch && !!contextId && !!sourceType && !!sourceId && !!commentId && !!userId,
   });
-  const [error, setError] = useState<string | null>(null);
+  
+  const voteState = {
+    isLiked: voteQuery.data === true,
+    isDisliked: voteQuery.data === false,
+    isVoting: false,
+  } as CommentVoteState;
 
-  const fetchUserVote = useCallback(async () => {
-    if (!contextId || !sourceType || !sourceId || !commentId || !userId) return;
-    try {
-      const vote = await commentRepository.getCommentVote(contextId, sourceType, sourceId, commentId, userId);
-      setVoteState(prev => ({
-        ...prev,
-        isLiked: vote === true,
-        isDisliked: vote === false,
-      }));
-    } catch (err) {
-      console.error('[useCommentVote] fetchUserVote', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch vote');
+  const mutationVote = useMutation({
+    mutationFn: async ({ isLike }: { isLike: boolean }) => {
+      if (!contextId || !sourceType || !sourceId || !commentId || !userId) throw new Error('User must be logged in to vote');
+      return await commentRepository.voteComment(contextId, sourceType, sourceId, commentId, userId, isLike);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'comments' });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'commentVote' });
     }
-  }, [contextId, sourceType, sourceId, commentId, userId]);
+  });
 
-  const handleVote = useCallback(
-    async (isLike: boolean, currentLikes: number, currentDislikes: number) => {
-      if (!contextId || !sourceType || !sourceId || !commentId || !userId) {
-        setError('User must be logged in to vote');
+  const mutationRemove = useMutation({
+    mutationFn: async () => {
+      if (!contextId || !sourceType || !sourceId || !commentId || !userId) throw new Error('User must be logged in to vote');
+      return await commentRepository.removeCommentVote(contextId, sourceType, sourceId, commentId, userId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'comments' });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'commentVote' });
+    }
+  });
+  // helper to refetch the user's vote
+  const fetchUserVote = voteQuery.refetch;
+  const error = voteQuery.error;
+
+  // compute isVoting based on mutation state
+  voteState.isVoting = mutationVote.isPending || mutationRemove.isPending;
+
+  // Keep backward-compatible signatures: allow callers to pass current counts (likes, dislikes)
+  const handleLike = useCallback(
+    (likesCount?: number, dislikesCount?: number) => {
+      // If already liked -> remove vote
+      if (voteQuery.data === true) {
+        mutationRemove.mutateAsync().then(() => {
+          if (typeof likesCount === 'number' && typeof dislikesCount === 'number') {
+            onVoteChange?.(Math.max(0, likesCount - 1), dislikesCount);
+          }
+        }).catch(() => {});
         return;
       }
-      setVoteState(prev => ({ ...prev, isVoting: true }));
-      setError(null);
 
-      let newLikes = currentLikes;
-      let newDislikes = currentDislikes;
-
-      try {
-        if ((isLike && voteState.isLiked) || (!isLike && voteState.isDisliked)) {
-          await commentRepository.removeCommentVote(contextId, sourceType, sourceId, commentId, userId);
-          if (isLike) newLikes = Math.max(0, currentLikes - 1);
-          else newDislikes = Math.max(0, currentDislikes - 1);
-          setVoteState({ isLiked: false, isDisliked: false, isVoting: false });
-        } else {
-          await commentRepository.voteComment(contextId, sourceType, sourceId, commentId, userId, isLike);
-          if (isLike) {
-            newLikes = currentLikes + 1;
-            if (voteState.isDisliked) newDislikes = Math.max(0, currentDislikes - 1);
-          } else {
-            newDislikes = currentDislikes + 1;
-            if (voteState.isLiked) newLikes = Math.max(0, currentLikes - 1);
+      // If currently disliked -> switch: remove dislike and add like
+      if (voteQuery.data === false) {
+        mutationVote.mutateAsync({ isLike: true }).then(() => {
+          if (typeof likesCount === 'number' && typeof dislikesCount === 'number') {
+            onVoteChange?.(likesCount + 1, Math.max(0, dislikesCount - 1));
           }
-          setVoteState({ isLiked: isLike, isDisliked: !isLike, isVoting: false });
-        }
-        onVoteChange?.(newLikes, newDislikes);
-      } catch (err) {
-        console.error('[useCommentVote] handleVote', err);
-        setError(err instanceof Error ? err.message : 'Failed to vote');
-        setVoteState(prev => ({ ...prev, isVoting: false }));
+        }).catch(() => {});
+        return;
       }
-    },
-    [contextId, sourceType, sourceId, commentId, userId, voteState, onVoteChange]
-  );
 
-  const handleLike = useCallback(
-    (currentLikes: number, currentDislikes: number) =>
-      handleVote(true, currentLikes, currentDislikes),
-    [handleVote]
+      // No vote yet -> add like
+      mutationVote.mutateAsync({ isLike: true }).then(() => {
+        if (typeof likesCount === 'number' && typeof dislikesCount === 'number') {
+          onVoteChange?.(likesCount + 1, dislikesCount);
+        }
+      }).catch(() => {});
+    },
+    [mutationRemove, mutationVote, onVoteChange, voteQuery.data]
   );
 
   const handleDislike = useCallback(
-    (currentLikes: number, currentDislikes: number) =>
-      handleVote(false, currentLikes, currentDislikes),
-    [handleVote]
+    (likesCount?: number, dislikesCount?: number) => {
+      // If already disliked -> remove
+      if (voteQuery.data === false) {
+        mutationRemove.mutateAsync().then(() => {
+          if (typeof likesCount === 'number' && typeof dislikesCount === 'number') {
+            onVoteChange?.(likesCount, Math.max(0, dislikesCount - 1));
+          }
+        }).catch(() => {});
+        return;
+      }
+
+      // If currently liked -> switch
+      if (voteQuery.data === true) {
+        mutationVote.mutateAsync({ isLike: false }).then(() => {
+          if (typeof likesCount === 'number' && typeof dislikesCount === 'number') {
+            onVoteChange?.(Math.max(0, likesCount - 1), dislikesCount + 1);
+          }
+        }).catch(() => {});
+        return;
+      }
+
+      // No vote yet -> add dislike
+      mutationVote.mutateAsync({ isLike: false }).then(() => {
+        if (typeof likesCount === 'number' && typeof dislikesCount === 'number') {
+          onVoteChange?.(likesCount, dislikesCount + 1);
+        }
+      }).catch(() => {});
+    },
+    [mutationRemove, mutationVote, onVoteChange, voteQuery.data]
   );
 
   useEffect(() => {

@@ -4,4 +4,5 @@ export interface IAuthRepository {
   logout(): Promise<void>;
   checkAuth(): Promise<boolean>;
   onAuthStateChanged(callback: (userId: string | null) => void): () => void;
+  getIdToken(forceRefresh?: boolean): Promise<string | null>;
 }

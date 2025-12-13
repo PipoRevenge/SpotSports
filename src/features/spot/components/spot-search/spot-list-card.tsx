@@ -84,8 +84,8 @@ export const SpotListCard: React.FC<SpotListCardProps> = ({
             {/* Deportes disponibles */}
             {spot.details.availableSports.length > 0 && (
               <HStack className="gap-1 pt-2 flex-wrap">
-                {spot.details.availableSports.slice(0, 3).map((sportId) => (
-                  <Tag key={sportId} label={getSportName(sportId)} color={'#E6F6FF'} />
+                {spot.details.availableSports.slice(0, 3).filter((s): s is string => Boolean(s)).map((sportId) => (
+                  <Tag key={sportId} label={getSportName(sportId) || sportId} color={'#E6F6FF'} />
                 ))}
 
                 {spot.details.availableSports.length > 3 && (

@@ -1,5 +1,5 @@
 import { sportRepository } from '@/src/api/repositories';
-import { useCallback, useState } from 'react';
+import { useMutation, useQueryClient } from '@/src/lib/react-query';
 import { CreateSportData } from '../types/sport-types';
 import { SPORT_ERROR_MESSAGES } from '../utils/sport-constants';
 import { validateCreateSport } from '../utils/sport-validations';
@@ -9,66 +9,44 @@ import { validateCreateSport } from '../utils/sport-validations';
  * Encapsula toda la lógica de negocio para crear nuevos deportes
  */
 export const useCreateSport = () => {
-  const [isCreating, setIsCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  /**
-   * Crea un nuevo deporte
-   */
-  const createSport = useCallback(async (sportData: CreateSportData): Promise<string> => {
-    // Validar datos antes de enviar
-    const validation = validateCreateSport(sportData);
-    if (!validation.success) {
-      const firstError = Object.values(validation.errors!)[0];
-      throw new Error(firstError);
-    }
+  const mutation = useMutation({
+    mutationFn: async (sportData: CreateSportData): Promise<string> => {
+      const validation = validateCreateSport(sportData);
+      if (!validation.success) {
+        const firstError = Object.values(validation.errors!)[0];
+        throw new Error(firstError);
+      }
 
-    setIsCreating(true);
-    setCreateError(null);
-    
-    try {
       const sportId = await sportRepository.createSport({
         name: sportData.name.trim(),
         description: sportData.description.trim(),
-        category: sportData.category, // Opcional
+        category: sportData.category,
         icon: sportData.icon,
-      }, 'user'); // TODO: Obtener el ID del usuario actual desde contexto de auth
-
-      console.log(`✅ Deporte creado exitosamente: ${sportData.name} (${sportId})`);
+      }, 'user'); // TODO: inyectar userId real
       return sportId;
-    } catch (error: any) {
-      const errorMessage = error.message || SPORT_ERROR_MESSAGES.CREATE_ERROR;
-      setCreateError(errorMessage);
+    },
+    onSuccess: async (sportId, sportData) => {
+      console.log(`✅ Deporte creado: ${sportData.name} (${sportId})`);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['sports'] }),
+        queryClient.invalidateQueries({ queryKey: ['sports', 'all'] }),
+      ]);
+    },
+    onError: (error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message : SPORT_ERROR_MESSAGES.CREATE_ERROR;
       console.error('❌ Error al crear deporte:', error);
       throw new Error(errorMessage);
-    } finally {
-      setIsCreating(false);
-    }
-  }, []);
-
-  /**
-   * Limpia el error de creación
-   */
-  const clearCreateError = useCallback(() => {
-    setCreateError(null);
-  }, []);
-
-  /**
-   * Resetea el estado del hook
-   */
-  const reset = useCallback(() => {
-    setIsCreating(false);
-    setCreateError(null);
-  }, []);
+    },
+    retry: 0,
+  });
 
   return {
-    // Estado
-    isCreating,
-    createError,
-    
-    // Acciones
-    createSport,
-    clearCreateError,
-    reset,
+    isCreating: mutation.isPending,
+    createError: (mutation.error as Error | null)?.message ?? null,
+    createSport: mutation.mutateAsync,
+    clearCreateError: () => mutation.reset(),
+    reset: () => mutation.reset(),
   };
 };

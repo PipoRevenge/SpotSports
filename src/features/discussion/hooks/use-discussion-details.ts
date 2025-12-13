@@ -1,46 +1,36 @@
 import { discussionRepository, userRepository } from '@/src/api/repositories';
-import { Discussion } from '@/src/entities/discussion/model/discussion';
-import { User } from '@/src/entities/user/model/user';
-import { useCallback, useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@/src/lib/react-query';
 
 export function useDiscussionDetails(discussionId?: string, spotId?: string) {
-  const [discussion, setDiscussion] = useState<Discussion | null>(null);
-  const [author, setAuthor] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const load = useCallback(async (id?: string) => {
-    if (!id) {
-      setDiscussion(null);
-      setAuthor(null);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      // spotId is optional - uses collectionGroup fallback if not provided
-      const d = await discussionRepository.getDiscussionById(id, spotId);
-      setDiscussion(d);
-      
-      // Load author data
-      if (d?.metadata?.createdBy) {
-        try {
-          const userData = await userRepository.getUserById(d.metadata.createdBy);
-          setAuthor(userData);
-        } catch {
-          console.warn('[useDiscussionDetails] Could not load author');
-          setAuthor(null);
-        }
-      }
-    } catch (err) {
-      console.error('[useDiscussionDetails] error loading discussion', err);
-      setError(err instanceof Error ? err.message : 'Failed to load discussion');
-    } finally {
-      setLoading(false);
-    }
-  }, [spotId]);
+  const discussionQuery = useQuery({
+    queryKey: ['discussion', discussionId, spotId],
+    queryFn: async () => {
+      if (!discussionId) return null;
+      const d = await discussionRepository.getDiscussionById(discussionId, spotId);
+      return d;
+    },
+    enabled: !!discussionId,
+  });
 
-  useEffect(() => { load(discussionId); }, [discussionId, load]);
+  const authorId = discussionQuery.data?.metadata?.createdBy;
 
-  return { discussion, author, loading, error, refresh: () => load(discussionId) };
+  const authorQuery = useQuery({
+    queryKey: ['user', authorId],
+    queryFn: async () => {
+      if (!authorId) return null;
+      const u = await userRepository.getUserById(authorId);
+      return u;
+    },
+    enabled: !!authorId,
+  });
+
+  return {
+    discussion: discussionQuery.data ?? null,
+    author: authorQuery.data ?? null,
+    loading: discussionQuery.isLoading || authorQuery.isLoading,
+    error: discussionQuery.isError ? (discussionQuery.error as Error)?.message : (authorQuery.isError ? (authorQuery.error as Error)?.message : null),
+    refresh: () => discussionQuery.refetch(),
+  };
 }

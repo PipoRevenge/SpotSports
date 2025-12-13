@@ -25,7 +25,8 @@ export const useSelectSports = (
     sports: apiSports, 
     loading: sportsLoading, 
     error: sportsError,
-    loadSports 
+    reload: reloadSportsQuery,
+    setCategory: setCategoryFilter
   } = useSearchSports({ autoLoad: !availableSports });
 
   // Usar deportes proporcionados o los de la API
@@ -78,8 +79,6 @@ export const useSelectSports = (
     setSportOptions(options);
     initializedRef.current = true;
     
-    console.log(`[${instanceIdRef.current}] Sports initialized with cache:`, 
-      Object.keys(selectedSportsCache).filter(id => selectedSportsCache[id]));
   }, [sourceSports, initialSelectedSports, initializeCache]);
 
   /**
@@ -99,7 +98,6 @@ export const useSelectSports = (
     // Actualizar el estado de UI usando el helper
     setSportOptions(prev => toggleSportSelection(prev, sportId));
     
-    console.log(`[${instanceIdRef.current}] Sport toggled: ${sportId}, now ${!currentSelected}`);
   }, []);
 
   /**
@@ -113,9 +111,6 @@ export const useSelectSports = (
     // Actualizar estado usando el helper
     setSportOptions(prev => helperAddAndSelectSport(prev, sport));
     
-    console.log(`Deporte añadido y seleccionado: ${sport.name} (${sport.id})`);
-    console.log(`[${instanceIdRef.current}] Cache updated:`, 
-      Object.keys(selectedSportsCache).filter(id => selectedSportsCache[id]));
   }, []);
 
   /**
@@ -153,7 +148,6 @@ export const useSelectSports = (
     // Actualizar opciones UI usando helper
     setSportOptions(prev => markSportsAsSelected(prev, selectedSportIds));
     
-    console.log(`[${instanceIdRef.current}] Selected sports set:`, selectedSportIds);
   }, []);
 
   /**
@@ -172,7 +166,6 @@ export const useSelectSports = (
     // Resetear opciones pero mantener iniciales usando helper
     setSportOptions(prev => markSportsAsSelected(prev, initialSelectedRef.current));
     
-    console.log(`[${instanceIdRef.current}] Selection reset`);
   }, []);
 
   /**
@@ -188,9 +181,12 @@ export const useSelectSports = (
    */
   const reloadSports = useCallback(async (category?: SportCategory) => {
     if (!availableSports) {
-      await loadSports(category);
+      if (category) {
+        setCategoryFilter(category);
+      }
+      await reloadSportsQuery();
     }
-  }, [availableSports, loadSports]);
+  }, [availableSports, reloadSportsQuery, setCategoryFilter]);
 
   // Efecto para sincronizar cambios de props con el estado interno
   useEffect(() => {
@@ -239,7 +235,6 @@ export const useSelectSports = (
     const instanceId = instanceIdRef.current;
     
     return () => {
-      console.log(`[${instanceId}] Component unmounting, preserving cache`);
       // No limpiamos el caché al desmontar para mantener las selecciones
     };
   }, []);

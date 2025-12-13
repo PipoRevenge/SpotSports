@@ -17,6 +17,11 @@ export interface UserReviewListProps {
   onNavigateToSpot?: (spotId: string) => void;
   onEdit?: (reviewId: string, spotId: string, spotSports?: any) => void;
   getSportName?: (id: string) => string | undefined;
+  /**
+   * If false, hide edit/delete controls (used when rendering lists inside profile pages)
+   * Defaults to true
+   */
+  allowManage?: boolean;
   // Comment modal slots (propagated to ReviewCard)
   /** Slot for the reply modal - injected from app/ layer */
   commentModalSlot?: React.ReactNode;
@@ -32,6 +37,7 @@ export const UserReviewList: React.FC<UserReviewListProps> = ({
   onNavigateToProfile,
   onNavigateToSpot,
   onEdit,
+  allowManage = true,
   getSportName: passedGetSportName,
   commentModalSlot,
   onOpenReplyModal,
@@ -87,6 +93,8 @@ export const UserReviewList: React.FC<UserReviewListProps> = ({
         const spot = spotsMap.get(review.details.spotId);
         const user = usersData.get(review.metadata.createdBy) ?? profileUser;
 
+        const canManage = !!allowManage;
+
         return (
           <View key={review.id}>
               <ReviewCard
@@ -97,14 +105,14 @@ export const UserReviewList: React.FC<UserReviewListProps> = ({
               spot={spot}
               onNavigateToProfile={onNavigateToProfile}
               onNavigateToSpot={onNavigateToSpot}
-              onEdit={() => onEdit && onEdit(review.id, review.details.spotId, spot?.details.availableSports)}
-              onDelete={async () => {
+              onEdit={canManage && onEdit ? () => onEdit(review.id, review.details.spotId, spot?.details.availableSports) : undefined}
+              onDelete={canManage ? async () => {
                 try {
                   await deleteReview(review.id, review.details.spotId);
                 } catch (e) {
                   console.error('Failed to delete review in user list', e);
                 }
-              }}
+              } : undefined}
               commentModalSlot={commentModalSlot}
               onOpenReplyModal={onOpenReplyModal}
               onOpenNewCommentModal={onOpenNewCommentModal}

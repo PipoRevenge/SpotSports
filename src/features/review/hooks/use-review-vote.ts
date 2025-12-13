@@ -1,6 +1,7 @@
 import { reviewRepository } from '@/src/api/repositories';
 import { useUser } from '@/src/context/user-context';
-import { useCallback, useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@/src/lib/react-query';
+import { useCallback, useMemo } from 'react';
 
 /**
  * Estado del voto del usuario en una review
@@ -47,83 +48,94 @@ export const useReviewVote = (
 ) => {
   const { user } = useUser();
   const userId = user?.id;
+  const queryClient = useQueryClient();
 
-  const [voteState, setVoteState] = useState<ReviewVoteState>({
-    isLiked: false,
-    isDisliked: false,
-    isVoting: false,
+  const voteQuery = useQuery<boolean | null>({
+    queryKey: ['review', 'vote', spotId, reviewId, userId],
+    enabled: autoFetch && !!spotId && !!reviewId && !!userId,
+    staleTime: 5 * 60_000,
+    queryFn: () => reviewRepository.getReviewVote(spotId!, reviewId!, userId!),
   });
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchUserVote = useCallback(async () => {
-    if (!spotId || !reviewId || !userId) return;
-    try {
-      const vote = await reviewRepository.getReviewVote(spotId, reviewId, userId);
-      setVoteState(prev => ({
-        ...prev,
-        isLiked: vote === true,
-        isDisliked: vote === false,
-      }));
-    } catch (err) {
-      console.error('[useReviewVote] fetchUserVote', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch vote');
-    }
-  }, [spotId, reviewId, userId]);
+  const voteState: ReviewVoteState = useMemo(() => ({
+    isLiked: voteQuery.data === true,
+    isDisliked: voteQuery.data === false,
+    isVoting: false,
+  }), [voteQuery.data]);
+
+  const mutation = useMutation({
+    mutationFn: async ({ isLike }: { isLike: boolean }) => {
+      if (!spotId || !reviewId || !userId) {
+        throw new Error('User must be logged in to vote');
+      }
+
+      if ((isLike && voteState.isLiked) || (!isLike && voteState.isDisliked)) {
+        await reviewRepository.removeReviewVote(spotId, reviewId, userId);
+        return null;
+      }
+
+      await reviewRepository.voteReview(spotId, reviewId, userId, isLike);
+      return isLike;
+    },
+    onMutate: async ({ isLike }) => {
+      const key = ['review', 'vote', spotId, reviewId, userId];
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<boolean | null>(key);
+      if (isLike === voteState.isLiked || (!isLike && voteState.isDisliked)) {
+        queryClient.setQueryData(key, null);
+      } else {
+        queryClient.setQueryData(key, isLike);
+      }
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      const key = ['review', 'vote', spotId, reviewId, userId];
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(key, context.previous);
+      }
+    },
+    onSuccess: (_data) => {
+      queryClient.invalidateQueries({ queryKey: ['reviews'] });
+    },
+  });
 
   const handleVote = useCallback(
     async (isLike: boolean, currentLikes: number, currentDislikes: number) => {
-      if (!spotId || !reviewId || !userId) {
-        setError('User must be logged in to vote');
-        return;
-      }
-      setVoteState(prev => ({ ...prev, isVoting: true }));
-      setError(null);
-
+      await mutation.mutateAsync({ isLike });
       let newLikes = currentLikes;
       let newDislikes = currentDislikes;
-
-      try {
-        if ((isLike && voteState.isLiked) || (!isLike && voteState.isDisliked)) {
-          await reviewRepository.removeReviewVote(spotId, reviewId, userId);
-          if (isLike) newLikes = Math.max(0, currentLikes - 1);
-          else newDislikes = Math.max(0, currentDislikes - 1);
-          setVoteState({ isLiked: false, isDisliked: false, isVoting: false });
+      if ((isLike && voteState.isLiked) || (!isLike && voteState.isDisliked)) {
+        if (isLike) newLikes = Math.max(0, currentLikes - 1);
+        else newDislikes = Math.max(0, currentDislikes - 1);
+      } else {
+        if (isLike) {
+          newLikes = currentLikes + 1;
+          if (voteState.isDisliked) newDislikes = Math.max(0, currentDislikes - 1);
         } else {
-          await reviewRepository.voteReview(spotId, reviewId, userId, isLike);
-          if (isLike) {
-            newLikes = currentLikes + 1;
-            if (voteState.isDisliked) newDislikes = Math.max(0, currentDislikes - 1);
-          } else {
-            newDislikes = currentDislikes + 1;
-            if (voteState.isLiked) newLikes = Math.max(0, currentLikes - 1);
-          }
-          setVoteState({ isLiked: isLike, isDisliked: !isLike, isVoting: false });
+          newDislikes = currentDislikes + 1;
+          if (voteState.isLiked) newLikes = Math.max(0, currentLikes - 1);
         }
-        onVoteChange?.(newLikes, newDislikes);
-      } catch (err) {
-        console.error('[useReviewVote] handleVote', err);
-        setError(err instanceof Error ? err.message : 'Failed to vote');
-        setVoteState(prev => ({ ...prev, isVoting: false }));
       }
+      onVoteChange?.(newLikes, newDislikes);
     },
-    [spotId, reviewId, userId, voteState, onVoteChange]
+    [mutation, onVoteChange, voteState.isDisliked, voteState.isLiked]
   );
 
   const handleLike = useCallback(
-    (currentLikes: number, currentDislikes: number) =>
-      handleVote(true, currentLikes, currentDislikes),
+    (currentLikes: number, currentDislikes: number) => handleVote(true, currentLikes, currentDislikes),
     [handleVote]
   );
 
   const handleDislike = useCallback(
-    (currentLikes: number, currentDislikes: number) =>
-      handleVote(false, currentLikes, currentDislikes),
+    (currentLikes: number, currentDislikes: number) => handleVote(false, currentLikes, currentDislikes),
     [handleVote]
   );
 
-  useEffect(() => {
-    if (autoFetch && spotId && reviewId && userId) fetchUserVote();
-  }, [autoFetch, spotId, reviewId, userId, fetchUserVote]);
-
-  return { voteState, handleLike, handleDislike, error, refetch: fetchUserVote };
+  return {
+    voteState: { ...voteState, isVoting: mutation.isPending },
+    handleLike,
+    handleDislike,
+    error: voteQuery.error ? (voteQuery.error as Error).message : null,
+    refetch: voteQuery.refetch,
+  };
 };

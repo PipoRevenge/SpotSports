@@ -33,7 +33,8 @@ export const useUpdateProfile = (): UseUpdateProfileReturn => {
       // Validar los datos antes de enviar
       const validation = validateProfileData(data);
       if (!validation.isValid) {
-        setError(validation.error || 'Datos inválidos');
+        const firstError = Object.values(validation.errors)[0];
+        setError(firstError || 'Datos inválidos');
         return false;
       }
 

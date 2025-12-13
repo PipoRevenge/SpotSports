@@ -1,62 +1,39 @@
 import { sportRepository } from "@/src/api/repositories";
-import { useCallback, useEffect, useState } from "react";
+import { useQuery } from "@/src/lib/react-query";
+import { useCallback, useMemo } from "react";
 
 /**
  * Hook para obtener nombres de deportes a partir de sus IDs
  * Cachea los resultados para evitar llamadas repetidas
  */
 export const useSportNames = (sportIds: string[]) => {
-  const [sportNames, setSportNames] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
+  const sortedIds = useMemo(() => [...sportIds].sort(), [sportIds]);
 
-  useEffect(() => {
-    const loadSportNames = async () => {
-      if (sportIds.length === 0) {
-        setSportNames({});
-        setLoading(false);
-        return;
-      }
+  const query = useQuery({
+    queryKey: ['sports', 'names', sortedIds],
+    enabled: sortedIds.length > 0,
+    meta: { persist: true },
+    staleTime: 30 * 60_000,
+    queryFn: async () => {
+      const sportsPromises = sortedIds.map(id => sportRepository.getSportById(id).catch(() => null));
+      const sports = await Promise.all(sportsPromises);
+      const map: Record<string, string> = {};
+      sports.forEach((sport, index) => {
+        if (sport) {
+          map[sortedIds[index]] = sport.details.name;
+        }
+      });
+      return map;
+    },
+  });
 
-      try {
-        setLoading(true);
-        
-        // Obtener deportes en paralelo
-        const sportsPromises = sportIds.map(id => 
-          sportRepository.getSportById(id).catch(() => null)
-        );
-        const sports = await Promise.all(sportsPromises);
-
-        // Crear mapa de ID → nombre
-        const newNames: Record<string, string> = {};
-        sports.forEach((sport, index) => {
-          if (sport) {
-            newNames[sportIds[index]] = sport.details.name;
-          }
-        });
-
-        setSportNames(newNames);
-      } catch (error) {
-        console.error("Error loading sport names:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadSportNames();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sportIds.join(',')]);
-
-  /**
-   * Obtener el nombre de un deporte por su ID
-   * Retorna el ID si no se encuentra el nombre
-   */
   const getSportName = useCallback((sportId: string): string => {
-    return sportNames[sportId] || sportId;
-  }, [sportNames]);
+    return query.data?.[sportId] || sportId;
+  }, [query.data]);
 
   return {
-    sportNames,
+    sportNames: query.data ?? {},
     getSportName,
-    loading,
+    loading: query.isLoading || query.isFetching,
   };
 };

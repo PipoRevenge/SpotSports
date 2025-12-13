@@ -1,51 +1,29 @@
 import { reviewRepository } from "@/src/api/repositories";
 import { useUser } from "@/src/context/user-context";
 import { Review } from "@/src/entities/review/model/review";
-import { useCallback, useState } from "react";
+import { useQuery } from "@/src/lib/react-query";
 
 /**
  * Hook para cargar una review existente del usuario para un spot
  * Responsabilidad: Solo carga de datos
  */
-export const useReviewLoad = () => {
-  const [loadingReview, setLoadingReview] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export const useReviewLoad = (spotId?: string) => {
   const { user } = useUser();
 
-  /**
-   * Carga una review existente del usuario para un spot
-   */
-  const loadReview = useCallback(async (spotId: string): Promise<Review | null> => {
-    if (!user) {
-      return null;
-    }
-
-    setLoadingReview(true);
-    setError(null);
-
-    try {
-      const review = await reviewRepository.getUserReviewForSpot(user.id, spotId);
-      return review;
-    } catch (err) {
-      console.error("[useReviewLoad] Error loading review:", err);
-      setError(err instanceof Error ? err.message : "Failed to load review");
-      return null;
-    } finally {
-      setLoadingReview(false);
-    }
-  }, [user]);
-
-  /**
-   * Limpia el error
-   */
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
+  const query = useQuery<Review | null>({
+    queryKey: ['review', 'user', user?.id, spotId],
+    enabled: !!user && !!spotId,
+    staleTime: 2 * 60_000,
+    queryFn: () => {
+      if (!user || !spotId) return Promise.resolve(null);
+      return reviewRepository.getUserReviewForSpot(user.id, spotId);
+    },
+  });
 
   return {
-    loadReview,
-    loadingReview,
-    error,
-    clearError,
+    review: query.data ?? null,
+    loadingReview: query.isLoading || query.isFetching,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
   };
 };

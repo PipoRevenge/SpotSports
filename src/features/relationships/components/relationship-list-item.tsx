@@ -39,7 +39,7 @@ export const RelationshipListItem: React.FC<RelationshipListItemProps> = ({ user
           <Button size="sm" variant={isFollowing ? 'solid' : 'outline'} onPress={async () => {
             const newState = await toggleFollow();
             if (onFollowChange) {
-              onFollowChange(user.id, newState);
+              onFollowChange(user.id, !!newState);
             }
           }} disabled={isLoading}>
             <ButtonText>{isFollowing ? 'Siguiendo' : 'Seguir'}</ButtonText>

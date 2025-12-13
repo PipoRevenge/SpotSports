@@ -34,7 +34,7 @@ export const EditReviewPage = () => {
     // Usar el contexto de Spot Seleccionado para actualizar globalmente
     const { refreshAll } = useSelectedSpot();
     
-    const { loadReview, loadingReview, error: loadError } = useReviewLoad();
+    const { review: existingUserReview, loadingReview, error: loadError } = useReviewLoad(spotId);
     const { updateReview, isLoading: isUpdating, error: updateError } = useReviewUpdate(async () => {
         // Refrescar todos los datos del spot (spot + reviews)
         await refreshAll();
@@ -47,55 +47,50 @@ export const EditReviewPage = () => {
      */
     const { showError } = useAppAlert();
     useEffect(() => {
-        const loadExistingReview = async () => {
-            if (!spotId || !user) {
-                setLoadingInitial(false);
-                return;
-            }
-            
-            const existingReview = await loadReview(spotId);
-            
-            if (!existingReview) {
-                showError('No se encontró la review para editar', 'Error');
-                router.back();
-                return;
-            }
-            
-            // Convertir Review a ReviewFormData
-            const formData: ReviewFormData = {
-                content: existingReview.details.content,
-                rating: existingReview.details.rating,
-                reviewSports: existingReview.details.reviewSports.map(rs => ({
-                    sportId: rs.sportId,
-                    name: spotSports.find((s: any) => s.id === rs.sportId)?.name || "Deporte",
-                    sportRating: rs.sportRating,
-                    difficulty: rs.difficulty,
-                    comment: rs.comment,
-                })),
-                media: existingReview.details.media?.map(uri => {
-                    let type: 'image' | 'video' = 'image';
-                    try {
-                        const match = uri.match(/\/o\/(.+?)(\?|$)/);
-                        if (match) {
-                            const decodedPath = decodeURIComponent(match[1]);
-                            const extension = decodedPath.split('.').pop()?.toLowerCase();
-                            if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(extension || '')) {
-                                type = 'video';
-                            }
-                        }
-                    } catch {
-                        console.warn('Could not determine media type from URL:', uri);
-                    }
-                    return { uri, type };
-                }) || [],
-            };
-            
-            setInitialData(formData);
+        if (loadingReview) return;
+
+        if (!spotId || !user) {
             setLoadingInitial(false);
+            return;
+        }
+
+        if (!existingUserReview) {
+            showError('No se encontró la review para editar', 'Error');
+            router.back();
+            return;
+        }
+
+        const formData: ReviewFormData = {
+            content: existingUserReview.details.content,
+            rating: existingUserReview.details.rating,
+            reviewSports: existingUserReview.details.reviewSports.map(rs => ({
+                sportId: rs.sportId,
+                name: spotSports.find((s: any) => s.id === rs.sportId)?.name || "Deporte",
+                sportRating: rs.sportRating,
+                difficulty: rs.difficulty,
+                comment: rs.comment,
+            })),
+            media: existingUserReview.details.media?.map(uri => {
+                let type: 'image' | 'video' = 'image';
+                try {
+                    const match = uri.match(/\/o\/(.+?)(\?|$)/);
+                    if (match) {
+                        const decodedPath = decodeURIComponent(match[1]);
+                        const extension = decodedPath.split('.').pop()?.toLowerCase();
+                        if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(extension || '')) {
+                            type = 'video';
+                        }
+                    }
+                } catch {
+                    console.warn('Could not determine media type from URL:', uri);
+                }
+                return { uri, type };
+            }) || [],
         };
-        
-        loadExistingReview();
-    }, [spotId, user, loadReview, spotSports, showError]);
+
+        setInitialData(formData);
+        setLoadingInitial(false);
+    }, [spotId, user, existingUserReview, spotSports, showError]);
     
     /**
      * Manejar el envío del formulario

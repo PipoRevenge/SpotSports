@@ -1,7 +1,7 @@
 import { reviewRepository, userRepository } from "@/src/api/repositories";
-import { Review } from "@/src/entities/review/model/review";
 import { User } from "@/src/entities/user/model/user";
-import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@/src/lib/react-query";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 /**
  * Tipos de ordenamiento para las reviews
@@ -16,83 +16,113 @@ export interface ReviewFilters {
   minRating?: number; // Rating mínimo
 }
 
+// Estado vacío para cuando no hay spotId
+const EMPTY_STATE = {
+  reviews: [] as any[],
+  allReviews: [] as any[],
+  totalReviews: 0,
+  usersData: new Map<string, User>(),
+  loading: false,
+  isFetching: false,
+  error: null as string | null,
+  filters: {} as ReviewFilters,
+  sortBy: "recent" as ReviewSortOption,
+  updateFilters: (() => {}) as (newFilters: Partial<ReviewFilters>) => void,
+  resetFilters: (() => {}) as () => void,
+  setSortBy: (() => {}) as (sort: ReviewSortOption) => void,
+  refetch: (() => Promise.resolve()) as () => Promise<any>,
+  clearCache: (() => Promise.resolve()) as () => Promise<void>,
+};
+
 /**
- * Hook para obtener y gestionar las reviews de un spot
+ * Hook optimizado para obtener y gestionar las reviews de un spot con React Query
  * 
  * Características:
- * - Obtiene reviews del repositorio
+ * - Usa React Query para cache y optimización
  * - Permite filtrar por deporte
  * - Permite ordenar por varios criterios
- * - Maneja estados de loading y error
+ * - Cache automático de 1 minuto
+ * - NO ejecuta queries cuando spotId es undefined/null/vacío
  * 
  * @param spotId - ID del spot
- * @param autoFetch - Si debe cargar automáticamente (default: true)
+ * @param limit - Número máximo de reviews (default: 50)
+ * @param offset - Offset para paginación (default: 0)
  */
-export const useSpotReviews = (spotId: string | undefined, autoFetch = true) => {
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [filteredReviews, setFilteredReviews] = useState<Review[]>([]);
-  const [usersData, setUsersData] = useState<Map<string, User>>(new Map());
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export const useSpotReviews = (
+  spotId: string | undefined, 
+  limit: number = 50,
+  offset: number = 0
+) => {
+  const queryClient = useQueryClient();
   const [filters, setFilters] = useState<ReviewFilters>({});
   const [sortBy, setSortBy] = useState<ReviewSortOption>("recent");
 
-  /**
-   * Obtiene las reviews del spot desde el repositorio
-   */
-  const fetchReviews = useCallback(async () => {
-    if (!spotId) {
-      setError("No spot ID provided");
-      return;
+  // Validar spotId de forma estricta
+  const isValidSpotId = Boolean(spotId && typeof spotId === 'string' && spotId.trim().length > 0);
+
+  // Log solo cuando spotId cambia
+  useEffect(() => {
+    if (isValidSpotId) {
+      console.log('[useSpotReviews] 🎯 SpotId changed to:', spotId);
+    } else {
+      console.log('[useSpotReviews] ⚠️ SpotId is invalid or undefined, query will not execute');
     }
+  }, [spotId, isValidSpotId]);
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      const fetchedReviews = await reviewRepository.getReviewsBySpot(spotId);
-      setReviews(fetchedReviews);
+  // Query optimizada con React Query - SOLO se ejecuta si isValidSpotId es true
+  const query = useQuery({
+    queryKey: ['spot', spotId, 'reviews', limit, offset],
+    // CRÍTICO: enabled debe ser false cuando no hay spotId válido
+    enabled: isValidSpotId,
+    staleTime: 1 * 60_000, // 1 minuto
+    gcTime: 5 * 60_000,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+    // Solo definimos queryFn cuando hay un spotId válido
+    queryFn: isValidSpotId ? async () => {
+      console.log('[useSpotReviews] 🔥 Llamando a Firebase para spotId:', spotId, 'limit:', limit, 'offset:', offset);
       
-      // Obtener IDs únicos de usuarios creadores de reviews (filtrar undefined/null/empty)
-      const userIds = [...new Set(
-        fetchedReviews
-          .map(review => review.metadata.createdBy)
-          .filter(id => id && typeof id === 'string' && id.trim().length > 0)
-      )];
+      // Cargar reviews - spotId está garantizado por isValidSpotId
+      const reviews = await reviewRepository.getReviewsBySpot(spotId!, limit, offset);
+      console.log('[useSpotReviews] ✅ Loaded', reviews.length, 'reviews from Firebase');
       
-      // Cargar datos de usuarios en paralelo
+      // Cargar usuarios en paralelo
+      const userIds = [...new Set(reviews.map(r => r.metadata.createdBy))];
+      console.log('[useSpotReviews] 👥 Loading', userIds.length, 'users...');
       const usersMap = new Map<string, User>();
+      
       await Promise.all(
         userIds.map(async (userId) => {
           try {
             const user = await userRepository.getUserById(userId);
-            usersMap.set(userId, user);
+            if (user) {
+              usersMap.set(userId, user);
+            }
           } catch (err) {
-            console.warn(`[useSpotReviews] Failed to fetch user ${userId}:`, err);
+            console.warn(`Failed to load user ${userId}:`, err);
           }
         })
       );
       
-      setUsersData(usersMap);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to fetch reviews";
-      setError(errorMessage);
-      console.error("[useSpotReviews] Error fetching reviews:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [spotId]);
+      console.log('[useSpotReviews] ✅ Loaded', usersMap.size, 'users from Firebase');
+      console.log('[useSpotReviews] 📦 Returning data to React Query cache');
+      
+      return { reviews, users: usersMap };
+    } : async () => {
+      // Fallback que nunca debería ejecutarse
+      return { reviews: [], users: new Map<string, User>() };
+    },
+  });
 
-  /**
-   * Aplica filtros y ordenamiento a las reviews
-   */
-  const applyFiltersAndSort = useCallback(() => {
+  // Aplicar filtros y ordenamiento (memoizado)
+  const filteredReviews = useMemo(() => {
+    const reviews = query.data?.reviews ?? [];
     let result = [...reviews];
 
-    // Aplicar filtro por deporte (un solo deporte)
+    // Aplicar filtro por deporte
     if (filters.sportId && filters.sportId.trim() !== "") {
       result = result.filter((review) =>
-        review.details.reviewSports.some((rs) => rs.sportId === filters.sportId)
+        review.details.reviewSports.some((rs: any) => rs.sportId === filters.sportId)
       );
     }
 
@@ -117,8 +147,8 @@ export const useSpotReviews = (spotId: string | undefined, autoFetch = true) => 
         break;
     }
 
-    setFilteredReviews(result);
-  }, [reviews, filters, sortBy]);
+    return result;
+  }, [query.data?.reviews, filters, sortBy]);
 
   /**
    * Actualiza los filtros
@@ -135,33 +165,57 @@ export const useSpotReviews = (spotId: string | undefined, autoFetch = true) => 
   }, []);
 
   /**
-   * Efecto para cargar reviews automáticamente
+   * Limpia el cache y fuerza recarga desde Firebase
    */
-  useEffect(() => {
-    if (autoFetch && spotId) {
-      fetchReviews();
-    }
-  }, [autoFetch, spotId, fetchReviews]);
+  const clearCache = useCallback(async () => {
+    console.log('[useSpotReviews] 🗑️ Clearing cache for spotId:', spotId);
+    if (!isValidSpotId) return;
+    
+    // Invalidar todas las queries de reviews para este spot
+    await queryClient.invalidateQueries({ 
+      queryKey: ['spot', spotId, 'reviews'],
+      exact: false // Invalida todas las variantes (diferentes limit/offset)
+    });
+    
+    console.log('[useSpotReviews] ♻️ Cache cleared, triggering refetch...');
+    // Forzar refetch inmediato
+    await query.refetch();
+  }, [spotId, isValidSpotId, queryClient, query]);
 
-  /**
-   * Efecto para aplicar filtros cuando cambian
-   */
-  useEffect(() => {
-    applyFiltersAndSort();
-  }, [applyFiltersAndSort]);
+  // Si no hay spotId válido, retornar estado vacío sin usar la query
+  if (!isValidSpotId) {
+    return {
+      reviews: [],
+      allReviews: [],
+      totalReviews: 0,
+      usersData: new Map<string, User>(),
+      loading: false,
+      isFetching: false,
+      error: null,
+      filters,
+      sortBy,
+      updateFilters,
+      resetFilters,
+      setSortBy,
+      refetch: async () => {},
+      clearCache: async () => {},
+    };
+  }
 
   return {
     reviews: filteredReviews,
-    allReviews: reviews,
-    totalReviews: reviews.length, // Total sin filtrar
-    usersData,
-    loading,
-    error,
+    allReviews: query.data?.reviews ?? [],
+    totalReviews: query.data?.reviews?.length ?? 0,
+    usersData: query.data?.users ?? new Map(),
+    loading: query.isLoading,
+    isFetching: query.isFetching,
+    error: query.error ? (query.error as Error).message : null,
     filters,
     sortBy,
     updateFilters,
     resetFilters,
     setSortBy,
-    refetch: fetchReviews,
+    refetch: query.refetch,
+    clearCache,
   };
 };

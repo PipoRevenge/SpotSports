@@ -11,7 +11,7 @@ import { useCallback, useEffect, useState } from "react";
  */
 export const useSpotCollection = (spotId?: string) => {
   const { user } = useUser();
-  const { showError, showSuccess } = useAppAlert();
+  const { showError } = useAppAlert();
   const [categories, setCategories] = useState<SpotCategory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [savedSpots, setSavedSpots] = useState<SavedSpot[]>([]);

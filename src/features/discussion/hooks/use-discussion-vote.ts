@@ -1,6 +1,7 @@
 import { discussionRepository } from '@/src/api/repositories';
 import { useUser } from '@/src/context/user-context';
-import { useCallback, useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@/src/lib/react-query';
+import { useCallback } from 'react';
 
 export interface DiscussionVoteState {
   isLiked: boolean;
@@ -24,83 +25,55 @@ export const useDiscussionVote = (
 ) => {
   const { user } = useUser();
   const userId = user?.id;
+  const queryClient = useQueryClient();
 
-  const [voteState, setVoteState] = useState<DiscussionVoteState>({
-    isLiked: false,
-    isDisliked: false,
-    isVoting: false,
-  });
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchUserVote = useCallback(async () => {
-    if (!spotId || !discussionId || !userId) return;
-    try {
-      const vote = await discussionRepository.getDiscussionVote(spotId, discussionId, userId);
-      setVoteState(prev => ({
-        ...prev,
-        isLiked: vote === true,
-        isDisliked: vote === false,
-      }));
-    } catch (err) {
-      console.error('[useDiscussionVote] fetchUserVote', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch vote');
-    }
-  }, [spotId, discussionId, userId]);
-
-  const handleVote = useCallback(
-    async (isLike: boolean, currentLikes: number, currentDislikes: number) => {
-      if (!spotId || !discussionId || !userId) {
-        setError('User must be logged in to vote');
-        return;
-      }
-      setVoteState(prev => ({ ...prev, isVoting: true }));
-      setError(null);
-
-      let newLikes = currentLikes;
-      let newDislikes = currentDislikes;
-
-      try {
-        if ((isLike && voteState.isLiked) || (!isLike && voteState.isDisliked)) {
-          await discussionRepository.removeDiscussionVote(spotId, discussionId, userId);
-          if (isLike) newLikes = Math.max(0, currentLikes - 1);
-          else newDislikes = Math.max(0, currentDislikes - 1);
-          setVoteState({ isLiked: false, isDisliked: false, isVoting: false });
-        } else {
-          await discussionRepository.voteDiscussion(spotId, discussionId, userId, isLike);
-          if (isLike) {
-            newLikes = currentLikes + 1;
-            if (voteState.isDisliked) newDislikes = Math.max(0, currentDislikes - 1);
-          } else {
-            newDislikes = currentDislikes + 1;
-            if (voteState.isLiked) newLikes = Math.max(0, currentLikes - 1);
-          }
-          setVoteState({ isLiked: isLike, isDisliked: !isLike, isVoting: false });
-        }
-        onVoteChange?.(newLikes, newDislikes);
-      } catch (err) {
-        console.error('[useDiscussionVote] handleVote', err);
-        setError(err instanceof Error ? err.message : 'Failed to vote');
-        setVoteState(prev => ({ ...prev, isVoting: false }));
-      }
+  const voteQuery = useQuery({
+    queryKey: ['discussionVote', spotId, discussionId, userId],
+    queryFn: async () => {
+      if (!spotId || !discussionId || !userId) return null;
+      const v = await discussionRepository.getDiscussionVote(spotId, discussionId, userId);
+      return v;
     },
-    [spotId, discussionId, userId, voteState, onVoteChange]
-  );
+    enabled: autoFetch && !!spotId && !!discussionId && !!userId,
+  });
 
-  const handleLike = useCallback(
-    (currentLikes: number, currentDislikes: number) =>
-      handleVote(true, currentLikes, currentDislikes),
-    [handleVote]
-  );
+  const voteState = {
+    isLiked: voteQuery.data === true,
+    isDisliked: voteQuery.data === false,
+    isVoting: false,
+  } as DiscussionVoteState;
 
-  const handleDislike = useCallback(
-    (currentLikes: number, currentDislikes: number) =>
-      handleVote(false, currentLikes, currentDislikes),
-    [handleVote]
-  );
+  const mutationVote = useMutation({
+    mutationFn: async ({ isLike }: { isLike: boolean }) => {
+      if (!spotId || !discussionId || !userId) throw new Error('User must be logged in to vote');
+      return await discussionRepository.voteDiscussion(spotId, discussionId, userId, isLike);
+    },
+    onSuccess: () => {
+      // Update vote cache and invalidate discussion counters
+      queryClient.invalidateQueries({ predicate: q => Array.isArray(q.queryKey) && q.queryKey[0] === 'discussion' });
+      queryClient.invalidateQueries({ predicate: q => Array.isArray(q.queryKey) && q.queryKey[0] === 'discussions' });
+      queryClient.invalidateQueries({ predicate: q => Array.isArray(q.queryKey) && q.queryKey[0] === 'discussionVote' });
+    }
+  });
 
-  useEffect(() => {
-    if (autoFetch && spotId && discussionId && userId) fetchUserVote();
-  }, [autoFetch, spotId, discussionId, userId, fetchUserVote]);
+  const mutationRemove = useMutation({
+    mutationFn: async () => {
+      if (!spotId || !discussionId || !userId) throw new Error('User must be logged in to vote');
+      return await discussionRepository.removeDiscussionVote(spotId, discussionId, userId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ predicate: q => Array.isArray(q.queryKey) && q.queryKey[0] === 'discussion' });
+      queryClient.invalidateQueries({ predicate: q => Array.isArray(q.queryKey) && q.queryKey[0] === 'discussions' });
+      queryClient.invalidateQueries({ predicate: q => Array.isArray(q.queryKey) && q.queryKey[0] === 'discussionVote' });
+    }
+  });
 
-  return { voteState, handleLike, handleDislike, error, refetch: fetchUserVote };
+  const handleLike = useCallback(() => mutationVote.mutate({ isLike: true }), [mutationVote]);
+
+  const handleDislike = useCallback(() => mutationVote.mutate({ isLike: false }), [mutationVote]);
+
+  // React Query handles fetching/updating, expose method to refetch when needed
+  const refetch = () => voteQuery.refetch();
+
+  return { voteState, handleLike, handleDislike, error: voteQuery.isError ? (voteQuery.error as Error)?.message : null, refetch };
 };

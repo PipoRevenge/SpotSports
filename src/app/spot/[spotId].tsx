@@ -64,6 +64,7 @@ export const SpotPage = () => {
     sportRatings,
     availableSports,
     reviews,
+    totalReviews,
     usersData,
     loadingSpot,
     loadingReviews,
@@ -71,16 +72,19 @@ export const SpotPage = () => {
     reviewsError,
     selectSpot,
     refreshAll,
+    clearReviewsCache,
     discussionRefreshCount,
   } = useSelectedSpot();
-  // debug logs removed for production
 
-  // Cargar el spot cuando se monta el componente
+  // Cargar el spot y reviews cuando se monta el componente
+  // SIEMPRE con shouldLoadReviews: true para asegurar que las reviews se carguen
   useEffect(() => {
-    if (spotId && (!selectedSpot || selectedSpot.id !== spotId)) {
+    if (spotId) {
+      console.log('[SpotPage] Mounting with spotId:', spotId, 'forcing review load');
+      // Siempre seleccionar con shouldLoadReviews: true para cargar reviews
       selectSpot(spotId, true);
     }
-  }, [spotId, selectSpot, selectedSpot]);
+  }, [spotId, selectSpot]);
 
   
 
@@ -478,7 +482,7 @@ export const SpotPage = () => {
             <ReviewList
               reviews={reviews}
               spotId={spotId || ""}
-              totalReviews={reviews.length}
+              totalReviews={totalReviews}
               usersData={usersData}
               loading={loadingReviews}
               isDeleting={isDeleting}
@@ -496,6 +500,7 @@ export const SpotPage = () => {
               onNavigateToProfile={handleNavigateToProfile}
               onOpenReplyModal={handleOpenReplyModal}
               onOpenNewCommentModal={handleOpenNewCommentModal}
+              onClearCache={clearReviewsCache}
             />
           )}
           {activeTab === "discussions" && (
