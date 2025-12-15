@@ -60,6 +60,13 @@ export interface ReviewListProps {
   
   // Total de reviews sin filtrar (para saber si realmente hay 0 reviews en el spot)
   totalReviews?: number;
+  
+  // Deep-link support
+  targetReviewId?: string;
+  targetCommentId?: string;
+  targetParentCommentId?: string;
+  // Optional layout registration for deep-link precise scrolling
+  registerLayout?: (id: string, node: any) => void;
 }
 
 /**
@@ -121,6 +128,10 @@ export const ReviewList: React.FC<ReviewListProps> = ({
   emptyMessage = "No hay reviews disponibles",
   listHeaderComponent,
   totalReviews = 0,
+  targetReviewId,
+  targetCommentId,
+  targetParentCommentId,
+  registerLayout,
 }) => {
   // Estado local para detectar si usuario tiene review
   const [hasUserReview, setHasUserReview] = useState(false);
@@ -222,20 +233,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
           <Text className="text-lg font-bold text-gray-900">
             {reviews.length} {reviews.length === 1 ? "Review" : "Reviews"}
           </Text>
-          <HStack className="gap-2">
-            {/* Botón de limpiar cache */}
-            {onClearCache && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-gray-400"
-                onPress={onClearCache}
-              >
-                <ButtonText className="text-gray-700 font-semibold">
-                  🔄 Refrescar
-                </ButtonText>
-              </Button>
-            )}
+            <HStack className="gap-2">
             {/* Botón de escribir/editar review */}
             <Button
               size="sm"
@@ -336,6 +334,10 @@ export const ReviewList: React.FC<ReviewListProps> = ({
                   commentModalSlot={commentModalSlot}
                   onOpenReplyModal={onOpenReplyModal}
                   onOpenNewCommentModal={onOpenNewCommentModal}
+                  highlightCommentId={review.id === targetReviewId ? targetCommentId : undefined}
+                  autoExpandComments={review.id === targetReviewId && !!targetCommentId}
+                  parentCommentId={review.id === targetReviewId ? targetParentCommentId : undefined}
+                  registerLayout={registerLayout}
                 />
                 {index < reviews.length - 1 && (
                   <View className="px-6">

@@ -838,16 +838,17 @@ export class ReviewRepositoryImpl implements IReviewRepository {
         if (currentReviewsCount > 0) {
           const newReviewsCount = currentReviewsCount - 1;
           let newOverallRating = 0;
-          
+
           if (newReviewsCount > 0) {
             // Recalcular rating sin esta review
             const totalRating = currentOverallRating * currentReviewsCount;
             const adjustedTotal = totalRating - reviewRating;
             newOverallRating = adjustedTotal / newReviewsCount;
           }
-          
+
           const spotUpdates: any = {
-            reviewsCount: newReviewsCount,
+            // Use atomic decrement for concurrency; overallRating still computed deterministically
+            reviewsCount: increment(-1),
             overallRating: newOverallRating,
             updatedAt: now,
           };
@@ -866,12 +867,10 @@ export class ReviewRepositoryImpl implements IReviewRepository {
         
         // 2.4. Decrementar contador de reviews del usuario
         if (userDoc.exists()) {
-          const currentUserReviewsCount = userDoc.data().reviewsCount || 0;
-          if (currentUserReviewsCount > 0) {
-            transaction.update(userRef, {
-              reviewsCount: currentUserReviewsCount - 1,
-            });
-          }
+          // Decrement user reviews counter atomically
+          transaction.update(userRef, {
+            reviewsCount: increment(-1),
+          });
         }
         
         console.log('[ReviewRepository] Review deleted successfully');

@@ -6,7 +6,7 @@ import { useAppAlert } from '@/src/context/app-alert-context';
 import { useUser } from "@/src/context/user-context";
 import { CommentCard, CommentWithUser, useComments } from '@/src/features/comment';
 import { ChevronDown, ChevronUp, MessageCircle, Plus } from "lucide-react-native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 
 export interface ReviewCommentsProps {
@@ -20,6 +20,12 @@ export interface ReviewCommentsProps {
   onOpenReplyModal?: (comment: CommentWithUser) => void;
   /** Callback when user wants to add a new comment to the review (opens modal with review header) */
   onOpenNewCommentModal?: () => void;
+  /** Optional deep-link target comment to highlight */
+  highlightCommentId?: string;
+  /** Auto expand the comments list when highlight is present */
+  autoExpand?: boolean;
+  /** Optional parent id of the highlighted comment (used to ensure chain loading) */
+  parentCommentId?: string;
 }
 
 /**
@@ -34,9 +40,20 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   replyModalSlot,
   onOpenReplyModal,
   onOpenNewCommentModal,
+  highlightCommentId,
+  autoExpand = false,
+  parentCommentId,
+  registerLayout,
 }) => {
   const { user: currentUser } = useUser();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [expandedRoots, setExpandedRoots] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (autoExpand) {
+      setIsExpanded(true);
+    }
+  }, [autoExpand]);
   const { showError, showConfirm } = useAppAlert();
 
   // Use the shared comments hook
@@ -58,6 +75,70 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
     pageSize: 10,
     autoLoad: true 
   });
+
+  // Expand and fetch the thread containing the highlighted comment
+  const repliesContainTarget = useCallback((rootId: string) => {
+    if (!highlightCommentId) return false;
+    const traverse = (list: CommentWithUser[]): boolean => {
+      for (const reply of list) {
+        if (reply.id === highlightCommentId) return true;
+        const nested = repliesMap[reply.id]?.comments || [];
+        if (nested.length > 0 && traverse(nested)) return true;
+      }
+      return false;
+    };
+    const firstLevel = repliesMap[rootId]?.comments || [];
+    return traverse(firstLevel);
+  }, [highlightCommentId, repliesMap]);
+
+  useEffect(() => {
+    if (!highlightCommentId) return;
+    setIsExpanded(true);
+
+    const focusThread = async () => {
+      const topLevel = comments.find((c) => c.id === highlightCommentId);
+      if (topLevel) {
+        setExpandedRoots((prev) => new Set(prev).add(topLevel.id));
+        // If the target has children, load them so they're visible
+        try {
+          if (topLevel.commentsCount && topLevel.commentsCount > 0) await loadReplies(topLevel.id);
+        } catch (e) {}
+        return;
+      }
+
+      for (const c of comments) {
+        if ((c.commentsCount || 0) === 0) continue;
+        await loadReplies(c.id);
+        const contains = repliesContainTarget(c.id);
+        if (contains) {
+          setExpandedRoots((prev) => {
+            const next = new Set(prev);
+            next.add(c.id);
+            return next;
+          });
+          // Ensure parent chain and target's children are loaded
+          try {
+            if (parentCommentId) await loadReplies(parentCommentId);
+            // If highlighted comment itself has children, load them as well
+            if (highlightCommentId) {
+              const target = (repliesMap[parentCommentId ?? c.id]?.comments || []).find(r => r.id === highlightCommentId);
+              if (!target) {
+                // The highlighted comment might be directly inside c's replies or deeper; just attempt to load its replies
+                await loadReplies(highlightCommentId);
+              } else if (target.commentsCount && target.commentsCount > 0) {
+                await loadReplies(highlightCommentId);
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
+          break;
+        }
+      }
+    };
+
+    focusThread();
+  }, [highlightCommentId, comments, loadReplies, repliesContainTarget]);
 
   /**
    * Manejar eliminación de comentario
@@ -96,15 +177,15 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   const displayCount = totalComments || initialCommentsCount;
 
   // Si no hay comentarios y no está expandido, mostrar botón simple
-  if (displayCount === 0 && !isExpanded) {
+  if (displayCount === 0 && !isExpanded && !autoExpand) {
     return (
       <Pressable
-        onPress={() => {
-          setIsExpanded(true);
-          if (onOpenNewCommentModal && currentUser) {
-            onOpenNewCommentModal();
-          }
-        }}
+          onPress={() => {
+            setIsExpanded(true);
+            if (onOpenNewCommentModal && currentUser) {
+              onOpenNewCommentModal();
+            }
+          }}
         className="pt-3 py-2 px-3 bg-gray-50 rounded-lg"
       >
         <HStack className="items-center gap-2">
@@ -140,7 +221,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
       )}
 
       {/* Sección expandida de comentarios */}
-      {isExpanded && (
+      {(isExpanded || autoExpand) && (
         <VStack className="gap-3 pt-2">
           {/* Botón para añadir nuevo comentario */}
           {currentUser && onOpenNewCommentModal && (
@@ -181,6 +262,9 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                   repliesMap={repliesMap}
                   replies={repliesMap[comment.id]?.comments || []}
                   repliesHasMore={repliesMap[comment.id]?.hasMore || false}
+                  highlightCommentId={highlightCommentId}
+                  defaultExpanded={expandedRoots.has(comment.id)}
+                  registerLayout={registerLayout}
                 />
               ))}
               

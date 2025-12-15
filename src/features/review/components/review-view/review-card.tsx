@@ -44,6 +44,14 @@ export interface ReviewCardProps {
   onOpenReplyModal?: (comment: CommentWithUser, review: Review) => void;
   /** Callback when user wants to add a new comment to this review */
   onOpenNewCommentModal?: (review: Review) => void;
+  /** Optional deep-link comment to highlight inside this review */
+  highlightCommentId?: string;
+  /** Auto expand comment thread when deep-linking */
+  autoExpandComments?: boolean;
+  /** Parent id of the highlighted comment (used to ensure chain loading) */
+  parentCommentId?: string;
+  /** Optional layout registration for deep-link precise scrolling */
+  registerLayout?: (id: string, node: any) => void;
 }
 
 /**
@@ -82,6 +90,10 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   commentModalSlot,
   onOpenReplyModal,
   onOpenNewCommentModal,
+  highlightCommentId,
+  autoExpandComments = false,
+  parentCommentId,
+  registerLayout,
 }) => {
   const { user: currentUser } = useUser();
   const userName = user?.userDetails?.userName || user?.userDetails?.fullName || "Usuario Anónimo";
@@ -350,6 +362,10 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
           replyModalSlot={commentModalSlot}
           onOpenReplyModal={onOpenReplyModal ? (comment) => onOpenReplyModal(comment, review) : undefined}
           onOpenNewCommentModal={onOpenNewCommentModal ? () => onOpenNewCommentModal(review) : undefined}
+          highlightCommentId={highlightCommentId}
+          autoExpand={autoExpandComments}
+          parentCommentId={parentCommentId}
+            registerLayout={registerLayout}
         />
       </VStack>
     </Card>

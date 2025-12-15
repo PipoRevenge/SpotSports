@@ -153,6 +153,13 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
                             ({spot.activity.reviewsCount})
                           </Text>
                         )}
+
+                        {/* Discussions count */}
+                        {spot.activity?.discussionsCount !== undefined && (
+                          <Text className="text-typography-500 text-sm pl-2">
+                            • {spot.activity.discussionsCount} discusiones
+                          </Text>
+                        )}
                       </HStack>
                     )}
 

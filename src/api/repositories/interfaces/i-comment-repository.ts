@@ -42,6 +42,16 @@ export interface ICommentRepository {
   ): Promise<{ comments: Comment[]; total: number }>;
 
   /**
+   * Get a specific comment by its ID within a given context/source
+   */
+  getCommentById(
+    contextId: string,
+    sourceType: CommentSourceType,
+    sourceId: string,
+    commentId: string
+  ): Promise<Comment | null>;
+
+  /**
    * Add a comment
    * @param contextId - ID of the context (spot)
    * @param sourceType - Type of parent resource

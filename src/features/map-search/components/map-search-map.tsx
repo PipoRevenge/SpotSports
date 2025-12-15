@@ -2,10 +2,10 @@ import {
     MapCircle,
     MapMarker,
     MapView,
-    UserLocationMarker,
 } from "@/src/components/commons/map";
 
 import { VStack } from "@/src/components/ui/vstack";
+import { useMapSearch } from "@/src/context/map-search-context";
 import React, { useEffect, useMemo, useRef } from "react";
 import MapViewRef from "react-native-maps";
 import { DEFAULT_MAP_CONFIG, MapSearchMapProps, MapSearchResult } from "../types/map-types";
@@ -44,7 +44,6 @@ import {
  */
 export const MapSearchMap = <T,>({
   results,
-  userLocation,
   selectedItemId,
   onMarkerPress,
   onCalloutPress,
@@ -60,8 +59,11 @@ export const MapSearchMap = <T,>({
   renderCustomCallout,
   renderCompleteMarker,
   children,
-}: MapSearchMapProps<T>): React.ReactElement => {
+}: Omit<MapSearchMapProps<T>, 'userLocation'>): React.ReactElement => {
   const mapRef = useRef<MapViewRef>(null);
+  
+  // Consumir ubicación del usuario desde el contexto
+  const { userLocation } = useMapSearch();
 
   // Merge de configuración con defaults (memoizado para evitar re-renders)
   const config = useMemo(
@@ -179,15 +181,6 @@ export const MapSearchMap = <T,>({
         loadingEnabled={true}
         containerStyle={{ flex: 1, borderRadius: 0, overflow: 'visible' }}
       >
-        {/* Ubicación del usuario */}
-        {userLocation && (
-          <UserLocationMarker
-            latitude={userLocation.latitude}
-            longitude={userLocation.longitude}
-            size={24}
-          />
-        )}
-
         {/* Círculo de distancia máxima */}
         {userLocation &&
           config.distanceCircle.enabled &&

@@ -26,7 +26,7 @@ export interface UseCommentsReturn {
   addComment: (content: string, media?: string[], tags?: string[], level?: number) => Promise<Comment | null>;
   addReply: (parentCommentId: string, content: string, media?: string[], level?: number) => Promise<Comment | null>;
   deleteComment: (commentId: string) => Promise<void>;
-  loadReplies: (commentId: string) => Promise<void>;
+  loadReplies: (commentId: string, depth?: number) => Promise<void>;
   repliesMap: Record<string, { comments: (Comment & { userName?: string; userProfileUrl?: string })[]; page: number; total: number; hasMore: boolean }>;
   voteComment: (commentId: string, isLike: boolean) => Promise<void>;
   removeCommentVote: (commentId: string) => Promise<void>;
@@ -48,6 +48,7 @@ export function useComments({
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [repliesMap, setRepliesMap] = useState<Record<string, { comments: CommentWithUser[]; page: number; total: number; hasMore: boolean }>>({});
+  const [loadingRepliesMap, setLoadingRepliesMap] = useState<Record<string, boolean>>({});
   const { user } = useUser();
   const commentsRef = useRef<CommentWithUser[]>(comments);
 
@@ -147,6 +148,29 @@ export function useComments({
         const pages = old.pages.map((page: any) => ({ ...page, items: page.items.map((c: any) => c.id === parentId ? { ...c, commentsCount: (c.commentsCount || 0) + 1 } : c) }));
         return { ...old, pages };
       });
+      // Also update local repliesMap state so the new reply appears immediately in the UI (optimistic update)
+      let enrichedReply: any = reply;
+      try {
+        const ud = await userRepository.getUserById(reply.userId);
+        enrichedReply = { ...reply, userName: ud?.userDetails?.userName, userProfileUrl: ud?.userDetails?.photoURL };
+      } catch (err) {
+        // If enrichment fails, keep original reply
+      }
+      setRepliesMap(prev => {
+        const existing = prev[parentId]?.comments ?? [];
+        const alreadyExists = existing.some(r => r.id === enrichedReply.id);
+        const newComments = alreadyExists ? existing : existing.concat([enrichedReply]);
+        return {
+          ...prev,
+          [parentId]: {
+            comments: newComments,
+            page: prev[parentId]?.page ?? 0,
+            total: (prev[parentId]?.total ?? 0) + 1,
+            hasMore: prev[parentId]?.hasMore ?? false,
+          }
+        };
+      });
+
     }
   });
 
@@ -163,14 +187,46 @@ export function useComments({
         const pages = old.pages.map((page: any) => ({ ...page, items: page.items.filter((c: any) => c.id !== commentId) }));
         return { ...old, pages };
       });
+      // Remove from repliesMap if present
+      setRepliesMap(prev => {
+        let modified = false;
+        const newMap: typeof prev = { ...prev };
+        Object.keys(newMap).forEach((k) => {
+          const arr = newMap[k].comments ?? [];
+          const filtered = arr.filter((c) => c.id !== commentId);
+          if (filtered.length !== arr.length) {
+            modified = true;
+            newMap[k] = { ...newMap[k], comments: filtered, total: Math.max(0, (newMap[k].total ?? 0) - 1), page: filtered.length === 0 ? 0 : newMap[k].page };
+          }
+        });
+        if (modified) {
+
+          return newMap;
+        }
+        return prev;
+      });
       await queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'userComments' });
     }
   });
 
-  const loadReplies = useCallback(async (commentId: string) => {
+  const loadReplies = useCallback(async (commentId: string, depth: number = 0) => {
     if (!contextId || !sourceId) throw new Error('contextId and sourceId are required to load replies');
+    // Prevent duplicate concurrent loads for the same comment
+    if (loadingRepliesMap[commentId]) {
+
+      return;
+    }
+    setLoadingRepliesMap(prev => ({ ...prev, [commentId]: true }));
+    try {
     // Use a dedicated query to fetch replies when needed or rely on cache invalidation from mutations
-    const page = repliesMap[commentId]?.page ?? 1;
+    // repliesMap.page stores already loaded pages for the comment, default to 0 so the first fetch is page 1
+    // Reset to 0 if we have pages recorded but no comments (e.g. after deletions)
+    let page = repliesMap[commentId]?.page ?? 0;
+    const hasNoCommentsButPagesLoaded = (repliesMap[commentId]?.page ?? 0) > 0 && (repliesMap[commentId]?.comments?.length ?? 0) === 0;
+    if (hasNoCommentsButPagesLoaded) {
+
+      page = 0;
+    }
     const { comments: c, total: t } = await commentRepository.getReplies(contextId, sourceType, sourceId, commentId, page + 1, pageSize);
     const enriched = await Promise.all(c.map(async (cm) => {
       try {
@@ -180,6 +236,7 @@ export function useComments({
         return { ...cm } as CommentWithUser;
       }
     }));
+
     setRepliesMap(prev => ({
       ...prev,
       [commentId]: {
@@ -189,7 +246,32 @@ export function useComments({
         hasMore: c.length === pageSize,
       }
     }));
-  }, [contextId, sourceType, sourceId, pageSize, repliesMap]);
+
+
+    // Propagate loading to nested replies (depth limit to avoid runaway recursion)
+    const MAX_DEPTH = 10;
+    if (depth < MAX_DEPTH) {
+      const childrenToLoad = enriched.filter((r: any) => (r.commentsCount ?? 0) > 0);
+      if (childrenToLoad.length > 0) {
+
+        await Promise.all(childrenToLoad.map(async (child: any) => {
+          const hasLoaded = (repliesMap[child.id]?.comments?.length ?? 0) > 0;
+
+          if (!hasLoaded) {
+            await loadReplies(child.id, depth + 1);
+          } else {
+
+          }
+        }));
+      }
+    } else {
+
+    }
+
+    } finally {
+      setLoadingRepliesMap(prev => ({ ...prev, [commentId]: false }));
+    }
+  }, [contextId, sourceType, sourceId, pageSize, repliesMap, loadingRepliesMap]);
 
   const voteComment = useMutation({
     mutationFn: async ({ commentId, isLike }: { commentId: string; isLike: boolean }) => {
@@ -207,7 +289,6 @@ export function useComments({
       });
     }
   });
-
   const removeCommentVote = useMutation({
     mutationFn: async ({ commentId }: { commentId: string }) => {
       if (!user?.id) throw new Error('User must be authenticated to remove vote');

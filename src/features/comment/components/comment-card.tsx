@@ -32,6 +32,10 @@ export interface CommentCardProps {
   currentUserId?: string;
   isReply?: boolean;
   onReplyFocus?: () => void;
+  highlightCommentId?: string;
+  defaultExpanded?: boolean;
+  /** Register layout callback for deep-link precise scrolling */
+  registerLayout?: (id: string, node: any) => void;
 }
 
 // Thread line colors - dark gray and SpotSport green alternating
@@ -119,18 +123,16 @@ export const CommentCard: React.FC<CommentCardProps> = memo(({
   currentUserId,
   isReply = false,
   onReplyFocus,
+  highlightCommentId,
+  defaultExpanded = false,
+  registerLayout,
 }) => {
+  const rootRef = React.useRef<any>(null);
   const canDelete = currentUserId && currentUserId === comment.userId;
-  if (__DEV__) {
-    try {
-      console.log('[CommentCard] Rendering comment:', comment.id, 'contentType:', typeof comment.content);
-    } catch (err) {
-      console.warn(err);
-    }
-  }
+
   const canReply = !!currentUserId; // Allow replies on any comment (supports nested threading)
   
-  const [showReplies, setShowReplies] = useState(false);
+  const [showReplies, setShowReplies] = useState(defaultExpanded);
   const [isLoadingReplies, setIsLoadingReplies] = useState(false);
   
   // Local state for vote counts
@@ -194,10 +196,34 @@ export const CommentCard: React.FC<CommentCardProps> = memo(({
   }, [onLoadReplies, comment.id]);
   
   const level = comment.level || 0;
+  useEffect(() => {
+    if (defaultExpanded && !showReplies) {
+      setShowReplies(true);
+    }
+  }, [defaultExpanded, showReplies]);
+
+  // Register layout position for deep-link scrolling
+  useEffect(() => {
+    if (registerLayout && rootRef.current) {
+      registerLayout(comment.id, rootRef.current);
+    }
+  }, [registerLayout, comment.id]);
+
+  // Expand thread when highlight is found inside current replies
+  useEffect(() => {
+    if (!highlightCommentId) return;
+    const hasTarget = replies.some((reply) => reply.id === highlightCommentId);
+    if (hasTarget && !showReplies) {
+      setShowReplies(true);
+    }
+  }, [highlightCommentId, replies, showReplies]);
+
   const threadColor = getThreadColor(level);
+
+  const isHighlighted = highlightCommentId === comment.id;
   
   return (
-    <View style={{ flexDirection: 'row' }}>
+    <View ref={rootRef} style={{ flexDirection: 'row', backgroundColor: isHighlighted ? '#eef2ff' : 'transparent', borderRadius: 10 }}>
       {/* Thread line for ALL comments - provides visual cohesion */}
       <Pressable 
         onPress={handleToggleReplies}
@@ -369,6 +395,8 @@ export const CommentCard: React.FC<CommentCardProps> = memo(({
                 repliesHasMore={repliesMap?.[reply.id]?.hasMore || false}
                 isReply={true}
                 onReplyFocus={onReplyFocus}
+                highlightCommentId={highlightCommentId}
+                defaultExpanded={highlightCommentId === reply.id}
               />
             ))}
             

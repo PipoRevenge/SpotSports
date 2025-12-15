@@ -6,6 +6,7 @@ export interface SpotCounters {
   visitedCount: number;
   wantToVisitCount: number;
   reviewsCount: number;
+  discussionsCount?: number;
 }
 
 /**

@@ -50,8 +50,26 @@ export const useReviewCreate = (onSuccess?: () => void) => {
     },
     onSuccess: async (result) => {
       showSuccess(REVIEW_SUCCESS_MESSAGES.CREATED, 'Success');
+
+      const spotId = result.details.spotId;
+
+      // Update counters cache (optimistic - server already incremented in transaction)
+      try {
+        queryClient.setQueryData(['spot', spotId, 'counters'], (old: any) => {
+          if (!old) return old;
+          return { ...old, reviewsCount: (old.reviewsCount || 0) + 1 };
+        });
+
+        queryClient.setQueryData<any>(['spot', spotId], (old: any) => {
+          if (!old) return old;
+          return { ...old, activity: { ...old.activity, reviewsCount: (old.activity?.reviewsCount || 0) + 1 } };
+        });
+      } catch (cacheErr) {
+        console.warn('[useReviewCreate] Failed to update spot counters cache', cacheErr);
+      }
+
       await queryClient.invalidateQueries({ queryKey: ['reviews'] });
-      await queryClient.invalidateQueries({ queryKey: ['spot', result.details.spotId] });
+      await queryClient.invalidateQueries({ queryKey: ['spot', spotId] });
       if (onSuccess) onSuccess();
     },
     onError: (err: unknown) => {

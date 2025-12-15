@@ -56,6 +56,20 @@ export const formatRelativeDate = (date: Date): string => {
 };
 
 /**
+ * Formatea una fecha y hora a formato dd/mm/yyyy HH:MM
+ * @param date - Fecha a formatear
+ * @returns String con formato dd/mm/yyyy HH:MM
+ */
+export const formatDateTime = (date: Date): string => {
+  const day = date.getDate().toString().padStart(2, "0");
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const year = date.getFullYear();
+  const hours = date.getHours().toString().padStart(2, "0");
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+};
+
+/**
  * Genera las iniciales de un nombre
  * @param name - Nombre completo
  * @returns Iniciales en mayúsculas (máximo 2 caracteres)

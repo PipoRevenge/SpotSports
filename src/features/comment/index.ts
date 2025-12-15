@@ -1,6 +1,8 @@
 // Components
 export { CommentCard } from './components/comment-card';
 export type { CommentCardProps, CommentWithUser } from './components/comment-card';
+export { ProfileCommentCard } from './components/profile-comment-card';
+export type { ProfileCommentCardProps } from './components/profile-comment-card';
 export { ReplyModal } from './components/reply-modal';
 export type { ReplyModalProps } from './components/reply-modal';
 export { ReviewHeaderForModal } from './components/review-header-for-modal';

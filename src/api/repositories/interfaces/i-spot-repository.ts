@@ -41,7 +41,10 @@ export interface ISpotRepository {
   getSpotById(id: string): Promise<Spot | null>;
   
   // Obtener solo los contadores del spot (optimizado)
-  getSpotCounters(id: string): Promise<{ favoritesCount: number; visitedCount: number; wantToVisitCount: number; reviewsCount: number; } | null>;
+  getSpotCounters(id: string): Promise<{ favoritesCount: number; visitedCount: number; wantToVisitCount: number; reviewsCount: number; discussionsCount?: number; } | null>;
+  // Incrementar contadores de actividad del spot
+  incrementActivityCounters(spotId: string, counters: { reviewsDelta?: number; favoritesDelta?: number; visitedDelta?: number; wantToVisitDelta?: number; discussionsDelta?: number; }): Promise<void>;
+
   
   // Obtener calificaciones de deportes para un spot
   getSportRatings(spotId: string): Promise<SportSpotRating[]>;

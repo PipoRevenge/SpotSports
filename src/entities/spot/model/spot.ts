@@ -42,6 +42,7 @@ export interface SpotActivity {
   favoritesCount?: number; // Contador de usuarios que tienen el spot en favoritos
   visitedCount?: number; // Contador de usuarios que marcaron el spot como visitado
   wantToVisitCount?: number; // Contador de usuarios que quieren visitar el spot
+  discussionsCount?: number; // Contador de discusiones asociadas al spot
 }
 
 // Interfaz principal de Spot

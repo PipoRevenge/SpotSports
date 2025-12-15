@@ -152,8 +152,10 @@ src/
 │       ├── modal/
 │       └── text/
 ├── context/              # React Contexts (global state)
-│   ├── notification/
-│   └── user/
+│   ├── app-alert-context.tsx      # Notificaciones globales
+│   ├── map-search-context.tsx     # Estado del mapa y ubicación
+│   ├── selected-spot-context.tsx  # Spot seleccionado
+│   └── user-context.tsx          # Usuario autenticado
 ├── entities/             # Business models (NO imports allowed)
 │   ├── spot/
 │   ├── user/
@@ -377,7 +379,7 @@ Pure UI components following GluestackUI patterns:
 ### User Context
 
 ```tsx
-// src/context/user/user-context.tsx
+// src/context/user-context.tsx
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC = ({ children }) => {
@@ -404,6 +406,46 @@ export const UserProvider: React.FC = ({ children }) => {
   );
 };
 ```
+
+### MapSearchContext
+
+**Location**: `src/context/map-search-context.tsx`
+
+Centraliza la gestión de ubicación del usuario y estado del mapa de búsqueda. Elimina múltiples llamadas a `useUserLocation`.
+
+**Características:**
+- Ubicación del usuario (una sola solicitud de permisos)
+- Estado de región visible del mapa
+- Claves discretizadas para cache de React Query
+- Funciones de prefetch para spots
+- Navegación (centrar en usuario)
+
+```tsx
+import { useMapSearch } from '@/src/context/map-search-context';
+
+function MapScreen() {
+  const { 
+    userLocation,           // GeoPoint | null
+    isLoadingUserLocation,  // boolean
+    regionKey,              // string (discretized cache key)
+    centerOnUser,           // () => void
+    prefetchSpotFull,       // (spotId: string) => Promise<void>
+  } = useMapSearch();
+  
+  return (
+    <MapView 
+      showsUserLocation={true}  // Usa marcador nativo de Google
+      onRegionChangeComplete={setVisibleRegion}
+    />
+  );
+}
+```
+
+**Beneficios:**
+- ✅ Una sola llamada a permisos de ubicación
+- ✅ Estado consistente en toda la app
+- ✅ Prefetch optimizado de datos de spots
+- ✅ Cache keys estables para React Query
 
 ## 🎨 Styling Conventions
 

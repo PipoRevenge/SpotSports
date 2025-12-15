@@ -2,7 +2,7 @@ import { SportSpotRating, Spot, SpotDetails } from '@/src/entities/spot/model/sp
 import { firestore, storage } from '@/src/lib/firebase-config';
 import { GeoPoint } from '@/src/types/geopoint';
 import { ref as dbRef, getDatabase, push } from 'firebase/database';
-import { addDoc, collection, doc, GeoPoint as FirebaseGeoPoint, limit as firestoreLimit, getDoc, getDocs, orderBy, query, setDoc, Timestamp, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, doc, GeoPoint as FirebaseGeoPoint, limit as firestoreLimit, getDoc, getDocs, increment, orderBy, query, setDoc, Timestamp, updateDoc, where } from 'firebase/firestore';
 import { getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 import { distanceBetween, geohashForLocation, geohashQueryBounds } from 'geofire-common';
 import { ISpotRepository, SpotSearchFilters } from '../interfaces/i-spot-repository';
@@ -73,6 +73,7 @@ export class SpotRepositoryImpl implements ISpotRepository {
         createdBy: userRef, // NUEVA ESTRUCTURA: referencia en lugar de string
         reviewsCount: 0,
         visitsCount: 0,
+        discussionsCount: 0,
       };
 
       const cleanedData = this.removeUndefinedFields(firestoreData);
@@ -144,7 +145,7 @@ export class SpotRepositoryImpl implements ISpotRepository {
   /**
    * Obtener solo los contadores del spot (optimizado para actualizaciones rápidas)
    */
-  async getSpotCounters(id: string): Promise<{ favoritesCount: number; visitedCount: number; wantToVisitCount: number; reviewsCount: number; } | null> {
+  async getSpotCounters(id: string): Promise<{ favoritesCount: number; visitedCount: number; wantToVisitCount: number; reviewsCount: number; discussionsCount?: number; } | null> {
     try {
       if (!id || typeof id !== 'string' || id.trim().length === 0) {
         throw new Error('Valid spot ID is required');
@@ -163,6 +164,7 @@ export class SpotRepositoryImpl implements ISpotRepository {
         visitedCount: data.visitedCount || 0,
         wantToVisitCount: data.wantToVisitCount || 0,
         reviewsCount: data.reviewsCount || 0,
+        discussionsCount: data.discussionsCount || 0,
       };
 
     } catch (error) {
@@ -677,6 +679,39 @@ export class SpotRepositoryImpl implements ISpotRepository {
     });
 
     return sorted;
+  }
+
+  async incrementActivityCounters(spotId: string, counters: { reviewsDelta?: number; favoritesDelta?: number; visitedDelta?: number; wantToVisitDelta?: number; discussionsDelta?: number; }): Promise<void> {
+    try {
+      const updates: Record<string, any> = { updatedAt: Timestamp.now() };
+
+      if (counters.reviewsDelta && counters.reviewsDelta !== 0) {
+        updates.reviewsCount = increment(counters.reviewsDelta);
+      }
+      if (counters.favoritesDelta && counters.favoritesDelta !== 0) {
+        updates.favoritesCount = increment(counters.favoritesDelta);
+      }
+      if (counters.visitedDelta && counters.visitedDelta !== 0) {
+        updates.visitedCount = increment(counters.visitedDelta);
+      }
+      if (counters.wantToVisitDelta && counters.wantToVisitDelta !== 0) {
+        updates.wantToVisitCount = increment(counters.wantToVisitDelta);
+      }
+      if (counters.discussionsDelta && counters.discussionsDelta !== 0) {
+        updates.discussionsCount = increment(counters.discussionsDelta);
+      }
+
+      // No updates to apply
+      if (Object.keys(updates).length === 1) {
+        return;
+      }
+
+      const spotRef = doc(firestore, this.COLLECTION_NAME, spotId);
+      await updateDoc(spotRef, updates);
+    } catch (error) {
+      console.error('Error incrementing spot activity counters:', error);
+      throw new Error('Unable to update spot activity counters');
+    }
   }
 
 }

@@ -35,6 +35,7 @@ export interface SpotFirebase {
   favoritesCount?: number;
   visitedCount?: number;
   wantToVisitCount?: number;
+  discussionsCount?: number;
 }
 
 /**
@@ -85,6 +86,7 @@ export class SpotMapper {
       favoritesCount: firebaseData.favoritesCount || 0,
       visitedCount: firebaseData.visitedCount || 0,
       wantToVisitCount: firebaseData.wantToVisitCount || 0,
+      discussionsCount: firebaseData.discussionsCount || 0,
     };
 
     return {
@@ -126,6 +128,7 @@ export class SpotMapper {
       favoritesCount: spot.activity?.favoritesCount || 0,
       visitedCount: spot.activity?.visitedCount || 0,
       wantToVisitCount: spot.activity?.wantToVisitCount || 0,
+      discussionsCount: spot.activity?.discussionsCount || 0,
     };
   }
 
@@ -198,6 +201,9 @@ export class SpotMapper {
       }
       if (activity.wantToVisitCount !== undefined) {
         firebaseUpdate.wantToVisitCount = activity.wantToVisitCount;
+      }
+      if (activity.discussionsCount !== undefined) {
+        firebaseUpdate.discussionsCount = activity.discussionsCount;
       }
     }
 

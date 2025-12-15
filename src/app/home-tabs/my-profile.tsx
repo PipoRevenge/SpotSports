@@ -4,8 +4,8 @@ import { VStack } from '@/src/components/ui/vstack';
 import { useUser } from '@/src/context/user-context';
 import { SignOut } from '@/src/features/auth';
 import { UserCommentList } from '@/src/features/comment';
-import { UserDiscussionList } from '@/src/features/discussion';
-import { UserReviewList } from '@/src/features/review';
+import { ProfileDiscussionList } from '@/src/features/discussion';
+import { ProfileReviewList } from '@/src/features/review';
 import { ProfileActivityTabs, ProfileHeader } from '@/src/features/user';
 import { useProfile } from '@/src/features/user/hooks/use-profile';
 import { MenuOption, ProfileActionType } from '@/src/features/user/types/profile-types';
@@ -39,15 +39,6 @@ export default function MyProfile() {
 
     const handleRefresh = () => {
         refetch();
-    };
-
-    const handleNavigateToProfile = (userIdToNavigate: string) => {
-        if (!userIdToNavigate) return;
-        if (userIdToNavigate === currentUser?.id) {
-            router.push('/home-tabs/my-profile');
-        } else {
-            router.push(`/profile/${userIdToNavigate}`);
-        }
     };
 
     const handleFollowersPress = () => {
@@ -133,19 +124,18 @@ export default function MyProfile() {
                             user={user}
                             userId={user?.id}
                             reviewsSlot={(
-                                <UserReviewList
+                                <ProfileReviewList
                                     userId={user?.id}
                                     profileUser={user}
-                                    onNavigateToProfile={handleNavigateToProfile}
-                                    onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
                                     getSportName={getSportName}
-                                        // Editing or deleting reviews from profile not allowed
-                                        allowManage={false}
+                                    onNavigateToReview={(reviewId, spotId) => router.push({ pathname: `/spot/[spotId]`, params: { spotId, reviewId } })}
+                                    onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
                                 />
                             )}
                             discussionsSlot={(
-                                <UserDiscussionList
+                                <ProfileDiscussionList
                                     userId={user?.id}
+                                    profileUser={user}
                                     onNavigateToDiscussion={(discussionId, spotId) => {
                                         if (spotId) {
                                             router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: { spotId, discussionId } });
@@ -159,12 +149,19 @@ export default function MyProfile() {
                             commentsSlot={(
                                 <UserCommentList
                                     userId={user?.id}
-                                    onNavigateToReview={(reviewId, spotId) => {
-                                        router.push(`/spot/${spotId}`);
+                                    getSportName={getSportName}
+                                    onNavigateToReview={(reviewId, spotId, commentId, parentCommentId) => {
+                                        const params: Record<string, string> = { spotId, reviewId };
+                                        if (commentId) params.commentId = commentId;
+                                        if (parentCommentId) params.parentCommentId = parentCommentId;
+                                        router.push({ pathname: `/spot/[spotId]`, params });
                                     }}
-                                    onNavigateToDiscussion={(discussionId, spotId) => {
+                                    onNavigateToDiscussion={(discussionId, spotId, commentId, parentCommentId) => {
                                         if (spotId) {
-                                            router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: { spotId, discussionId } });
+                                            const params: Record<string, string> = { spotId, discussionId };
+                                            if (commentId) params.commentId = commentId;
+                                            if (parentCommentId) params.parentCommentId = parentCommentId;
+                                            router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params });
                                         } else {
                                             router.push('/');
                                         }

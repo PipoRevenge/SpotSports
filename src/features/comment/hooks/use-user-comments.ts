@@ -16,6 +16,7 @@ export interface CommentContext {
 export const useUserComments = (userId: string | undefined, autoFetch = true) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [contextMap, setContextMap] = useState<Map<string, CommentContext>>(new Map());
+  const [parentComments, setParentComments] = useState<Map<string, Comment>>(new Map());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
@@ -42,6 +43,10 @@ export const useUserComments = (userId: string | undefined, autoFetch = true) =>
 
       // Fetch context data for each comment
       const contextData = new Map<string, CommentContext>();
+      const parentData = new Map<string, Comment>();
+
+      // Cache parent comment fetches to avoid duplicate requests
+      const parentFetchCache = new Map<string, Comment | null>();
       
       // Get unique spot IDs
       const spotIds = [...new Set(fetchedComments.map((c: Comment) => c.contextId).filter(Boolean))];
@@ -85,6 +90,25 @@ export const useUserComments = (userId: string | undefined, autoFetch = true) =>
         })
       );
 
+      // Fetch parent comments (for replies) so we can show the quoted parent message
+      const replyComments = fetchedComments.filter((c) => c.level > 0 && c.parentId && c.parentId !== c.sourceId);
+      for (const reply of replyComments) {
+        const parentKey = `${reply.contextId}-${reply.sourceType}-${reply.sourceId}-${reply.parentId}`;
+        if (!parentFetchCache.has(parentKey)) {
+          const parentComment = await commentRepository.getCommentById(reply.contextId, reply.sourceType, reply.sourceId, reply.parentId);
+          parentFetchCache.set(parentKey, parentComment);
+        }
+      }
+
+      // Map each child comment to its parent (if available)
+      replyComments.forEach((reply) => {
+        const parentKey = `${reply.contextId}-${reply.sourceType}-${reply.sourceId}-${reply.parentId}`;
+        const parent = parentFetchCache.get(parentKey);
+        if (parent) {
+          parentData.set(reply.id, parent);
+        }
+      });
+
       // Fetch the user
       try {
         const user = await userRepository.getUserById(userId);
@@ -95,7 +119,10 @@ export const useUserComments = (userId: string | undefined, autoFetch = true) =>
         console.warn(`[useUserComments] failed to fetch user ${userId}`, e);
       }
 
-      if (mountedRef.current) setContextMap(contextData);
+      if (mountedRef.current) {
+        setContextMap(contextData);
+        setParentComments(parentData);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch user comments';
       setError(message);
@@ -121,5 +148,6 @@ export const useUserComments = (userId: string | undefined, autoFetch = true) =>
     loading,
     error,
     refetch,
+    parentComments,
   };
 };

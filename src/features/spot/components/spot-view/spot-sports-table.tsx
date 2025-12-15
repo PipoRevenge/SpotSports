@@ -27,6 +27,7 @@ export const SpotSportsTable: React.FC<SportRatingSpotTableProps> = ({
       <SportsRatingTable
         sports={sportData}
         variant="full"
+        showInfoIcon={false}
         showHeader={true}
         size="sm"
         labels={{

@@ -26,19 +26,19 @@ export const useUserLocation = (autoRequest: boolean = false): UseUserLocationRe
     try {
       setIsLoading(true);
       setError(null);
-      console.log('[useUserLocation] Requesting location permissions...');
+      if (__DEV__) console.log('[useUserLocation] Requesting location permissions...');
 
       // Solicitar permisos
       const { status } = await Location.requestForegroundPermissionsAsync();
       
       if (status !== 'granted') {
-        console.log('[useUserLocation] Permission denied');
+        if (__DEV__) console.log('[useUserLocation] Permission denied');
         setError('Permiso de ubicación denegado');
         setIsLoading(false);
         return;
       }
 
-      console.log('[useUserLocation] Permission granted, getting current position...');
+      if (__DEV__) console.log('[useUserLocation] Permission granted, getting current position...');
 
       try {
         // Intentar obtener ubicación actual con timeout
@@ -52,14 +52,14 @@ export const useUserLocation = (autoRequest: boolean = false): UseUserLocationRe
         ]);
 
         if (currentLocation) {
-          console.log('[useUserLocation] Got current position:', currentLocation.coords);
+          if (__DEV__) console.log('[useUserLocation] Got current position:', currentLocation.coords);
           setLocation({
             latitude: currentLocation.coords.latitude,
             longitude: currentLocation.coords.longitude,
           });
         }
       } catch (locationError) {
-        console.warn('[useUserLocation] getCurrentPositionAsync failed, trying last known location...', locationError);
+        if (__DEV__) console.warn('[useUserLocation] getCurrentPositionAsync failed, trying last known location...', locationError);
         
         // Intentar obtener la última ubicación conocida como fallback
         try {
@@ -69,21 +69,27 @@ export const useUserLocation = (autoRequest: boolean = false): UseUserLocationRe
           });
 
           if (lastKnownLocation) {
-            console.log('[useUserLocation] Using last known position:', lastKnownLocation.coords);
+            if (__DEV__) console.log('[useUserLocation] Using last known position:', lastKnownLocation.coords);
             setLocation({
               latitude: lastKnownLocation.coords.latitude,
               longitude: lastKnownLocation.coords.longitude,
             });
           } else {
-            throw new Error('No se pudo obtener la ubicación. Asegúrate de que los servicios de ubicación estén activos en tu dispositivo.');
+            // No last known position available: set user-friendly error and return
+            setError('No se pudo obtener la ubicación. Asegúrate de que los servicios de ubicación estén activos en tu dispositivo.');
+            setIsLoading(false);
+            return;
           }
         } catch (fallbackError) {
-          console.error('[useUserLocation] Last known location also failed:', fallbackError);
-          throw new Error('No se pudo obtener la ubicación. Si estás usando un emulador, configura una ubicación GPS simulada.');
+          if (__DEV__) console.error('[useUserLocation] Last known location also failed:', fallbackError);
+          // Provide a user-friendly error and stop without throwing to avoid noisy stack traces
+          setError('No se pudo obtener la ubicación. Si estás usando un emulador, configura una ubicación GPS simulada.');
+          setIsLoading(false);
+          return;
         }
       }
     } catch (err) {
-      console.error('[useUserLocation] Error getting user location:', err);
+      if (__DEV__) console.error('[useUserLocation] Error getting user location:', err);
       setError(err instanceof Error ? err.message : 'Error al obtener ubicación');
     } finally {
       setIsLoading(false);

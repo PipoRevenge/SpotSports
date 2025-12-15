@@ -3,19 +3,19 @@ import { Comment, CommentSourceType } from '@/src/entities/comment/model/comment
 import { firestore, storage } from '@/src/lib/firebase-config';
 import { ref as dbRef, getDatabase, push } from 'firebase/database';
 import {
-  collection,
-  collectionGroup,
-  doc,
-  DocumentReference,
-  limit as firestoreLimit,
-  getDoc,
-  getDocs,
-  orderBy,
-  query,
-  runTransaction,
-  Timestamp,
-  updateDoc,
-  where,
+    collection,
+    collectionGroup,
+    doc,
+    DocumentReference,
+    limit as firestoreLimit,
+    getDoc,
+    getDocs,
+    orderBy,
+    query,
+    runTransaction,
+    Timestamp,
+    updateDoc,
+    where,
 } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { ICommentRepository } from '../interfaces/i-comment-repository';
@@ -231,6 +231,23 @@ export class CommentRepositoryImpl implements ICommentRepository {
     } catch (error) {
       console.error('[CommentRepository] getReplies:', error);
       throw error;
+    }
+  }
+
+  async getCommentById(
+    contextId: string,
+    sourceType: CommentSourceType,
+    sourceId: string,
+    commentId: string
+  ): Promise<Comment | null> {
+    try {
+      const ref = doc(firestore, this.getCommentDocPath(contextId, sourceType, sourceId, commentId));
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return null;
+      return mapFirestoreCommentToEntity(snap, contextId, sourceType, sourceId);
+    } catch (error) {
+      console.error('[CommentRepository] getCommentById:', error);
+      return null;
     }
   }
 

@@ -4,19 +4,19 @@ import { firestore, storage } from '@/src/lib/firebase-config';
 import * as FileSystem from 'expo-file-system';
 import { ref as dbRef, getDatabase, push } from 'firebase/database';
 import {
-  addDoc,
-  collection,
-  collectionGroup,
-  doc,
-  limit as firestoreLimit,
-  getDoc,
-  getDocs,
-  orderBy,
-  query,
-  runTransaction,
-  Timestamp,
-  updateDoc,
-  where,
+    collection,
+    collectionGroup,
+    doc,
+    limit as firestoreLimit,
+    getDoc,
+    getDocs,
+    increment,
+    orderBy,
+    query,
+    runTransaction,
+    Timestamp,
+    updateDoc,
+    where
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { IDiscussionRepository } from '../interfaces/i-discussion-repository';
@@ -117,9 +117,22 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
         discussionData.tags,
         []
       );
-      const docRef = await addDoc(colRef, firestoreData);
+      // Use transaction to create discussion and increment spot discussions counter atomically
+      const docRef = doc(colRef); // auto-generated id
 
-      // Handle media uploads
+      await runTransaction(firestore, async (tr) => {
+        const spotRef = doc(firestore, `spots/${spotId}`);
+        const spotDoc = await tr.get(spotRef);
+
+        if (!spotDoc.exists()) {
+          throw new Error(`Spot ${spotId} not found`);
+        }
+
+        tr.set(docRef, firestoreData);
+        tr.update(spotRef, { discussionsCount: increment(1), updatedAt: Timestamp.now() } as any);
+      });
+
+      // Handle media uploads AFTER the transaction, update doc if needed
       const mediaUris: string[] = discussionData.media || [];
       if (mediaUris.length > 0) {
         const { local, remote } = this.separateLocalAndRemoteMedia(mediaUris);
@@ -380,6 +393,13 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
         const f = await tr.get(discussionRef);
         if (!f.exists()) return;
         tr.update(discussionRef, { isDeleted: true, updatedAt: Timestamp.now() });
+
+        // Decrement spot's discussionsCount atomically
+        const spotRef = doc(firestore, `spots/${resolvedSpotId}`);
+        const spotDoc = await tr.get(spotRef);
+        if (spotDoc.exists()) {
+          tr.update(spotRef, { discussionsCount: increment(-1), updatedAt: Timestamp.now() } as any);
+        }
       });
     } catch (error) {
       console.error('[DiscussionRepository] deleteDiscussion:', error);

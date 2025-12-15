@@ -4,6 +4,7 @@ import { HStack } from "@/src/components/ui/hstack";
 import { SafeAreaView } from "@/src/components/ui/safe-area-view";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
+import { useMapSearch } from "@/src/context/map-search-context";
 import { Spot } from "@/src/entities/spot/model/spot";
 import {
   formatDistance,
@@ -20,10 +21,8 @@ import {
 import {
   SpotSearchFilterModal,
   useSelectedSpot,
-  useSpotPrefetch,
 } from "@/src/features/spot";
 import { SpotCollectionSelector } from "@/src/features/spot-collection";
-import { useUserLocation } from "@/src/hooks/use-user-location";
 import { GeoPoint } from "@/src/types/geopoint";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
@@ -55,14 +54,16 @@ export default function SearchMapScreen() {
   const shouldRefreshAfterCreateRef = useRef(false);
 
   // ==================== HOOKS DE FEATURES ====================
+  // Contexto de Búsqueda en Mapa (gestiona userLocation de forma centralizada)
+  const { 
+    userLocation, 
+    isLoadingUserLocation: isLoadingLocation,
+    prefetchSpotBasic: prefetchBasicFromContext,
+    prefetchSpotFull: prefetchFullFromContext,
+  } = useMapSearch();
+  
   // Contexto de Spot Seleccionado para mantener sincronización global
   const { selectedSpot, selectSpot, refreshAll } = useSelectedSpot();
-  
-  // Hook de prefetch para optimizar carga
-  const { prefetchSpotBasic, prefetchSpotFull } = useSpotPrefetch();
-  
-  // Ubicación del usuario
-  const { location: userLocation, isLoading: isLoadingLocation } = useUserLocation(true);
 
   // Búsqueda de spots con gestión integrada de mapa
   const {
@@ -157,12 +158,12 @@ export default function SearchMapScreen() {
    * Pre-carga datos básicos para mejorar performance
    */
   const handleMarkerPress = useCallback((spot: Spot) => {
-    // Pre-cargar datos básicos del spot en background
-    prefetchSpotBasic(spot.id);
+    // Pre-cargar datos básicos del spot en background desde el contexto
+    prefetchBasicFromContext(spot.id);
     
     selectSpot(spot, false); // No cargar reviews para el modal
     setSelectedSpotId(spot.id);
-  }, [selectSpot, prefetchSpotBasic]);
+  }, [selectSpot, prefetchBasicFromContext]);
 
   /**
    * Maneja el press en el callout
@@ -181,16 +182,16 @@ export default function SearchMapScreen() {
    * Pre-carga datos completos antes de navegar para carga instantánea
    */
   const handleSpotPress = useCallback((spot: Spot) => {
-    // Pre-cargar datos completos (spot + reviews) antes de navegar
+    // Pre-cargar datos completos antes de navegar desde el contexto
     // Esto hace que la página cargue instantáneamente desde el cache
-    prefetchSpotFull(spot.id).then(() => {
+    prefetchFullFromContext(spot.id).then(() => {
       // Navegar a la página del spot (datos ya en cache)
       router.push({
         pathname: '/spot/[spotId]',
         params: { spotId: spot.id }
       });
     });
-  }, [prefetchSpotFull]);
+  }, [prefetchFullFromContext]);
 
   /**
    * Cierra el card del spot
@@ -400,7 +401,6 @@ export default function SearchMapScreen() {
             
             <MapSearchMap
               results={mapResults}
-              userLocation={userLocation || undefined}
               selectedItemId={selectedSpotId}
               onMarkerPress={handleMarkerPress}
               onCalloutPress={handleCalloutPress}
@@ -437,6 +437,8 @@ export default function SearchMapScreen() {
                   autoCenter: shouldCenterOnUser,
                   autoCenterOnResults: false,
                 },
+                showUserLocation: true,
+                showMyLocationButton: true,
               }}
             >
               {/* Marcador de creación de spot */}

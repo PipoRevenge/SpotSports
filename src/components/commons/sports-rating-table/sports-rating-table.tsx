@@ -44,6 +44,11 @@ export interface SportsRatingTableProps {
    * @default true
    */
   showHeader?: boolean;
+  /**
+   * Mostrar el icono de info/popover en la fila deportiva (solo en variante full)
+   * @default true
+   */
+  showInfoIcon?: boolean;
   
   /**
    * Tamaño de los componentes
@@ -88,6 +93,7 @@ export const SportsRatingTable: React.FC<SportsRatingTableProps> = ({
   size = "sm",
   labels = {},
   expandableContent = "description",
+  showInfoIcon = true,
 }) => {
   const [openPopoverIndex, setOpenPopoverIndex] = useState<number | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
@@ -176,7 +182,7 @@ export const SportsRatingTable: React.FC<SportsRatingTableProps> = ({
                 </Text>
                 
                 {/* Info button (solo en variant full sin expandable) */}
-                {variant === "full" && sport.sportDescription && (
+                {variant === "full" && sport.sportDescription && showInfoIcon && (
                   <Popover
                     isOpen={openPopoverIndex === index}
                     onClose={() => setOpenPopoverIndex(null)}

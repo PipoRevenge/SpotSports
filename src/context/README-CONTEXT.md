@@ -24,11 +24,61 @@ Para estado de features específicas, usar hooks locales en la feature.
 
 ```
 context/
-├── app-alert-context.tsx      # Sistema de notificaciones global (notification / AppAlert)
-└── selected-spot-context.tsx     # Gestión del spot seleccionado en el mapa
+├── app-alert-context.tsx         # Sistema de notificaciones global (notification / AppAlert)
+├── map-search-context.tsx        # Gestión de ubicación de usuario y estado del mapa
+├── selected-spot-context.tsx     # Gestión del spot seleccionado en el mapa
+└── user-context.tsx              # Gestión del usuario autenticado
 ```
 
 ## 🔔 Contexts Disponibles
+
+### **MapSearchContext** 🗺️
+
+**Archivo**: `map-search-context.tsx`
+
+Context centralizado para gestionar la ubicación del usuario y el estado del mapa de búsqueda. Elimina la necesidad de múltiples llamadas a `useUserLocation`.
+
+**Interfaz:**
+```typescript
+interface MapSearchContextValue {
+  // User Location
+  userLocation: GeoPoint | null;
+  isLoadingUserLocation: boolean;
+  locationError: string | null;
+  requestUserLocation: () => Promise<void>;
+  
+  // Map Region
+  visibleRegion: Region | null;
+  setVisibleRegion: (region: Region) => void;
+  regionKey: string;
+  regionBounds: { minLat, maxLat, minLng, maxLng } | null;
+  
+  // Navigation
+  followsUserLocation: boolean;
+  setFollowsUserLocation: (follows: boolean) => void;
+  centerOnUser: () => void;
+  
+  // Prefetch
+  prefetchSpotBasic: (spotId: string) => Promise<void>;
+  prefetchSpotFull: (spotId: string) => Promise<void>;
+}
+```
+
+**Uso:**
+```tsx
+import { useMapSearch } from '@/src/context/map-search-context';
+
+function MapScreen() {
+  const { userLocation, isLoadingUserLocation, centerOnUser } = useMapSearch();
+  
+  return (
+    <View>
+      <MapView showsUserLocation={true} />
+      <Button onPress={centerOnUser}>Center on Me</Button>
+    </View>
+  );
+}
+```
 
 ### **Notification / AppAlert Context** 🔔
 

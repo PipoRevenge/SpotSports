@@ -16,23 +16,7 @@ export interface ReviewFilters {
   minRating?: number; // Rating mínimo
 }
 
-// Estado vacío para cuando no hay spotId
-const EMPTY_STATE = {
-  reviews: [] as any[],
-  allReviews: [] as any[],
-  totalReviews: 0,
-  usersData: new Map<string, User>(),
-  loading: false,
-  isFetching: false,
-  error: null as string | null,
-  filters: {} as ReviewFilters,
-  sortBy: "recent" as ReviewSortOption,
-  updateFilters: (() => {}) as (newFilters: Partial<ReviewFilters>) => void,
-  resetFilters: (() => {}) as () => void,
-  setSortBy: (() => {}) as (sort: ReviewSortOption) => void,
-  refetch: (() => Promise.resolve()) as () => Promise<any>,
-  clearCache: (() => Promise.resolve()) as () => Promise<void>,
-};
+// No EMPTY_STATE — usamos un literal de retorno cuando spotId no es válido
 
 /**
  * Hook optimizado para obtener y gestionar las reviews de un spot con React Query

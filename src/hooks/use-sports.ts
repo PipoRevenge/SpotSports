@@ -12,6 +12,26 @@ export interface UseSportsMapResult {
 }
 
 export const useSportsMapByIds = (ids: string[] = []): UseSportsMapResult => {
+  const normalizeToMap = (value: unknown): Map<string, SimpleSport> => {
+    if (value instanceof Map) return value;
+    if (!value) return new Map();
+    if (Array.isArray(value)) {
+      const m = new Map<string, SimpleSport>();
+      value.forEach((s: any) => {
+        if (s?.id) m.set(s.id, { id: s.id, name: s.details?.name ?? s.name, description: s.details?.description ?? s.description, category: s.details?.category ?? s.category });
+      });
+      return m;
+    }
+    if (typeof value === 'object') {
+      const m = new Map<string, SimpleSport>();
+      Object.entries(value as Record<string, any>).forEach(([id, s]) => {
+        if (id) m.set(id, { id, name: s?.details?.name ?? s?.name, description: s?.details?.description ?? s?.description, category: s?.details?.category ?? s?.category });
+      });
+      return m;
+    }
+    return new Map();
+  };
+
   const query = useQuery({
     queryKey: ['sports', 'byIds', ids],
     enabled: ids.length > 0,
@@ -25,13 +45,15 @@ export const useSportsMapByIds = (ids: string[] = []): UseSportsMapResult => {
     },
   });
 
+  const sportsMap = normalizeToMap(query.data);
+
   const getSportName = useCallback(
-    (id: string) => query.data?.get(id)?.name,
-    [query.data]
+    (id: string) => sportsMap.get(id)?.name,
+    [sportsMap]
   );
 
   return {
-    sportsMap: query.data ?? new Map(),
+    sportsMap,
     loading: query.isLoading || query.isFetching,
     error: query.error ? (query.error as Error).message : null,
     getSportName,
@@ -40,6 +62,26 @@ export const useSportsMapByIds = (ids: string[] = []): UseSportsMapResult => {
 };
 
 export const useAllSportsMap = (): UseSportsMapResult => {
+  const normalizeToMap = (value: unknown): Map<string, SimpleSport> => {
+    if (value instanceof Map) return value;
+    if (!value) return new Map();
+    if (Array.isArray(value)) {
+      const m = new Map<string, SimpleSport>();
+      value.forEach((s: any) => {
+        if (s?.id) m.set(s.id, { id: s.id, name: s.details?.name ?? s.name, description: s.details?.description ?? s.description, category: s.details?.category ?? s.category });
+      });
+      return m;
+    }
+    if (typeof value === 'object') {
+      const m = new Map<string, SimpleSport>();
+      Object.entries(value as Record<string, any>).forEach(([id, s]) => {
+        if (id) m.set(id, { id, name: s?.details?.name ?? s?.name, description: s?.details?.description ?? s?.description, category: s?.details?.category ?? s?.category });
+      });
+      return m;
+    }
+    return new Map();
+  };
+
   const query = useQuery({
     queryKey: ['sports', 'allMap'],
     meta: { persist: true },
@@ -52,13 +94,15 @@ export const useAllSportsMap = (): UseSportsMapResult => {
     },
   });
 
+  const sportsMap = normalizeToMap(query.data);
+
   const getSportName = useCallback(
-    (id: string) => query.data?.get(id)?.name,
-    [query.data]
+    (id: string) => sportsMap.get(id)?.name,
+    [sportsMap]
   );
 
   return {
-    sportsMap: query.data ?? new Map(),
+    sportsMap,
     loading: query.isLoading || query.isFetching,
     error: query.error ? (query.error as Error).message : null,
     getSportName,

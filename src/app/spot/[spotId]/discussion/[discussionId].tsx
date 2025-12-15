@@ -8,34 +8,36 @@ import { VStack } from "@/src/components/ui/vstack";
 import { useUser } from "@/src/context/user-context";
 import { Discussion } from "@/src/entities/discussion/model/discussion";
 import {
-  CommentCard,
-  CommentWithUser,
-  ReplyModal,
-  useComments,
+    CommentCard,
+    CommentWithUser,
+    ReplyModal,
+    useComments,
 } from "@/src/features/comment";
 import {
-  useDiscussionDetails,
-  useDiscussionVote,
+    useDiscussionDetails,
+    useDiscussionVote,
 } from "@/src/features/discussion";
 import { DiscussionHeader } from "@/src/features/discussion/components/discussion-view/discussion-header";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
-  Image as ImageIcon,
-  MessageCircle,
-  Send,
-  ThumbsDown,
-  ThumbsUp,
-  X,
+    Image as ImageIcon,
+    MessageCircle,
+    Send,
+    ThumbsDown,
+    ThumbsUp,
+    X,
 } from "lucide-react-native";
 import React from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  View,
+    ActivityIndicator,
+    findNodeHandle,
+    FlatList,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    UIManager,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -252,7 +254,7 @@ const DiscussionInfoHeader = React.memo(function DiscussionInfoHeader({
 });
 
 export default function DiscussionPage() {
-  const { discussionId } = useLocalSearchParams<{ discussionId: string }>();
+  const { discussionId, commentId: targetCommentId, parentCommentId } = useLocalSearchParams<{ discussionId: string; commentId?: string; parentCommentId?: string }>();
   const {
     discussion,
     author,
@@ -300,8 +302,51 @@ export default function DiscussionPage() {
     autoLoad: !!discussion?.details?.spotId, // Only auto-load when we have spotId
   });
 
+  const [expandedComments, setExpandedComments] = React.useState<Set<string>>(new Set());
+  const hasFocusedTargetRef = React.useRef(false);
+
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const flatListRef = React.useRef<FlatList>(null);
+  const layoutMapRef = React.useRef<Map<string, number>>(new Map());
+  const registerLayout = React.useCallback((id: string, node: any) => {
+    const attempt = (tries: number) => {
+      try {
+        const listHandle = findNodeHandle(flatListRef.current as any);
+        const nodeHandle = findNodeHandle(node);
+        if (!nodeHandle || !listHandle) {
+          if (tries < 3) setTimeout(() => attempt(tries + 1), 200);
+          return;
+        }
+        // use UIManager.measureLayout for robust measurement
+        if (UIManager && typeof UIManager.measureLayout === 'function') {
+          // @ts-ignore
+          UIManager.measureLayout(nodeHandle, listHandle, () => {
+            // error - retry
+            if (tries < 3) setTimeout(() => attempt(tries + 1), 200);
+          }, (x: number, y: number) => {
+            layoutMapRef.current.set(id, y);
+          });
+        }
+      } catch (e) {
+        if (tries < 3) setTimeout(() => attempt(tries + 1), 200);
+      }
+    };
+    attempt(0);
+  }, []);
+
+  const repliesContainTarget = React.useCallback((rootId: string) => {
+    if (!targetCommentId) return false;
+    const traverse = (list: CommentWithUser[]): boolean => {
+      for (const reply of list) {
+        if (reply.id === targetCommentId) return true;
+        const nested = repliesMap[reply.id]?.comments || [];
+        if (nested.length > 0 && traverse(nested)) return true;
+      }
+      return false;
+    };
+    const firstLevel = repliesMap[rootId]?.comments || [];
+    return traverse(firstLevel);
+  }, [repliesMap, targetCommentId]);
 
   React.useEffect(() => {
     if (discussion) {
@@ -382,6 +427,58 @@ export default function DiscussionPage() {
     }
   }, [discussion, router]);
 
+  // Focus and expand the target comment when deep-linked from profile
+  React.useEffect(() => {
+    if (!targetCommentId || hasFocusedTargetRef.current || comments.length === 0) return;
+
+    const topLevelIndex = comments.findIndex((c) => c.id === targetCommentId);
+    if (topLevelIndex >= 0) {
+      hasFocusedTargetRef.current = true;
+      setTimeout(() => {
+        flatListRef.current?.scrollToIndex({ index: topLevelIndex, animated: true, viewPosition: 0.25 });
+      }, 200);
+      return;
+    }
+
+    (async () => {
+      for (let i = 0; i < comments.length; i++) {
+        const c = comments[i];
+        if ((c.commentsCount || 0) === 0) continue;
+        await loadReplies(c.id);
+        const contains = repliesContainTarget(c.id);
+        if (contains) {
+          setExpandedComments((prev) => {
+            const next = new Set(prev);
+            next.add(c.id);
+            if (parentCommentId) {
+              next.add(parentCommentId);
+            }
+            return next;
+          });
+          hasFocusedTargetRef.current = true;
+          setTimeout(() => {
+            flatListRef.current?.scrollToIndex({ index: i, animated: true, viewPosition: 0.25 });
+          }, 250);
+          // after a small delay, if we have an exact measured position for the target comment, scroll to it
+          setTimeout(() => {
+            if (targetCommentId && layoutMapRef.current.has(targetCommentId)) {
+              const y = layoutMapRef.current.get(targetCommentId)!;
+              flatListRef.current?.scrollToOffset({ offset: Math.max(0, y - 80), animated: true });
+            }
+          }, 500);
+          // Load replies for parent and target so nested children are visible
+          try {
+            if (parentCommentId) await loadReplies(parentCommentId);
+            await loadReplies(targetCommentId);
+          } catch (e) {
+            // ignore
+          }
+          break;
+        }
+      }
+    })();
+  }, [comments, loadReplies, repliesContainTarget, targetCommentId, parentCommentId]);
+
   // Reply Modal Handlers
   const handleOpenReplyModal = React.useCallback((comment: CommentWithUser) => {
     setSelectedCommentForReply(comment);
@@ -430,6 +527,9 @@ export default function DiscussionPage() {
             repliesMap={repliesMap}
             replies={repliesMap[item.id]?.comments || []}
             repliesHasMore={repliesMap[item.id]?.hasMore || false}
+            highlightCommentId={targetCommentId}
+            defaultExpanded={expandedComments.has(item.id)}
+            registerLayout={registerLayout}
             onReplyFocus={() => {
               // Scroll al item actual cuando se enfoca el input de respuesta
               setTimeout(() => {

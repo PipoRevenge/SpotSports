@@ -62,6 +62,24 @@ export function useCreateDiscussion() {
       } catch (e) {
         console.warn(e);
       }
+
+      // The spot discussions counter is updated inside the repository transaction
+      // Update counters cache to reflect the new value immediately
+      try {
+        queryClient.setQueryData(['spot', variables.discussionData.spotId, 'counters'], (old: any) => {
+          if (!old) return old;
+          return { ...old, discussionsCount: (old.discussionsCount || 0) + 1 };
+        });
+
+        // Update full spot in cache if available
+        queryClient.setQueryData<any>(['spot', variables.discussionData.spotId], (old: any) => {
+          if (!old) return old;
+          return { ...old, activity: { ...old.activity, discussionsCount: (old.activity?.discussionsCount || 0) + 1 } };
+        });
+      } catch (cacheErr) {
+        console.warn('[useCreateDiscussion] Failed to update cache for spot discussionsCount', cacheErr);
+      }
+
       // Invalidate or update query cache
       await queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'discussions' });
       if (newDiscussion) {

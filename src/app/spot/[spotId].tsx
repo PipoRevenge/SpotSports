@@ -3,10 +3,10 @@ import { Button, ButtonText } from "@/src/components/ui/button";
 import { useUser } from "@/src/context/user-context";
 import { Review } from "@/src/entities/review/model/review";
 import {
-  CommentWithUser,
-  ReplyModal,
-  ReviewHeaderForModal,
-  useComments,
+    CommentWithUser,
+    ReplyModal,
+    ReviewHeaderForModal,
+    useComments,
 } from "@/src/features/comment";
 import { DiscussionCard, useDiscussionLoad } from "@/src/features/discussion";
 import { ReviewList, useReviewDelete } from "@/src/features/review";
@@ -22,25 +22,30 @@ import { Text } from "@components/ui/text";
 import { VStack } from "@components/ui/vstack";
 import { router, useLocalSearchParams } from "expo-router";
 import {
-  CheckCircle,
-  ChevronDown,
-  ChevronUp,
-  Heart,
-  MessageSquare,
-  Target,
+    CheckCircle,
+    ChevronDown,
+    ChevronUp,
+    Heart,
+    MessageSquare,
+    Target,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Pressable,
-  ScrollView,
-  View,
+    ActivityIndicator,
+    findNodeHandle,
+    KeyboardAvoidingView,
+    Pressable,
+    ScrollView,
+    UIManager,
+    View,
 } from "react-native";
 
 export const SpotPage = () => {
   const params = useLocalSearchParams();
   const spotId = params.spotId as string | undefined;
+  const targetReviewId = params.reviewId as string | undefined;
+  const targetCommentId = params.commentId as string | undefined;
+  const targetParentCommentId = params.parentCommentId as string | undefined;
 
   const [isSportsTableVisible, setIsSportsTableVisible] = useState(true);
   const [sortBy, setSortBy] = useState<
@@ -85,6 +90,24 @@ export const SpotPage = () => {
       selectSpot(spotId, true);
     }
   }, [spotId, selectSpot]);
+
+  // When deep-linking to a comment inside a review, attempt to scroll to its measured position
+  React.useEffect(() => {
+    if (!targetCommentId) return;
+    let attempts = 0;
+    const tryScroll = () => {
+      attempts++;
+      const y = layoutMapRef.current.get(targetCommentId);
+      if (y != null && scrollViewRef.current) {
+        // Scroll to position with some offset for header
+        // @ts-ignore
+        scrollViewRef.current.scrollTo({ y: Math.max(0, y - 80), animated: true });
+      } else if (attempts < 8) {
+        setTimeout(tryScroll, 300);
+      }
+    };
+    setTimeout(tryScroll, 400);
+  }, [targetCommentId]);
 
   
 
@@ -193,6 +216,33 @@ export const SpotPage = () => {
     autoLoad: false,
   });
 
+  // ScrollView ref and layout map for precise deep-link scrolling
+  const scrollViewRef = React.useRef<ScrollView>(null);
+  const layoutMapRef = React.useRef<Map<string, number>>(new Map());
+  const registerLayout = React.useCallback((id: string, node: any) => {
+    const attempt = (tries: number) => {
+      try {
+        const containerHandle = findNodeHandle(scrollViewRef.current as any);
+        const nodeHandle = findNodeHandle(node);
+        if (!nodeHandle || !containerHandle) {
+          if (tries < 3) setTimeout(() => attempt(tries + 1), 200);
+          return;
+        }
+        if (UIManager && typeof UIManager.measureLayout === 'function') {
+          // @ts-ignore
+          UIManager.measureLayout(nodeHandle, containerHandle, () => {
+            if (tries < 3) setTimeout(() => attempt(tries + 1), 200);
+          }, (x: number, y: number) => {
+            layoutMapRef.current.set(id, y);
+          });
+        }
+      } catch (e) {
+        if (tries < 3) setTimeout(() => attempt(tries + 1), 200);
+      }
+    };
+    attempt(0);
+  }, []);
+
   // Handlers for comment modals
   const handleOpenReplyModal = useCallback(
     (comment: CommentWithUser, review: Review) => {
@@ -287,6 +337,7 @@ export const SpotPage = () => {
     <SafeAreaView className="flex-1">
       <KeyboardAvoidingView behavior="padding" className="flex-1">
         <ScrollView
+          ref={scrollViewRef}
           className="flex-1"
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -436,6 +487,22 @@ export const SpotPage = () => {
                           Reviews
                         </Text>
                       </View>
+
+                      <View className="flex-1 items-center">
+                        <View className="flex-row items-center pb-1">
+                          <MessageSquare
+                            size={18}
+                            color="#7C3AED"
+                            fill="#7C3AED"
+                          />
+                          <Text className="pl-1 text-lg font-semibold text-gray-800">
+                            {selectedSpot.activity.discussionsCount || 0}
+                          </Text>
+                        </View>
+                        <Text className="text-xs text-gray-600 text-center">
+                          Discussions
+                        </Text>
+                      </View>
                     </View>
                   </VStack>
                 }
@@ -501,6 +568,10 @@ export const SpotPage = () => {
               onOpenReplyModal={handleOpenReplyModal}
               onOpenNewCommentModal={handleOpenNewCommentModal}
               onClearCache={clearReviewsCache}
+              targetReviewId={targetReviewId}
+              targetCommentId={targetCommentId}
+              targetParentCommentId={targetParentCommentId}
+              registerLayout={registerLayout}
             />
           )}
           {activeTab === "discussions" && (

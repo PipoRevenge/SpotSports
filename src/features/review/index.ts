@@ -1,4 +1,5 @@
 // Components
+export { ProfileReviewList } from './components/profile-review-view/profile-review-list';
 export { AddSportModal } from './components/review-create/add-sport-modal';
 export { RatingStars } from './components/review-create/rating-stars';
 export { CreateReviewForm } from './components/review-create/review-create-form';
@@ -6,7 +7,7 @@ export { SportRatingItem } from './components/review-create/sport-rating-item';
 export { ReviewCard } from './components/review-view/review-card';
 export { ReviewComments } from './components/review-view/review-comments';
 export { ReviewList } from './components/review-view/review-list';
-export { UserReviewList } from './components/review-view/user-review-list';
+
 
 // Hooks
 export { useReviewComments } from './hooks/use-review-comments';
@@ -20,6 +21,7 @@ export { useUserReviews } from './hooks/use-user-reviews';
 
 // Types
 export type { CommentWithUser } from '@/src/features/comment';
+export type { ProfileReviewListProps } from './components/profile-review-view/profile-review-list';
 export type { SportSearchSlotProps } from './components/review-create/add-sport-modal';
 export type { ReviewCardProps } from './components/review-view/review-card';
 export type { ReviewCommentsProps } from './components/review-view/review-comments';
