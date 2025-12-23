@@ -49,20 +49,19 @@ export const useSpotData = (spotId: string | undefined): UseSpotDataResult => {
   // Query 3: Cargar deportes disponibles (depende de que el spot esté cargado)
   const sportsQuery = useQuery({
     queryKey: ['spot', spotId, 'sports'],
-    enabled: !!spotQuery.data && spotQuery.data.details.availableSports.length > 0,
+    enabled: !!spotQuery.data?.details?.availableSports?.length,
     staleTime: 5 * 60_000, // 5 minutos (deportes cambian poco)
     gcTime: 15 * 60_000,
     meta: { persist: true },
     queryFn: async () => {
-      if (!spotQuery.data?.details.availableSports.length) return [];
-      const sports = await sportRepository.getSportsByIds(
-        spotQuery.data.details.availableSports
-      );
+      const availableIds = spotQuery.data?.details?.availableSports ?? [];
+      if (availableIds.length === 0) return [];
+      const sports = await sportRepository.getSportsByIds(availableIds);
       return sports.map(sport => ({
         id: sport.id,
-        name: sport.details.name,
-        description: sport.details.description,
-        category: sport.details.category,
+        name: sport.details?.name ?? '',
+        description: sport.details?.description ?? '',
+        category: sport.details?.category ?? '',
       }));
     },
   });

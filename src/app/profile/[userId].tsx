@@ -3,7 +3,10 @@ import { View } from '@/src/components/ui/view';
 import { VStack } from '@/src/components/ui/vstack';
 import { useUser } from '@/src/context/user-context';
 import { UserCommentList } from '@/src/features/comment';
+import { ProfileDiscussionList } from '@/src/features/discussion';
+import { ProfileMeetupsList } from '@/src/features/meetup/components/profile-meetups/profile-meetups-list';
 import { useFollow } from '@/src/features/relationships';
+import { ProfileReviewList } from '@/src/features/review';
 import { ProfileActivityTabs, ProfileHeader } from '@/src/features/user';
 import { useProfile } from '@/src/features/user/hooks/use-profile';
 import { FollowStatus, ProfileActionType } from '@/src/features/user/types/profile-types';
@@ -79,14 +82,7 @@ export default function UserProfile() {
         refetch();
     };
 
-    const handleNavigateToProfile = (userIdToNavigate: string) => {
-        if (!userIdToNavigate) return;
-        if (userIdToNavigate === currentUser?.id) {
-            router.push('/home-tabs/my-profile');
-        } else {
-            router.push(`/profile/${userIdToNavigate}`);
-        }
-    };
+
 
     if (isLoading) {
         return (
@@ -158,38 +154,41 @@ export default function UserProfile() {
                         <ProfileDiscussionList
                             userId={user?.id}
                             profileUser={user}
-                            onNavigateToDiscussion={(discussionId, spotId) => {
+                            onNavigateToDiscussion={(discussionId: string, spotId?: string) => {
                                 if (spotId) {
-                                    router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: { spotId, discussionId } });
+                                    router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: { spotId, discussionId } as any });
                                 } else {
                                     router.push('/');
                                 }
                             }}
-                            onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
+                            onNavigateToSpot={(spotId?: string) => { if (spotId) router.push(`/spot/${spotId}`); }} 
                         />
                     )}
                     commentsSlot={(
                         <UserCommentList
                             userId={user?.id}
                             getSportName={getSportName}
-                            onNavigateToReview={(reviewId, spotId, commentId, parentCommentId) => {
-                                const params: Record<string, string> = { spotId, reviewId };
+                            onNavigateToReview={(reviewId: string, spotId: string, commentId?: string, parentCommentId?: string) => {
+                                const params: any = { spotId, reviewId };
                                 if (commentId) params.commentId = commentId;
                                 if (parentCommentId) params.parentCommentId = parentCommentId;
-                                router.push({ pathname: `/spot/[spotId]`, params });
+                                router.push({ pathname: `/spot/[spotId]`, params: params as any });
                             }}
-                            onNavigateToDiscussion={(discussionId, spotId, commentId, parentCommentId) => {
+                            onNavigateToDiscussion={(discussionId: string, spotId?: string, commentId?: string, parentCommentId?: string) => {
                                 if (!spotId) {
                                     router.push('/');
                                     return;
                                 }
-                                const params: Record<string, string> = { spotId, discussionId };
+                                const params: any = { spotId, discussionId };
                                 if (commentId) params.commentId = commentId;
                                 if (parentCommentId) params.parentCommentId = parentCommentId;
-                                router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params });
+                                router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: params as any });
                             }}
-                            onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
+                            onNavigateToSpot={(spotId?: string) => { if (spotId) router.push(`/spot/${spotId}`); }} 
                         />
+                    )}
+                    meetupsSlot={(
+                        <ProfileMeetupsList userId={user?.id} />
                     )}
                 />
 
@@ -205,37 +204,7 @@ export default function UserProfile() {
                     </View>
                 )}
 
-                {/* Sección de actividad reciente */}
-                {user.activity.reviewsCount > 0 && (
-                    <View>
-                        <Text className="text-lg font-bold pb-2">Actividad reciente</Text>
-                        <Text className="text-gray-500">
-                            {user.activity.reviewsCount} reseñas • {user.activity.commentsCount} comentarios
-                        </Text>
-                        {/* TODO: Mostrar lista de actividad reciente */}
-                        {/* Aquí puedes integrar componentes de la feature de reviews */}
-                    </View>
-                )}
 
-                {/* Sección de seguidores */}
-                {(user.activity.followersCount > 0 || user.activity.followingCount > 0) && (
-                    <View>
-                        <Text className="text-lg font-bold pb-2">Conexiones</Text>
-                        <Text className="text-gray-500">
-                            {user.activity.followersCount} seguidores • {user.activity.followingCount} siguiendo
-                        </Text>
-                        {/* Aquí puedes integrar componentes de la feature de follows */}
-                    </View>
-                )}
-
-                {/* Mensaje cuando no hay actividad */}
-                {user.activity.reviewsCount === 0 && user.activity.favoriteSpotsCount === 0 && (
-                    <View className="pt-8">
-                        <Text className="text-gray-500 text-center italic">
-                            Este usuario aún no tiene actividad pública.
-                        </Text>
-                    </View>
-                )}
 
             </VStack>
         </ScrollView>

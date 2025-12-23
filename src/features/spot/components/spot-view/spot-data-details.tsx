@@ -27,6 +27,15 @@ interface SpotDataDetailsProps {
  * testable, while the app orchestrates navigation and data fetching.
  */
 export function SpotDataDetails({ spot, collectionSlot, sportsSlot, locationSlot, interactionsSlot, reviewsSlot, discussionsSlot }: SpotDataDetailsProps) {
+    // Defensive guard in case spot.details is undefined during state transitions
+    if (!spot?.details) {
+        return (
+            <VStack className="w-full flex-1 px-6 pt-6 items-center justify-center">
+                <Text className="text-gray-500">Cargando detalles del spot...</Text>
+            </VStack>
+        );
+    }
+    
     return (
         <VStack className="w-full flex-1 px-6 pt-6">
             {/* Galería de imágenes */}

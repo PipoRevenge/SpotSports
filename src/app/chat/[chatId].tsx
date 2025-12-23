@@ -97,13 +97,27 @@ export default function ChatConversation() {
 
   const viewLabel = chat?.type === 'group' ? 'Ver info del grupo' : 'Ver perfil';
   const deleteLabel = 'Eliminar para mí';
+  
+  // Special label for meetup chats
+  const actualViewLabel = (chat?.type === 'group' || chat?.type === 'meetup-group') && chat?.meetupId 
+    ? 'Ver detalles del meetup' 
+    : viewLabel;
 
   const goToGroupInfoOrProfile = () => {
     if (!chat || !chatId) return;
+    
+    // If it's a meetup-group chat, navigate to the meetup details
+    if ((chat.type === 'group' || chat.type === 'meetup-group') && chat.meetupId && chat.meetupSpotId) {
+      router.push(`/spot/${chat.meetupSpotId}/meetup/${chat.meetupId}`);
+      return;
+    }
+    
+    // Regular group chat -> open group info
     if (chat.type === 'group') {
       router.push(`/chat/${chatId}/info`);
       return;
     }
+    
     // direct chat -> open user profile
     if (chat.type === 'direct' && otherUser) {
       router.push(`/profile/${otherUser.id}`);
@@ -147,8 +161,8 @@ export default function ChatConversation() {
           />
         )}
       >
-        <MenuItem key="view" textValue={viewLabel} onPress={goToGroupInfoOrProfile}>
-          <MenuItemLabel size="sm">{viewLabel}</MenuItemLabel>
+        <MenuItem key="view" textValue={actualViewLabel} onPress={goToGroupInfoOrProfile}>
+          <MenuItemLabel size="sm">{actualViewLabel}</MenuItemLabel>
         </MenuItem>
         <MenuItem key="delete" textValue={deleteLabel} onPress={confirmClearChat} disabled={isClearing}>
           <MenuItemLabel size="sm" className="text-red-600">{isClearing ? 'Eliminando...' : deleteLabel}</MenuItemLabel>

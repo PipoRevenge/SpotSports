@@ -19,11 +19,14 @@ export const useSpotDetails = (spotId: string | undefined): UseSpotDetailsResult
     enabled: !!spotId,
     staleTime: 5 * 60_000,
     meta: { persist: true },
+    retry: 2, // Intentar 2 veces antes de fallar
     queryFn: async () => {
       if (!spotId) throw new Error('Missing spotId');
+      console.log('[useSpotDetails] Fetching spot:', spotId);
       const fetchedSpot = await spotRepository.getSpotById(spotId);
       if (!fetchedSpot) throw new Error('Spot not found');
       const ratings = await spotRepository.getSportRatings(spotId);
+      console.log('[useSpotDetails] Fetched spot:', fetchedSpot.id, 'ratings:', ratings.length);
       return { spot: fetchedSpot, ratings };
     }
   });
@@ -31,7 +34,7 @@ export const useSpotDetails = (spotId: string | undefined): UseSpotDetailsResult
   return {
     spot: query.data?.spot ?? null,
     sportRatings: query.data?.ratings ?? [],
-    loading: query.isLoading || query.isFetching,
+    loading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,
   };

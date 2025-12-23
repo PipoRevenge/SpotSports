@@ -4,7 +4,7 @@ import { Pressable } from '@/src/components/ui/pressable';
 import { Text } from '@/src/components/ui/text';
 import { VStack } from '@/src/components/ui/vstack';
 import { User } from '@/src/entities/user/model/user';
-import { CheckCircle, MessageSquare, MessagesSquare } from 'lucide-react-native';
+import { CheckCircle, MapPin, MessageSquare, MessagesSquare } from 'lucide-react-native';
 import React, { useState } from 'react';
 
 interface ActivityTabsProps {
@@ -13,10 +13,11 @@ interface ActivityTabsProps {
   reviewsSlot?: React.ReactNode; // slot injected by app layer to render reviews list
   discussionsSlot?: React.ReactNode; // slot for user's discussions
   commentsSlot?: React.ReactNode; // slot for user's comments
+  meetupsSlot?: React.ReactNode; // slot for user's meetups (local stored)
 }
 
-export const ProfileActivityTabs: React.FC<ActivityTabsProps> = ({ user, userId, reviewsSlot, discussionsSlot, commentsSlot }) => {
-  const [selectedTab, setSelectedTab] = useState<'reviews' | 'discussions' | 'comments'>('reviews');
+export const ProfileActivityTabs: React.FC<ActivityTabsProps> = ({ user, userId, reviewsSlot, discussionsSlot, commentsSlot, meetupsSlot }) => {
+  const [selectedTab, setSelectedTab] = useState<'reviews' | 'discussions' | 'comments' | 'meetups'>('reviews');
 
   const TABS = [
     {
@@ -39,6 +40,13 @@ export const ProfileActivityTabs: React.FC<ActivityTabsProps> = ({ user, userId,
       icon: CheckCircle,
       color: '#4ECDC4',
       count: user?.activity?.commentsCount || 0,
+    },
+    {
+      key: 'meetups',
+      label: 'Meetups',
+      icon: MapPin,
+      color: '#f97316',
+      count: undefined,
     }
   ];
 
@@ -46,15 +54,15 @@ export const ProfileActivityTabs: React.FC<ActivityTabsProps> = ({ user, userId,
   return (
     <VStack className="w-full">
       {/* Tabs header */}
-      <HStack className="w-full gap-2 justify-start items-center">
+      <HStack className="w-full gap-2 items-center">
         {TABS.map(tab => (
           <Pressable
             key={tab.key}
             onPress={() => setSelectedTab(tab.key as any)}
-            className={`flex-row items-center gap-3 px-4 py-2 rounded-full border ${selectedTab === tab.key ? 'bg-white border-gray-300 shadow-md' : 'bg-gray-100 border-transparent'}`}
+            className={`flex-1 flex-row justify-center items-center gap-3 px-4 py-2 rounded-full border ${selectedTab === tab.key ? 'bg-white border-gray-300 shadow-md' : 'bg-gray-100 border-transparent'}`}
           >
             <Icon as={tab.icon} size={18} color={tab.color} />
-            <Text className={`text-sm ${selectedTab === tab.key ? 'text-gray-900 font-semibold' : 'text-gray-700'}`}>{tab.label} {tab.count !== undefined && (<Text className="text-xs text-gray-500 pl-2">{tab.count}</Text>)}</Text>
+            <Text className={`text-sm ${selectedTab === tab.key ? 'text-gray-900 font-semibold' : 'text-gray-700'}`}>{tab.label}{tab.count !== undefined && (<Text className="text-xs text-gray-500 pl-2">{tab.count}</Text>)}</Text>
           </Pressable>
         ))}
       </HStack>
@@ -64,6 +72,8 @@ export const ProfileActivityTabs: React.FC<ActivityTabsProps> = ({ user, userId,
         {selectedTab === 'reviews' && reviewsSlot}
         {selectedTab === 'discussions' && discussionsSlot}
         {selectedTab === 'comments' && commentsSlot}
+        {selectedTab === 'meetups' && meetupsSlot}
+
         {selectedTab === 'reviews' && !reviewsSlot && (
           <VStack className="items-center justify-center p-8">
             <Text className="text-gray-600">Contenido no disponible aún para esta pestaña</Text>
@@ -77,6 +87,11 @@ export const ProfileActivityTabs: React.FC<ActivityTabsProps> = ({ user, userId,
         {selectedTab === 'comments' && !commentsSlot && (
           <VStack className="items-center justify-center p-8">
             <Text className="text-gray-600">Contenido no disponible aún para esta pestaña</Text>
+          </VStack>
+        )}
+        {selectedTab === 'meetups' && !meetupsSlot && (
+          <VStack className="items-center justify-center p-8">
+            <Text className="text-gray-600">No tienes meetups guardados aún</Text>
           </VStack>
         )}
       </VStack>

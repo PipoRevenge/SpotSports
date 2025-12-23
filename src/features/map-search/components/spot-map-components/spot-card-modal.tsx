@@ -42,8 +42,12 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
 }) => {
   const [isNavigating, setIsNavigating] = useState(false);
   
-  // Resolver URLs de media
-  const { urls: mediaUrls, loading: mediaLoading } = useMediaUrls(spot?.details?.media);
+  // Resolver URLs de media solo si hay spot y tiene media
+  const { urls: mediaUrls, loading: mediaLoading } = useMediaUrls(
+    spot?.details?.media && spot.details.media.length > 0 
+      ? spot.details.media 
+      : null
+  );
   
   // Resetear estado cuando el modal se cierra
   React.useEffect(() => {

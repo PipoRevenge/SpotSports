@@ -5,6 +5,7 @@ import { useUser } from '@/src/context/user-context';
 import { SignOut } from '@/src/features/auth';
 import { UserCommentList } from '@/src/features/comment';
 import { ProfileDiscussionList } from '@/src/features/discussion';
+import { ProfileMeetupsList } from '@/src/features/meetup/components/profile-meetups/profile-meetups-list';
 import { ProfileReviewList } from '@/src/features/review';
 import { ProfileActivityTabs, ProfileHeader } from '@/src/features/user';
 import { useProfile } from '@/src/features/user/hooks/use-profile';
@@ -99,6 +100,7 @@ export default function MyProfile() {
     }
 
     return (
+        <>
         <ScrollView
             className="flex-1"
             refreshControl={
@@ -169,17 +171,35 @@ export default function MyProfile() {
                                     onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
                                 />
                             )}
+                            meetupsSlot={(
+                                <ProfileMeetupsList userId={user?.id} />
+                            )}
                         />
 
+                {/* Sección de spots favoritos */}
+                {user.activity.favoriteSpotsCount > 0 && (
+                    <View>
+                        <Text className="text-lg font-bold pb-2">Spots favoritos</Text>
+                        <Text className="text-gray-500">
+                            {user.activity.favoriteSpotsCount} spots guardados
+                        </Text>
+                        {/* TODO: Mostrar lista de spots favoritos */}
+                        {/* Aquí puedes integrar componentes de la feature de spots */}
+                    </View>
+                )}
+
+
+
             </VStack>
-            
-            {/* Diálogo de confirmación para cerrar sesión */}
-            <SignOut
-                isOpen={showSignOutDialog}
-                onClose={handleCloseSignOutDialog}
-                showTrigger={false}
-                onSignOutComplete={() => router.replace('/auth/authentication')}
-            />
         </ScrollView>
+
+        {/* Diálogo de confirmación para cerrar sesión */}
+        <SignOut
+            isOpen={showSignOutDialog}
+            onClose={handleCloseSignOutDialog}
+            showTrigger={false}
+            onSignOutComplete={() => router.replace('/auth/authentication')}
+        />
+        </>
     );
 }

@@ -1,6 +1,8 @@
 import { Chat, Message, MessageSummary } from '@/src/entities/chat';
 import {
   addDoc,
+  arrayRemove,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
@@ -11,7 +13,7 @@ import {
   onSnapshot,
   orderBy,
   query,
-  runTransaction,
+  setDoc,
   startAfter,
   Timestamp,
   updateDoc,
@@ -54,6 +56,8 @@ export class ChatRepositoryImpl implements IChatRepository {
             createdAt: lastMessageRaw.createdAt?.toDate ? lastMessageRaw.createdAt.toDate() : new Date(),
           }
         : undefined,
+      meetupId: data.meetupId,
+      meetupSpotId: data.meetupSpotId,
       createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
       updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(),
     };
@@ -107,24 +111,47 @@ export class ChatRepositoryImpl implements IChatRepository {
     return this.toChat(created);
   }
 
-  async createGroupChat(params: { ownerId: string; name: string; memberIds: string[]; photoURL?: string; description?: string }): Promise<Chat> {
-    const { ownerId, name, memberIds, photoURL, description } = params;
+  async createGroupChat(params: { ownerId: string; name: string; memberIds: string[]; photoURL?: string; description?: string; meetupId?: string; meetupSpotId?: string }): Promise<Chat> {
+    const { ownerId, name, memberIds, photoURL, description, meetupId, meetupSpotId } = params;
     if (!ownerId || !name) throw new Error('Faltan datos para el grupo');
     const uniqueMembers = Array.from(new Set([ownerId, ...memberIds]));
     const now = Timestamp.now();
     const chatsRef = collection(firestore, this.CHATS_COLLECTION);
-    const chatRef = await addDoc(chatsRef, {
-      type: 'group',
+    
+    // Determine chat type: if meetupId and meetupSpotId are provided, it's a meetup-group
+    const chatType = (meetupId && meetupSpotId) ? 'meetup-group' : 'group';
+    
+    const chatData: any = {
+      type: chatType,
       name,
       description: description || '',
       photoURL: photoURL ?? null,
       memberIds: uniqueMembers,
-      members: uniqueMembers.map(id => ({ userId: id, role: id === ownerId ? 'owner' : 'member', joinedAt: now })),
       createdAt: now,
       updatedAt: now,
       lastMessage: null,
       unreadCounts: {},
-    });
+    };
+    
+    // Add meetup fields if it's a meetup-group chat
+    if (chatType === 'meetup-group') {
+      chatData.meetupId = meetupId;
+      chatData.meetupSpotId = meetupSpotId;
+    }
+    
+    const chatRef = await addDoc(chatsRef, chatData);
+    
+    // Create members subcollection
+    const membersCollectionRef = collection(chatRef, 'members');
+    for (const memberId of uniqueMembers) {
+      const memberDoc = doc(membersCollectionRef, memberId);
+      await setDoc(memberDoc, {
+        userId: memberId,
+        role: memberId === ownerId ? 'owner' : 'member',
+        joinedAt: now,
+      });
+    }
+    
     const created = await getDoc(chatRef);
     return this.toChat(created);
   }
@@ -272,9 +299,13 @@ export class ChatRepositoryImpl implements IChatRepository {
 
     if (!chat.memberIds.includes(userId)) throw new Error('No perteneces a este chat');
 
-    if (chat.type === 'group') {
-      const member = chat.members?.find(m => m.userId === userId);
-      if (!member || (member.role !== 'owner' && member.role !== 'admin')) {
+    if (chat.type === 'group' || chat.type === 'meetup-group') {
+      // Check permission in members subcollection
+      const memberRef = doc(collection(chatRef, 'members'), userId);
+      const memberSnap = await getDoc(memberRef);
+      if (!memberSnap.exists()) throw new Error('No perteneces al grupo');
+      const memberData = memberSnap.data();
+      if (memberData.role !== 'owner' && memberData.role !== 'admin') {
         throw new Error('No tienes permisos para borrar el grupo');
       }
     }
@@ -284,6 +315,13 @@ export class ChatRepositoryImpl implements IChatRepository {
     const messagesSnap = await getDocs(messagesRef);
     for (const msg of messagesSnap.docs) {
       await deleteDoc(msg.ref);
+    }
+    
+    // Delete all members in the subcollection
+    const membersRef = collection(firestore, this.CHATS_COLLECTION, chatId, 'members');
+    const membersSnap = await getDocs(membersRef);
+    for (const member of membersSnap.docs) {
+      await deleteDoc(member.ref);
     }
 
     await deleteDoc(chatRef);
@@ -327,28 +365,39 @@ export class ChatRepositoryImpl implements IChatRepository {
     if (!chatId || !adminId || !newMemberIds?.length) throw new Error('Faltan datos');
 
     const chatRef = doc(firestore, this.CHATS_COLLECTION, chatId);
-    await runTransaction(firestore, async transaction => {
-      const snap = await transaction.get(chatRef);
-      if (!snap.exists()) throw new Error('Chat no encontrado');
-      const chat = this.toChat(snap);
-      if (chat.type !== 'group') throw new Error('Solo grupos permiten añadir miembros');
-      const admin = chat.members?.find(m => m.userId === adminId);
-      if (!admin || (admin.role !== 'admin' && admin.role !== 'owner')) throw new Error('No tienes permisos');
+    const snap = await getDoc(chatRef);
+    if (!snap.exists()) throw new Error('Chat no encontrado');
+    const chat = this.toChat(snap);
+    if (chat.type !== 'group' && chat.type !== 'meetup-group') throw new Error('Solo grupos permiten añadir miembros');
+    
+    // Check if adminId has permission (check in members subcollection)
+    const adminMemberRef = doc(collection(chatRef, 'members'), adminId);
+    const adminSnap = await getDoc(adminMemberRef);
+    if (!adminSnap.exists()) throw new Error('No perteneces al grupo');
+    const adminData = adminSnap.data();
+    if (adminData.role !== 'admin' && adminData.role !== 'owner') throw new Error('No tienes permisos');
 
-      const now = Timestamp.now();
-      const currentIds = new Set(chat.memberIds);
-      const toAdd = newMemberIds.filter(id => !currentIds.has(id));
-      if (!toAdd.length) return;
+    const now = Timestamp.now();
+    const currentIds = new Set(chat.memberIds);
+    const toAdd = newMemberIds.filter(id => !currentIds.has(id));
+    if (!toAdd.length) return chat;
 
-      const updatedMembers = [...(chat.members || []), ...toAdd.map(id => ({ userId: id, role: 'member', joinedAt: now }))];
-      const updatedMemberIds = [...chat.memberIds, ...toAdd];
-
-      transaction.update(chatRef, {
-        memberIds: updatedMemberIds,
-        members: updatedMembers,
-        updatedAt: now,
-      });
+    // Add to memberIds array in main doc
+    await updateDoc(chatRef, {
+      memberIds: arrayUnion(...toAdd),
+      updatedAt: now,
     });
+    
+    // Add each member to subcollection
+    const membersCollectionRef = collection(chatRef, 'members');
+    for (const memberId of toAdd) {
+      const memberDoc = doc(membersCollectionRef, memberId);
+      await setDoc(memberDoc, {
+        userId: memberId,
+        role: 'member',
+        joinedAt: now,
+      });
+    }
 
     const updated = await getDoc(chatRef);
     return this.toChat(updated);
@@ -357,39 +406,50 @@ export class ChatRepositoryImpl implements IChatRepository {
   async promoteToAdmin(params: { chatId: string; adminId: string; targetUserId: string }): Promise<Chat> {
     const { chatId, adminId, targetUserId } = params;
     const chatRef = doc(firestore, this.CHATS_COLLECTION, chatId);
-    await runTransaction(firestore, async transaction => {
-      const snap = await transaction.get(chatRef);
-      if (!snap.exists()) throw new Error('Chat no encontrado');
-      const chat = this.toChat(snap);
-      if (chat.type !== 'group') throw new Error('Solo grupos permiten roles');
-      const admin = chat.members?.find(m => m.userId === adminId);
-      if (!admin || (admin.role !== 'admin' && admin.role !== 'owner')) throw new Error('No tienes permisos');
-      const target = chat.members?.find(m => m.userId === targetUserId);
-      if (!target) throw new Error('Usuario no está en el grupo');
-      if (target.role === 'admin' || target.role === 'owner') return;
-      const updatedMembers = (chat.members || []).map(m =>
-        m.userId === targetUserId ? { ...m, role: 'admin' } : m
-      );
-      transaction.update(chatRef, { members: updatedMembers, updatedAt: Timestamp.now() });
+    const snap = await getDoc(chatRef);
+    if (!snap.exists()) throw new Error('Chat no encontrado');
+    const chat = this.toChat(snap);
+    if (chat.type !== 'group' && chat.type !== 'meetup-group') throw new Error('Solo grupos permiten roles');
+    
+    // Check admin permissions
+    const adminMemberRef = doc(collection(chatRef, 'members'), adminId);
+    const adminSnap = await getDoc(adminMemberRef);
+    if (!adminSnap.exists()) throw new Error('No perteneces al grupo');
+    const adminData = adminSnap.data();
+    if (adminData.role !== 'admin' && adminData.role !== 'owner') throw new Error('No tienes permisos');
+    
+    // Check target member
+    const targetMemberRef = doc(collection(chatRef, 'members'), targetUserId);
+    const targetSnap = await getDoc(targetMemberRef);
+    if (!targetSnap.exists()) throw new Error('Usuario no está en el grupo');
+    const targetData = targetSnap.data();
+    if (targetData.role === 'admin' || targetData.role === 'owner') return chat;
+    
+    // Update role
+    await updateDoc(targetMemberRef, {
+      role: 'admin',
     });
+    
+    await updateDoc(chatRef, { updatedAt: Timestamp.now() });
     const updated = await getDoc(chatRef);
     return this.toChat(updated);
   }
 
   async leaveGroup(chatId: string, userId: string): Promise<void> {
     const chatRef = doc(firestore, this.CHATS_COLLECTION, chatId);
-    await runTransaction(firestore, async transaction => {
-      const snap = await transaction.get(chatRef);
-      if (!snap.exists()) throw new Error('Chat no encontrado');
-      const chat = this.toChat(snap);
-      if (chat.type !== 'group') throw new Error('Solo grupos permiten salir');
-      const remainingMemberIds = chat.memberIds.filter(id => id !== userId);
-      const remainingMembers = (chat.members || []).filter(m => m.userId !== userId);
-      transaction.update(chatRef, {
-        memberIds: remainingMemberIds,
-        members: remainingMembers,
-        updatedAt: Timestamp.now(),
-      });
+    const snap = await getDoc(chatRef);
+    if (!snap.exists()) throw new Error('Chat no encontrado');
+    const chat = this.toChat(snap);
+    if (chat.type !== 'group' && chat.type !== 'meetup-group') throw new Error('Solo grupos permiten salir');
+    
+    // Remove from memberIds array
+    await updateDoc(chatRef, {
+      memberIds: arrayRemove(userId),
+      updatedAt: Timestamp.now(),
     });
+    
+    // Remove from members subcollection
+    const memberDocRef = doc(collection(chatRef, 'members'), userId);
+    await deleteDoc(memberDocRef);
   }
 }

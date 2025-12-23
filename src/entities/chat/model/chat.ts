@@ -1,4 +1,4 @@
-export type ChatType = 'direct' | 'group';
+export type ChatType = 'direct' | 'group' | 'meetup-group';
 
 export type ChatMemberRole = 'owner' | 'admin' | 'member';
 
@@ -26,6 +26,8 @@ export interface Chat {
   lastMessage?: MessageSummary;
   unreadCounts?: Record<string, number>;
   lastReadAt?: Record<string, Date>;
+  meetupId?: string; // If type === 'meetup-group', reference to the associated meetup
+  meetupSpotId?: string; // SpotId of the meetup (for navigation)
   createdAt: Date;
   updatedAt: Date;
 }

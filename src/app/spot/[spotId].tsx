@@ -1,14 +1,15 @@
 import { MapMarker, MapView } from "@/src/components/commons/map";
-import { Button, ButtonText } from "@/src/components/ui/button";
+import { Button, ButtonIcon, ButtonText } from "@/src/components/ui/button";
 import { useUser } from "@/src/context/user-context";
 import { Review } from "@/src/entities/review/model/review";
 import {
-    CommentWithUser,
-    ReplyModal,
-    ReviewHeaderForModal,
-    useComments,
+  CommentWithUser,
+  ReplyModal,
+  ReviewHeaderForModal,
+  useComments,
 } from "@/src/features/comment";
 import { DiscussionCard, useDiscussionLoad } from "@/src/features/discussion";
+import { MeetupList } from "@/src/features/meetup";
 import { ReviewList, useReviewDelete } from "@/src/features/review";
 import { SpotSportsTable } from "@/src/features/sport";
 import { SpotDataDetails, useSelectedSpot } from "@/src/features/spot";
@@ -22,22 +23,23 @@ import { Text } from "@components/ui/text";
 import { VStack } from "@components/ui/vstack";
 import { router, useLocalSearchParams } from "expo-router";
 import {
-    CheckCircle,
-    ChevronDown,
-    ChevronUp,
-    Heart,
-    MessageSquare,
-    Target,
+  CheckCircle,
+  ChevronDown,
+  ChevronUp,
+  Filter,
+  Heart,
+  MessageSquare,
+  Target,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    findNodeHandle,
-    KeyboardAvoidingView,
-    Pressable,
-    ScrollView,
-    UIManager,
-    View,
+  ActivityIndicator,
+  findNodeHandle,
+  KeyboardAvoidingView,
+  Pressable,
+  ScrollView,
+  UIManager,
+  View,
 } from "react-native";
 
 export const SpotPage = () => {
@@ -52,7 +54,7 @@ export const SpotPage = () => {
     "recent" | "oldest" | "rating-high" | "rating-low"
   >("recent");
   const [sportFilter, setSportFilter] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"reviews" | "discussions">(
+  const [activeTab, setActiveTab] = useState<"reviews" | "discussions" | "meetups">(
     "reviews"
   );
 
@@ -90,6 +92,34 @@ export const SpotPage = () => {
       selectSpot(spotId, true);
     }
   }, [spotId, selectSpot]);
+
+  // Filters controls exposed by MeetupList
+  const [meetupFiltersControls, setMeetupFiltersControls] = useState<{
+    open: () => void;
+    getActiveFilters: () => number;
+  } | null>(null);
+
+  const FiltersButton = () => {
+    const count = meetupFiltersControls?.getActiveFilters() ?? 0;
+    return (
+      <View className="relative">
+        <Button
+          onPress={() => meetupFiltersControls?.open()}
+          variant="solid"
+          action="default"
+          size="sm"
+          className="rounded-full p-2 bg-gray-100"
+        >
+          <ButtonIcon as={Filter} className="text-blue-600 h-5 w-5" />
+        </Button>
+        {count > 0 ? (
+          <View className="absolute -top-1 -right-1 bg-red-500 rounded-full h-4 w-4 items-center justify-center">
+            <Text className="text-white text-[10px] font-bold">{count}</Text>
+          </View>
+        ) : null}
+      </View>
+    );
+  };
 
   // When deep-linking to a comment inside a review, attempt to scroll to its measured position
   React.useEffect(() => {
@@ -236,7 +266,7 @@ export const SpotPage = () => {
             layoutMapRef.current.set(id, y);
           });
         }
-      } catch (e) {
+      } catch {
         if (tries < 3) setTimeout(() => attempt(tries + 1), 200);
       }
     };
@@ -391,9 +421,8 @@ export const SpotPage = () => {
                   </VStack>
                 }
                 locationSlot={
-                  selectedSpot.details.location &&
-                  selectedSpot.details.location.latitude &&
-                  selectedSpot.details.location.longitude && (
+                  selectedSpot?.details?.location?.latitude &&
+                  selectedSpot?.details?.location?.longitude ? (
                     <VStack className="w-full pt-4 pb-6">
                       <Text className="text-xl font-bold pb-2">Location</Text>
                       <View className="w-full h-48 overflow-hidden rounded-lg">
@@ -423,7 +452,7 @@ export const SpotPage = () => {
                         </MapView>
                       </View>
                     </VStack>
-                  )
+                  ) : null
                 }
                 interactionsSlot={
                   <VStack className="w-full ">
@@ -436,7 +465,7 @@ export const SpotPage = () => {
                         <View className="flex-row items-center pb-1">
                           <Heart size={18} color="#FF6B6B" fill="#FF6B6B" />
                           <Text className="pl-1 text-lg font-semibold text-gray-800">
-                            {selectedSpot.activity.favoritesCount || 0}
+                            {selectedSpot.activity?.favoritesCount || 0}
                           </Text>
                         </View>
                         <Text className="text-xs text-gray-600 text-center">
@@ -452,7 +481,7 @@ export const SpotPage = () => {
                             fill="#4ECDC4"
                           />
                           <Text className="pl-1 text-lg font-semibold text-gray-800">
-                            {selectedSpot.activity.visitedCount || 0}
+                            {selectedSpot.activity?.visitedCount || 0}
                           </Text>
                         </View>
                         <Text className="text-xs text-gray-600 text-center">
@@ -464,7 +493,7 @@ export const SpotPage = () => {
                         <View className="flex-row items-center pb-1">
                           <Target size={18} color="#45B7D1" fill="#45B7D1" />
                           <Text className="pl-1 text-lg font-semibold text-gray-800">
-                            {selectedSpot.activity.wantToVisitCount || 0}
+                            {selectedSpot.activity?.wantToVisitCount || 0}
                           </Text>
                         </View>
                         <Text className="text-xs text-gray-600 text-center">
@@ -480,7 +509,7 @@ export const SpotPage = () => {
                             fill="#9B59B6"
                           />
                           <Text className="pl-1 text-lg font-semibold text-gray-800">
-                            {selectedSpot.activity.reviewsCount || 0}
+                            {selectedSpot.activity?.reviewsCount || 0}
                           </Text>
                         </View>
                         <Text className="text-xs text-gray-600 text-center">
@@ -496,7 +525,7 @@ export const SpotPage = () => {
                             fill="#7C3AED"
                           />
                           <Text className="pl-1 text-lg font-semibold text-gray-800">
-                            {selectedSpot.activity.discussionsCount || 0}
+                            {selectedSpot.activity?.discussionsCount || 0}
                           </Text>
                         </View>
                         <Text className="text-xs text-gray-600 text-center">
@@ -542,6 +571,22 @@ export const SpotPage = () => {
                 Discussions
               </Text>
             </Pressable>
+            <Pressable
+              className={`flex-1 py-3 px-4 ${
+                activeTab === "meetups" ? "border-b-2 border-blue-600" : ""
+              }`}
+              onPress={() => setActiveTab("meetups")}
+            >
+              <Text
+                className={`text-center font-semibold ${
+                  activeTab === "meetups"
+                    ? "text-blue-600"
+                    : "text-gray-600"
+                }`}
+              >
+                Meetups
+              </Text>
+            </Pressable>
           </HStack>
 
           {/* Tab Content */}
@@ -573,6 +618,30 @@ export const SpotPage = () => {
               targetParentCommentId={targetParentCommentId}
               registerLayout={registerLayout}
             />
+          )}
+          {activeTab === "meetups" && (
+            <VStack className="p-4">
+              <HStack className="justify-between items-center mb-4">
+                <Text className="text-xl font-bold">Meetups</Text>
+                {user?.id && (
+                  <HStack className="items-center gap-2">
+                    <Button
+                      onPress={() => {
+                        if (!spotId) return;
+                        router.push({ pathname: `/spot/[spotId]/meetup/create`, params: { spotId } });
+                      }}
+                      variant="outline"
+                    >
+                      <ButtonText>Create Meetup</ButtonText>
+                    </Button>
+
+                    {/* Filters button will open MeetupList modal via registered controls */}
+                    <FiltersButton />
+                  </HStack>
+                )}
+              </HStack>
+              <MeetupList spotId={spotId || ""} onRegisterFiltersControls={setMeetupFiltersControls} />
+            </VStack>
           )}
           {activeTab === "discussions" && (
             <VStack className="p-4">

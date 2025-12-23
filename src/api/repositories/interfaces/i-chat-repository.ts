@@ -8,6 +8,8 @@ export interface IChatRepository {
     memberIds: string[];
     photoURL?: string;
     description?: string;
+    meetupId?: string;
+    meetupSpotId?: string;
   }): Promise<Chat>;
   getChatById(chatId: string): Promise<Chat>;
   listChatsForUser(userId: string, options?: { limit?: number; startAfter?: any }): Promise<{ items: Chat[]; lastVisible?: any }>;

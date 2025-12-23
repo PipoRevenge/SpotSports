@@ -1,6 +1,6 @@
 import { chatRepository, userRepository } from '@/src/api/repositories';
 import { useUser } from '@/src/context/user-context';
-import { Chat } from '@/src/entities/chat';
+import { Chat, ChatType } from '@/src/entities/chat';
 import { User } from '@/src/entities/user/model/user';
 import { useEffect, useState } from 'react';
 import { saveCachedChatMeta } from '../storage/chats-storage';
@@ -9,9 +9,9 @@ import { getLastSeen } from '../storage/last-seen-storage';
 import { getCachedMessages } from '../storage/messages-storage';
 import type { ChatListItemView } from '../types/chat-types';
 
+export type ChatFilter = 'all' | ChatType;
 
-
-export const useChatListView = () => {
+export const useChatListView = (filter: ChatFilter = 'all') => {
   const { user } = useUser();
   const [chats, setChats] = useState<Chat[]>([]);
   const [items, setItems] = useState<ChatListItemView[]>([]);
@@ -35,7 +35,38 @@ export const useChatListView = () => {
       const cache = new Map<string, User>();
       const senderCache = new Map<string, User>();
       const views: ChatListItemView[] = [];
-      for (const chat of chats) {
+      
+      // Debug: Log all chats to see their structure
+      console.log('🔍 [useChatListView] All chats:', chats.map(c => ({
+        id: c.id,
+        name: c.name,
+        type: c.type,
+        meetupId: c.meetupId,
+        meetupSpotId: c.meetupSpotId,
+        description: c.description
+      })));
+      console.log('🔍 [useChatListView] Current filter:', filter);
+      
+      // Filter chats based on selected filter
+      const filteredChats = filter === 'all' 
+        ? chats 
+        : chats.filter(chat => {
+            // For meetup-group filter, check if chat has meetupId (regardless of type field)
+            if (filter === 'meetup-group') {
+              const isMeetupChat = !!chat.meetupId;
+              console.log(`  Chat "${chat.name}": meetupId=${chat.meetupId}, included=${isMeetupChat}`);
+              return isMeetupChat;
+            }
+            // For other filters, match by type (but exclude chats with meetupId from 'group' filter)
+            if (filter === 'group') {
+              return chat.type === 'group' && !chat.meetupId;
+            }
+            return chat.type === filter;
+          });
+      
+      console.log('🔍 [useChatListView] Filtered chats count:', filteredChats.length);
+      
+      for (const chat of filteredChats) {
         const clearAt = user ? await getClearThreshold(chat.id, user.id) : null;
         const hasNewSinceClear = clearAt ? (chat.lastMessage ? chat.lastMessage.createdAt > clearAt : chat.updatedAt > clearAt) : true;
         if (clearAt && !hasNewSinceClear) {
@@ -131,7 +162,7 @@ export const useChatListView = () => {
       setItems(views);
     };
     build();
-  }, [chats, user]);
+  }, [chats, user, filter]);
 
   const refetch = async () => {
     if (!user) return;

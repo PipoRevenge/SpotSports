@@ -1,3 +1,4 @@
+export * from './components/chat-filters';
 export * from './components/chat-header';
 export * from './components/chat-list';
 export * from './components/chat-list-item';
@@ -13,6 +14,7 @@ export * from './hooks/use-chat-user-search';
 export * from './hooks/use-clear-chat-local';
 export * from './hooks/use-create-chat';
 export * from './hooks/use-delete-chat';
+export * from './hooks/use-leave-chat';
 export * from './hooks/use-messages';
 export * from './hooks/use-send-message';
 export * from './types/chat-types';

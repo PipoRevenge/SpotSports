@@ -73,6 +73,9 @@ export class SpotRepositoryImpl implements ISpotRepository {
         createdBy: userRef, // NUEVA ESTRUCTURA: referencia en lugar de string
         reviewsCount: 0,
         visitsCount: 0,
+        favoritesCount: 0,
+        visitedCount: 0,
+        wantToVisitCount: 0,
         discussionsCount: 0,
       };
 

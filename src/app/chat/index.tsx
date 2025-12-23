@@ -3,30 +3,28 @@ import { FlatList } from '@/src/components/ui/flat-list';
 import { Input, InputField } from '@/src/components/ui/input';
 import { Pressable } from '@/src/components/ui/pressable';
 import { SafeAreaView } from '@/src/components/ui/safe-area-view';
-import { Select, SelectBackdrop, SelectContent, SelectIcon, SelectInput, SelectItem, SelectPortal, SelectTrigger } from '@/src/components/ui/select';
 import { Text } from '@/src/components/ui/text';
 import { View } from '@/src/components/ui/view';
-import type { ChatListItemView } from '@/src/features/chat';
-import { ChatList, ChatListItem } from '@/src/features/chat';
+import type { ChatFilter, ChatListItemView } from '@/src/features/chat';
+import { ChatFilters, ChatList, ChatListItem } from '@/src/features/chat';
 import { UserSearchModal } from '@/src/features/chat/components/user-search-modal';
 import { useChatListView } from '@/src/features/chat/hooks/use-chat-list-view';
 import { useChatUserSearch } from '@/src/features/chat/hooks/use-chat-user-search';
 import { useCreateChat } from '@/src/features/chat/hooks/use-create-chat';
 import { useRouter } from 'expo-router';
-import { ChevronDownIcon } from 'lucide-react-native';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal } from 'react-native';
 
 export default function ChatHome() {
   const router = useRouter();
-  const { items, isLoading } = useChatListView();
+  const [filter, setFilter] = useState<ChatFilter>('all');
+  const { items, isLoading } = useChatListView(filter);
   const { createDirectChat, createGroupChat, isLoading: isCreating } = useCreateChat();
   const { results, isLoading: isSearching, search } = useChatUserSearch();
   const { results: groupResults, isLoading: isSearchingGroup, search: searchGroup } = useChatUserSearch();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [term, setTerm] = useState('');
-  const [filter, setFilter] = useState<'all' | 'unread' | 'group' | 'direct'>('all');
 
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
@@ -102,31 +100,7 @@ export default function ChatHome() {
     handleOpenChat(chat.id);
   };
 
-  const filteredItems = useMemo(() => {
-    switch (filter) {
-      case 'unread':
-        return items.filter(i => i.unreadCount > 0);
-      case 'group':
-        return items.filter(i => i.type === 'group');
-      case 'direct':
-        return items.filter(i => i.type === 'direct');
-      default:
-        return items;
-    }
-  }, [filter, items]);
 
-  const filterLabel = useMemo(() => {
-    switch (filter) {
-      case 'unread':
-        return 'No leídos';
-      case 'group':
-        return 'Grupos';
-      case 'direct':
-        return 'Personas';
-      default:
-        return 'Todos';
-    }
-  }, [filter]);
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -144,21 +118,7 @@ export default function ChatHome() {
             </View>
           </View>
           <View className="mt-3">
-            <Select selectedValue={filter} defaultValue="all" onValueChange={(val: any) => setFilter(val)}>
-              <SelectTrigger variant="outline" size="md">
-                <SelectInput value={filterLabel} />
-                <SelectIcon as={ChevronDownIcon} className="pr-3" />
-              </SelectTrigger>
-              <SelectPortal>
-                <SelectBackdrop />
-                <SelectContent>
-                  <SelectItem value="all" label="Todos" />
-                  <SelectItem value="unread" label="No leídos" />
-                  <SelectItem value="group" label="Grupos" />
-                  <SelectItem value="direct" label="Personas" />
-                </SelectContent>
-              </SelectPortal>
-            </Select>
+            <ChatFilters value={filter} onChange={setFilter} />
           </View>
         </View>
         {isLoading ? (
@@ -167,7 +127,7 @@ export default function ChatHome() {
           </View>
         ) : (
           <ChatList
-            items={filteredItems}
+            items={items}
             onSelect={handleOpenChat}
             onAvatarPress={handleAvatarPress}
             renderEmpty={<Text className="p-4 text-slate-500">No hay chats aún. Crea uno nuevo.</Text>}
