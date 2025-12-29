@@ -1,6 +1,6 @@
 import { authRepository, userRepository } from '@/src/api/repositories';
 import { User } from '@/src/entities/user/model/user';
-import { router } from 'expo-router';
+import { clearSession, getSession, getSessionTimeRemaining } from '@/src/features/auth/storage/token-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 interface UserContextType {
@@ -20,52 +20,88 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  // Restore session on mount
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        const session = await getSession();
+        
+        if (session) {
+          const timeRemaining = await getSessionTimeRemaining();
+          
+          // If token expires in less than 5 minutes, refresh it
+          if (timeRemaining < 5 * 60 * 1000 && timeRemaining > 0) {
+            console.log('Token expiring soon, refreshing...');
+            await authRepository.refreshToken();
+          }
+          
+          // Session exists and is valid, try to load user
+          if (timeRemaining > 0) {
+            try {
+              const userData = await userRepository.getUserById(session.userId);
+              setUser(userData);
+              setIsAuthenticated(true);
+            } catch (error) {
+              console.error('Failed to load user data from session:', error);
+              // Clear invalid session
+              await clearSession();
+              setIsAuthenticated(false);
+            }
+          } else {
+            // Session expired
+            console.log('Session expired, clearing...');
+            await clearSession();
+            setIsAuthenticated(false);
+          }
+        }
+      } catch (error) {
+        console.error('Error restoring session:', error);
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    restoreSession();
+  }, []);
+
+  // Listen to Firebase auth state changes
   useEffect(() => {
     const unsubscribe = authRepository.onAuthStateChanged(async (userId) => {
       try {
         if (userId) {
           setIsAuthenticated(true);
           
-          // Load user data from Firestore with retry logic
-          let userData = null;
-          let attempts = 0;
-          const maxAttempts = 3;
+          // Wait for user document to be available (handles registration race condition)
+          const documentExists = await authRepository.waitForUserDocument(userId, 5, 500);
           
-          while (attempts < maxAttempts && !userData) {
-            try {
-              attempts++;
-              userData = await userRepository.getUserById(userId);
-              
-              if (userData) {
-                setUser(userData);
-                // Navigate to main app after successful authentication and data load
-                router.replace('/home-tabs/my-feed');
-                break;
-              }
-            } catch (userError) {
-             
-              
-              if (attempts < maxAttempts) {
-                // Wait 1 second before retrying
-                await new Promise(resolve => setTimeout(resolve, 1000));
-              } else {
-                // If all attempts failed, navigate to auth to complete registration
-                console.error("Failed loading userData", userError);
-                setUser(null);
-                router.replace('/auth/authentication');
-              }
-            }
+          if (!documentExists) {
+            console.warn('User document not found after waiting');
+            // Don't clear session here - might be a temporary issue
+            // Let session monitor handle it if session is truly invalid
+            setIsLoading(false);
+            return;
+          }
+          
+          // Load user data from Firestore
+          try {
+            const userData = await userRepository.getUserById(userId);
+            setUser(userData);
+          } catch (userError) {
+            console.error("Failed loading userData", userError);
+            // Don't clear session immediately - might be temporary network issue
+            setUser(null);
           }
         } else {
           setIsAuthenticated(false);
           setUser(null);
-          router.replace('/auth/authentication');
+          await clearSession();
         }
       } catch (error) {
         console.error('Error handling auth state change:', error);
+        // Don't clear session on every error - let session monitor handle it
         setIsAuthenticated(false);
         setUser(null);
-        router.replace('/auth/authentication');
       } finally {
         setIsLoading(false);
       }

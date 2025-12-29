@@ -1,6 +1,6 @@
-import { authRepository } from '@/src/api/repositories';
+import { authRepository, userRepository } from '@/src/api/repositories';
 import { useUser } from '@/src/context/user-context';
-import { saveAuthToken } from '@/src/features/auth/storage/token-storage';
+import { saveSession } from '@/src/features/auth/storage/token-storage';
 import { useState } from 'react';
 
 interface SignInResult {
@@ -17,7 +17,7 @@ interface UseSignInReturn {
 export const useSignIn = (): UseSignInReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { setIsLoading: setGlobalLoading } = useUser();
+  const { setIsLoading: setGlobalLoading, setUser } = useUser();
 
   const signIn = async (email: string, password: string): Promise<SignInResult> => {
     try {
@@ -25,13 +25,30 @@ export const useSignIn = (): UseSignInReturn => {
       setGlobalLoading(true);
       setError(null);
 
-      await authRepository.login(email, password);
-      const token = await authRepository.getIdToken();
-      if (token) {
-        await saveAuthToken(token);
+      // Step 1: Authenticate with Firebase
+      const userId = await authRepository.login(email, password);
+      
+      // Step 2: Load user data immediately and save to context
+      // This ensures the user data is available right away in the app
+      try {
+        const userData = await userRepository.getUserById(userId);
+        setUser(userData);
+        console.log('User data loaded and saved to context after login');
+      } catch (loadError) {
+        console.warn('Could not load user data immediately after login:', loadError);
+        // Continue anyway - the auth state listener will load it
+      }
+
+      // Step 3: Get session data (token + expiration + refresh token)
+      const sessionData = await authRepository.getSessionData();
+      
+      // Step 4: Save session to secure store
+      if (sessionData) {
+        await saveSession(sessionData);
+      } else {
+        console.warn('Could not retrieve session data after login');
       }
       
-      // Navigation will be handled by the UserContext when auth state changes
       return { success: true };
       
     } catch (err: any) {

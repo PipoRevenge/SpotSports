@@ -3,6 +3,7 @@ export { SignInForm } from './components/sign-in-form';
 export { SignOut } from './components/sign-out';
 export { SignUpForm } from './components/sign-up-form';
 // Hooks
+export { useSessionMonitor } from './hooks/use-session-monitor';
 export { useSignIn } from './hooks/use-sign-in';
 export { useSignOut } from './hooks/use-sign-out';
 export { useSignUp } from './hooks/use-sign-up';

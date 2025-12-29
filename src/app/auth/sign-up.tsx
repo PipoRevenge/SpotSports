@@ -16,6 +16,7 @@ export default function SignUp() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { showError } = useAppAlert();
+
   const handleSubmit = async (
     email: string, 
     password: string, 
@@ -29,7 +30,8 @@ export default function SignUp() {
       setIsSubmitting(true);
       await signUp(email, password, userName, photo, birthDate, fullName, bio);
       
-      // Navigation will be handled by UserContext after successful registration
+      // User data is now loaded in UserContext, navigate to home
+      router.replace('/home-tabs/my-feed');
     } catch (signUpError) {
       console.error('Error during sign up:', signUpError);
       showError(error || 'Ocurrió un error durante el registro. Por favor, intenta de nuevo.', 'Error de Registro');

@@ -2,7 +2,7 @@ import { authRepository, userRepository } from '@/src/api/repositories';
 import { useAppAlert } from '@/src/context/app-alert-context';
 import { useUser } from '@/src/context/user-context';
 import { UserDetails } from '@/src/entities/user/model/user';
-import { saveAuthToken } from '@/src/features/auth/storage/token-storage';
+import { saveSession } from '@/src/features/auth/storage/token-storage';
 import { useState } from 'react';
 
 interface UseSignUpReturn {
@@ -22,7 +22,7 @@ interface UseSignUpReturn {
 export const useSignUp = (): UseSignUpReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { setIsLoading: setGlobalLoading } = useUser();
+  const { setIsLoading: setGlobalLoading, setUser } = useUser();
   const { showError } = useAppAlert();
 
   const signUp = async (
@@ -48,30 +48,26 @@ export const useSignUp = (): UseSignUpReturn => {
       // Step 2: Register user with Firebase Auth
       const userId = await authRepository.register(email, password);
 
-
-      // Step 4: Upload profile photo if provided
+      // Step 3: Upload profile photo if provided
       let photoURL: string | undefined;
       if (photo) {
         try {
           photoURL = await userRepository.uploadProfilePhoto(userId, photo);
-          
         } catch (photoError) {
           console.warn('Failed to upload profile photo:', photoError);
           // Continue without photo - it's not critical for account creation
         }
       }
 
-
-      // Step 3: Prepare user data
+      // Step 4: Prepare user data
       const userData: Partial<UserDetails> = {
         email,
         userName,
-        fullName: fullName ,
-        bio: bio ,
+        fullName: fullName,
+        bio: bio,
         photoURL: photoURL || "",
-        birthDate: birthDate ,
+        birthDate: birthDate,
       };
-
       
       // Step 5: Create user profile in Firestore
       const userCreated = await userRepository.createUser(userId, userData);
@@ -80,9 +76,31 @@ export const useSignUp = (): UseSignUpReturn => {
         throw new Error('No se pudo crear el perfil de usuario');
       }
 
-      const token = await authRepository.getIdToken(true);
-      if (token) {
-        await saveAuthToken(token);
+      // Step 6: Wait for user document to be available
+      const documentExists = await authRepository.waitForUserDocument(userId, 5, 500);
+      
+      if (!documentExists) {
+        throw new Error('El perfil de usuario no está disponible. Por favor, intenta iniciar sesión.');
+      }
+
+      // Step 7: Load user data immediately and save to context
+      // This ensures the user data is available right away in the app
+      try {
+        const createdUser = await userRepository.getUserById(userId);
+        setUser(createdUser);
+        console.log('User data loaded and saved to context after registration');
+      } catch (loadError) {
+        console.warn('Could not load user data immediately after registration:', loadError);
+        // Continue anyway - the auth state listener will load it
+      }
+
+      // Step 8: Get session data and save to secure store
+      const sessionData = await authRepository.getSessionData();
+      
+      if (sessionData) {
+        await saveSession(sessionData);
+      } else {
+        console.warn('Could not retrieve session data after registration');
       }
 
 

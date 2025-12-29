@@ -14,6 +14,7 @@ export default function SignIn() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { showError } = useAppAlert();
+
   const onSignInSubmit = async (email: string, password: string) => {
     try {
       setIsSubmitting(true);
@@ -21,8 +22,10 @@ export default function SignIn() {
       
       if (!result.success) {
         showError(result.error || 'Email o contraseña incorrectos. Por favor, verifica tus credenciales.', 'Error de Inicio de Sesión');
+      } else {
+        // User data is now loaded in UserContext, navigate to home
+        router.replace('/home-tabs/my-feed');
       }
-      // Si es success, el contexto maneja la navegación automáticamente
     } catch (signInError) {
       console.error('Sign in error:', signInError);
       showError(error || 'Ocurrió un error inesperado. Por favor, intenta de nuevo.', 'Error');

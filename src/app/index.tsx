@@ -1,8 +1,25 @@
-import React from 'react';
+import { useUser } from '@/src/context/user-context';
+import { router } from 'expo-router';
+import React, { useEffect } from 'react';
 import { Image, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Index() {
+  const { user, isLoading, isAuthenticated } = useUser();
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (isAuthenticated && user) {
+        // User is authenticated and data loaded, navigate to main app
+        router.replace('/home-tabs/my-feed');
+      } else {
+        // Not authenticated, navigate to auth screen
+        router.replace('/auth/authentication');
+      }
+    }
+  }, [isLoading, isAuthenticated, user]);
+
+  // Show splash screen while loading
   return (
     <SafeAreaView style={styles.fullScreen}>
       <View style={styles.center}>
