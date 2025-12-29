@@ -179,6 +179,52 @@ spots/
         createdAt: timestamp
         updatedAt: timestamp
 
+    [SUBCOLECCIÓN]
+    /meetups
+      [meetupId]
+        // Información Básica
+        spotId: string
+        organizerId: string
+        chatId: string  // Referencia al chat del meetup
+        title: string
+        description?: string
+        tags?: string[]
+        
+        // Tipo de Meetup (discriminador)
+        type: 'CASUAL' | 'TOURNAMENT' | 'MATCH' | 'ROUTINE'
+        
+        // Estado y Visibilidad
+        status: 'SCHEDULED' | 'CANCELLED' | 'COMPLETED'
+        visibility: 'OPEN' | 'CLOSED'
+        
+        // Participantes
+        participants: string[]  // Array de User IDs
+        joinRequests?: string[]  // IDs de usuarios solicitando unirse (para meetups CLOSED)
+        
+        // Campos específicos por tipo:
+        // CASUAL:
+        sport?: string  // requerido para CASUAL, TOURNAMENT, MATCH
+        minParticipants?: number  // requerido para CASUAL
+        participantLimit?: number  // opcional, max 30
+        date?: timestamp  // requerido para CASUAL, TOURNAMENT, MATCH
+        
+        // ROUTINE:
+        daysOfWeek?: number[]  // 0-6 (Domingo-Sábado), requerido para ROUTINE
+        time?: string  // 'HH:mm', requerido para ROUTINE
+        nextDate?: timestamp  // próxima ocurrencia calculada, para ROUTINE
+        
+        // TOURNAMENT:
+        bracketStyle?: 'SINGLE_ELIMINATION' | 'ROUND_ROBIN'
+        entryFee?: number
+        maxTeams?: number
+        
+        // MATCH:
+        isRanked?: boolean
+        
+        // Metadatos
+        createdAt: timestamp
+        updatedAt: timestamp
+
 ----------------------------------------
 
 [COLECCIÓN RAÍZ]
@@ -240,6 +286,12 @@ collectionGroup('discussions').where('userId', '==', userId)
 
 // Obtener todos los comments del usuario
 collectionGroup('comments').where('userId', '==', userId)
+
+// Obtener todos los meetups donde el usuario es organizador
+collectionGroup('meetups').where('organizerId', '==', userId)
+
+// Obtener todos los meetups donde el usuario participa
+collectionGroup('meetups').where('participants', 'array-contains', userId)
 
 NOTA: Requiere crear índices en Firebase Console para collectionGroup queries.
 
