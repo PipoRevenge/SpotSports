@@ -12,6 +12,7 @@ import { useJoinMeetup } from '../../hooks/use-join-meetup';
 import { useLeaveMeetup } from '../../hooks/use-leave-meetup';
 import { useMeetupDetails } from '../../hooks/use-meetup-details';
 import { useMeetups } from '../../hooks/use-meetups';
+import { useMeetupsByUser } from '../../hooks/use-meetups-by-user';
 import { useSpotSports } from '../../hooks/use-spot-sports';
 import { MeetupCardRenderer } from '../card/meetup-card-renderer';
 import { MeetupFiltersModal } from './meetup-filters-modal';
@@ -31,6 +32,7 @@ export const MeetupList: React.FC<MeetupListProps> = ({ spotId, onRegisterFilter
   const { fetchMeetupById } = useMeetupDetails();
   const { data: spotSports } = useSpotSports(spotId);
   const { getSportName } = useAllSportsMap();
+  const { data: myMeetups } = useMeetupsByUser(user?.id);
 
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [typeFilter, setTypeFilter] = React.useState<MeetupType | undefined>(undefined);
@@ -128,8 +130,8 @@ export const MeetupList: React.FC<MeetupListProps> = ({ spotId, onRegisterFilter
 
     setLeavingId(meetup.id);
     try {
-      await leaveAsync({ spotId, meetupId: meetup.id, userId: user.id });
-      await fetchMeetupById(spotId, meetup.id);
+      await leaveAsync({ spotId, meetupId: meetup.id, userId: user.id, isOrganizer });
+      // No need to manually fetch, React Query invalidation handles it
     } catch (err) {
       console.error('Failed to leave meetup', err);
     } finally {
@@ -177,7 +179,10 @@ export const MeetupList: React.FC<MeetupListProps> = ({ spotId, onRegisterFilter
     content = (
       <View className="flex-col gap-4">
         {meetups.map((meetup: Meetup) => {
-          const isParticipant = !!user?.id && !!meetup.participants?.includes(user.id);
+          const isParticipant = !!user?.id && (
+            !!meetup.participants?.includes(user.id) || 
+            !!myMeetups?.some(m => m.id === meetup.id)
+          );
           const isOrganizer = !!user?.id && meetup.organizerId === user.id;
           const isRequested = !!user?.id && !!meetup.joinRequests?.includes(user.id);
 

@@ -12,19 +12,19 @@ export const SPOT_CATEGORIES: {
   color: string;
 }[] = [
   { 
-    type: "Favorites", 
+    type: "favorites", 
     label: "Favoritos", 
     icon: Heart, 
     color: "#ff6b6b" 
   },
   { 
-    type: "Visited", 
+    type: "visited", 
     label: "Visitados", 
     icon: CheckCircle, 
     color: "#4ecdc4" 
   },
   { 
-    type: "WantToVisit", 
+    type: "bucketList", 
     label: "Quiero Visitar", 
     icon: Target, 
     color: "#45b7d1" 

@@ -1,5 +1,6 @@
 import { Spot, SpotActivity, SpotDetails, SpotMetadata } from "@/src/entities/spot/model/spot";
 import { GeoPoint as FirebaseGeoPoint } from "firebase/firestore";
+import { parseLocation, parseTimestamp } from '../utils/firebase-parsers';
 
 /**
  * Interface que representa el modelo de spot tal como se almacena en Firebase
@@ -12,8 +13,8 @@ export interface SpotFirebase {
   availableSports: string[];
   // gallery - Lista de URLs de imágenes/videos en Storage
   gallery: string[];
-  // GeoPoint de Firebase
-  location: FirebaseGeoPoint;
+  // GeoPoint de Firebase o objeto plano {lat, lng}
+  location: FirebaseGeoPoint | { lat: number; lng: number } | { latitude: number; longitude: number };
   geohash: string;
   overallRating: number;
   
@@ -60,10 +61,7 @@ export class SpotMapper {
       description: firebaseData.description || '',
       availableSports: firebaseData.availableSports || [],
       media: firebaseData.gallery || [], // gallery → media
-      location: {
-        latitude: firebaseData.location?.latitude || 0,
-        longitude: firebaseData.location?.longitude || 0,
-      },
+      location: parseLocation(firebaseData.location),
       overallRating: firebaseData.overallRating || 0,
       contactInfo: {
         phone: firebaseData.contactPhone || "",
@@ -211,31 +209,3 @@ export class SpotMapper {
   }
 }
 
-/**
- * Convierte varios formatos de timestamp a Date
- * Soporta: Date, number (ms), string, Firestore Timestamp, objeto {seconds, nanoseconds}
- */
-function parseTimestamp(value: any): Date | undefined {
-  if (value == null) return undefined;
-  if (value instanceof Date) return value;
-  if (typeof value === 'number') return new Date(value);
-  if (typeof value === 'string') {
-    const d = new Date(value);
-    return isNaN(d.getTime()) ? undefined : d;
-  }
-  // Firestore Timestamp has toDate()
-  if (typeof value.toDate === 'function') {
-    try {
-      return value.toDate();
-    } catch {
-      return undefined;
-    }
-  }
-  // Raw object like { seconds, nanos } or { seconds, nanoseconds }
-  if (typeof value === 'object' && (value.seconds !== undefined || value.nanoseconds !== undefined || value.nanos !== undefined)) {
-    const secs = Number(value.seconds || 0);
-    const nanos = Number(value.nanoseconds ?? value.nanos ?? 0);
-    return new Date(secs * 1000 + Math.floor(nanos / 1e6));
-  }
-  return undefined;
-}

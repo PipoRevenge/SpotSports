@@ -1,26 +1,22 @@
 import { SavedSpot, SpotCategory } from '@/src/entities/user/model/spot-collection';
 import { User, UserDetails } from '@/src/entities/user/model/user';
 import {
-  addDoc,
-  arrayRemove,
-  arrayUnion,
-  collection,
-  deleteDoc,
-  doc,
-  limit as firestoreLimit,
-  getDoc,
-  getDocs,
-  increment,
-  orderBy,
-  query,
-  runTransaction,
-  setDoc,
-  Timestamp,
-  updateDoc,
-  where
+    collection,
+    deleteDoc,
+    doc,
+    limit as firestoreLimit,
+    getDoc,
+    getDocs,
+    orderBy,
+    query,
+    setDoc,
+    Timestamp,
+    updateDoc,
+    where
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
-import { firestore } from '../../../lib/firebase-config';
+import { firestore, functions } from '../../../lib/firebase-config';
 import { IUserRepository } from '../interfaces/i-user-repository';
 import { UserFirebase, UserMapper } from '../mappers/user-mapper';
 
@@ -65,37 +61,18 @@ export class UserRepositoryImpl implements IUserRepository {
                 throw new Error('El email y nombre de usuario son requeridos');
             }
 
-            const now = Timestamp.now();
+            // Call cloud function to complete profile
+            // The minimal user document is created by the auth trigger (beforeUserCreated)
+            const completeProfileFn = httpsCallable(functions, 'users_completeProfile');
             
-            // Crear objeto User completo con valores por defecto
-            const newUser: UserFirebase = {
-                // UserDetails con valores por defecto
-                email: userData.email,
-                userName: userData.userName,
-                profileUrl: userData.photoURL || "", // ACTUALIZADO: photoURL → profileUrl
+            await completeProfileFn({
                 fullName: userData.fullName || "",
+                userName: userData.userName,
                 bio: userData.bio || "",
-                birthDate: userData.birthDate || now.toDate(),
+                profileUrl: userData.photoURL || "",
+                birthDate: userData.birthDate ? (userData.birthDate instanceof Date ? userData.birthDate.toISOString() : userData.birthDate) : undefined,
                 phoneNumber: userData.phoneNumber || "",
-
-                // Metadata inicial
-                createdAt: now,
-                updatedAt: now,
-                isVerified: false,
-
-                // Activity inicial
-                reviewsCount: 0,
-                commentsCount: 0,
-                discussionsCount: 0,
-                favoriteSpotsCount: 0,
-                followersCount: 0,
-                followingCount: 0,
-            };
-
-            const userRef = doc(firestore, this.USERS_COLLECTION, userId);
-
-            // Crear el documento del usuario
-            await setDoc(userRef, newUser);
+            });
 
             return true;
         } catch (error: any) {
@@ -109,7 +86,7 @@ export class UserRepositoryImpl implements IUserRepository {
                 throw error;
             }
             
-            // Manejar errores de Firestore
+            // Manejar errores de Firestore/Functions
             if (error?.code) {
                 switch (error.code) {
                     case 'permission-denied':
@@ -118,6 +95,8 @@ export class UserRepositoryImpl implements IUserRepository {
                         throw new Error('El servicio no está disponible. Por favor, intenta más tarde.');
                     case 'already-exists':
                         throw new Error('Este usuario ya existe en el sistema.');
+                    case 'invalid-argument':
+                        throw new Error(error.message || 'Datos inválidos para el perfil.');
                     default:
                         throw new Error('Error al crear el perfil de usuario. Por favor, intenta nuevamente.');
                 }
@@ -231,35 +210,7 @@ export class UserRepositoryImpl implements IUserRepository {
         }
     }
 
-    async incrementActivityCounters(
-        userId: string,
-        counters: { commentsDelta?: number; discussionsDelta?: number; reviewsDelta?: number; }
-    ): Promise<void> {
-        try {
-            const updates: Record<string, any> = { updatedAt: Timestamp.now() };
 
-            if (counters.commentsDelta && counters.commentsDelta !== 0) {
-                updates.commentsCount = increment(counters.commentsDelta);
-            }
-            if (counters.discussionsDelta && counters.discussionsDelta !== 0) {
-                updates.discussionsCount = increment(counters.discussionsDelta);
-            }
-            if (counters.reviewsDelta && counters.reviewsDelta !== 0) {
-                updates.reviewsCount = increment(counters.reviewsDelta);
-            }
-
-            // No updates to apply
-            if (Object.keys(updates).length === 1) {
-                return;
-            }
-
-            const userRef = doc(firestore, this.USERS_COLLECTION, userId);
-            await updateDoc(userRef, updates);
-        } catch (error) {
-            console.error('Error incrementing user activity counters:', error);
-            throw new Error('Unable to update user activity counters');
-        }
-    }
 
     /**
      * Obtiene las colecciones de spots de un usuario
@@ -276,24 +227,29 @@ export class UserRepositoryImpl implements IUserRepository {
     async getUserSavedSpots(userId: string, category?: SpotCategory): Promise<SavedSpot[]> {
         try {
             const userRef = doc(firestore, this.USERS_COLLECTION, userId);
-            const savedSpotsRef = collection(userRef, this.SAVED_SPOTS_SUBCOLLECTION);
+            const savedSpots: SavedSpot[] = [];
             
-            let q = query(savedSpotsRef);
+            // El backend guarda en: users/{userId}/{category}/{spotId}
+            const categoriesToCheck: SpotCategory[] = category 
+                ? [category] 
+                : ['favorites', 'visited', 'bucketList'];
             
-            // Si se especifica categoría, filtrar por spots que contengan esa categoría
-            if (category) {
-                q = query(savedSpotsRef, where('categories', 'array-contains', category));
+            for (const cat of categoriesToCheck) {
+                const categoryRef = collection(userRef, cat);
+                const querySnapshot = await getDocs(categoryRef);
+                
+                querySnapshot.docs.forEach(doc => {
+                    savedSpots.push({
+                        id: doc.id,
+                        spotId: doc.data().spotId || doc.id, // El ID del documento es el spotId
+                        categories: [cat], // Este spot está en esta categoría
+                        createdAt: doc.data().savedAt?.toDate() || new Date(),
+                        updatedAt: doc.data().savedAt?.toDate() || new Date(),
+                    });
+                });
             }
             
-            const querySnapshot = await getDocs(q);
-            
-            return querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                spotId: doc.data().spotId,
-                categories: doc.data().categories || [],
-                createdAt: doc.data().createdAt?.toDate() || new Date(),
-                updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-            }));
+            return savedSpots;
         } catch (error) {
             console.error('Error getting user saved spots:', error);
             throw new Error('Unable to get user saved spots');
@@ -360,78 +316,38 @@ export class UserRepositoryImpl implements IUserRepository {
 
     /**
      * Añade categorías a un spot guardado (o crea el spot guardado si no existe)
-     * También incrementa los contadores correspondientes en el documento del spot
+     * Usa cloud function para manejar la lógica de negocio en el backend
      * @param userId ID del usuario
      * @param spotId ID del spot
      * @param categories Array de categorías a añadir
      */
     async addSpotToCategories(userId: string, spotId: string, categories: SpotCategory[]): Promise<void> {
         try {
-            const userRef = doc(firestore, this.USERS_COLLECTION, userId);
+            const saveSpotFn = httpsCallable(functions, 'users_saveSpot');
+            const unsaveSpotFn = httpsCallable(functions, 'users_unsaveSpot');
             
-            // Verificar que el usuario existe
-            const userDoc = await getDoc(userRef);
-            if (!userDoc.exists()) {
-                throw new Error('User not found');
-            }
+            // Procesar cada categoría individualmente con toggle behavior
+            const results = await Promise.allSettled(
+                categories.map(async (category) => {
+                    try {
+                        await saveSpotFn({ spotId, category });
+                    } catch (error: any) {
+                        // Si ya existe, hacer toggle (quitar en vez de agregar)
+                        // Firebase Functions HttpsError tiene la propiedad 'code'
+                        if (error?.code === 'already-exists') {
+                            await unsaveSpotFn({ spotId, category });
+                        } else {
+                            throw error;
+                        }
+                    }
+                })
+            );
             
-            const savedSpotsRef = collection(userRef, this.SAVED_SPOTS_SUBCOLLECTION);
-            
-            // Buscar si ya existe un documento para este spotId
-            const existingQuery = query(savedSpotsRef, where('spotId', '==', spotId));
-            const existingDocs = await getDocs(existingQuery);
-            
-            const now = Timestamp.now();
-            const spotRef = doc(firestore, 'spots', spotId);
-            
-            if (existingDocs.empty) {
-                // No existe, crear nuevo documento con las categorías
-                await addDoc(savedSpotsRef, {
-                    spotId: spotId,
-                    categories: categories,
-                    createdAt: now,
-                    updatedAt: now,
-                });
-                
-                // Incrementar contadores para cada categoría
-                const updateData: any = { updatedAt: now };
-                categories.forEach(cat => {
-                    const counterField = this.getCounterFieldName(cat);
-                    updateData[counterField] = increment(1);
-                });
-                
-                await updateDoc(spotRef, updateData);
-                
-                console.log(`[UserRepository] Created saved spot ${spotId} with categories:`, categories);
-            } else {
-                // Ya existe, añadir las nuevas categorías
-                const savedSpotDoc = existingDocs.docs[0];
-                const currentCategories: SpotCategory[] = savedSpotDoc.data().categories || [];
-                
-                // Filtrar solo las categorías que aún no están añadidas
-                const newCategories = categories.filter(cat => !currentCategories.includes(cat));
-                
-                if (newCategories.length === 0) {
-                    console.log(`[UserRepository] All categories already exist for spot ${spotId}`);
-                    return;
-                }
-                
-                // Actualizar el documento añadiendo las nuevas categorías
-                await updateDoc(savedSpotDoc.ref, {
-                    categories: arrayUnion(...newCategories),
-                    updatedAt: now,
-                });
-                
-                // Incrementar contadores solo para las nuevas categorías
-                const updateData: any = { updatedAt: now };
-                newCategories.forEach(cat => {
-                    const counterField = this.getCounterFieldName(cat);
-                    updateData[counterField] = increment(1);
-                });
-                
-                await updateDoc(spotRef, updateData);
-                
-                console.log(`[UserRepository] Added categories to spot ${spotId}:`, newCategories);
+            // Verificar si hubo algún error no manejado
+            const failures = results.filter(r => r.status === 'rejected');
+            if (failures.length > 0) {
+                const firstError = (failures[0] as PromiseRejectedResult).reason;
+                throw firstError;
             }
         } catch (error) {
             console.error('Error adding spot to categories:', error);
@@ -441,64 +357,35 @@ export class UserRepositoryImpl implements IUserRepository {
 
     /**
      * Elimina categorías de un spot guardado
-     * También decrementa los contadores correspondientes en el documento del spot
-     * Si se eliminan todas las categorías, elimina el documento completo
+     * Usa cloud function para manejar la lógica de negocio en el backend
      * @param userId ID del usuario
      * @param spotId ID del spot
      * @param categories Array de categorías a eliminar
      */
     async removeSpotFromCategories(userId: string, spotId: string, categories: SpotCategory[]): Promise<void> {
         try {
-            const userRef = doc(firestore, this.USERS_COLLECTION, userId);
-            const savedSpotsRef = collection(userRef, this.SAVED_SPOTS_SUBCOLLECTION);
+            const unsaveSpotFn = httpsCallable(functions, 'users_unsaveSpot');
             
-            // Buscar el documento del spot guardado
-            const q = query(savedSpotsRef, where('spotId', '==', spotId));
-            const querySnapshot = await getDocs(q);
+            // La cloud function espera una categoría a la vez
+            // Usamos Promise.allSettled para que si una categoría no existe, las otras se eliminen igual
+            const results = await Promise.allSettled(
+                categories.map(category => unsaveSpotFn({ spotId, category }))
+            );
             
-            if (querySnapshot.empty) {
-                throw new Error('Spot is not saved');
+            // Verificar si todas fallaron
+            const allFailed = results.every(r => r.status === 'rejected');
+            if (allFailed) {
+                const firstError = results[0] as PromiseRejectedResult;
+                throw firstError.reason;
             }
             
-            const savedSpotDoc = querySnapshot.docs[0];
-            const currentCategories: SpotCategory[] = savedSpotDoc.data().categories || [];
-            
-            // Filtrar las categorías que realmente existen
-            const categoriesToRemove = categories.filter(cat => currentCategories.includes(cat));
-            
-            if (categoriesToRemove.length === 0) {
-                console.log(`[UserRepository] No categories to remove for spot ${spotId}`);
-                return;
+            // Si algunas fallaron pero otras no, registrar las que fallaron pero continuar
+            const failed = results.filter(r => r.status === 'rejected');
+            if (failed.length > 0) {
+                console.warn('[removeSpotFromCategories] Some categories failed:', 
+                    failed.map((f, i) => ({ category: categories[i], error: (f as PromiseRejectedResult).reason }))
+                );
             }
-            
-            const now = Timestamp.now();
-            const spotRef = doc(firestore, 'spots', spotId);
-            
-            // Calcular las categorías restantes
-            const remainingCategories = currentCategories.filter(cat => !categoriesToRemove.includes(cat));
-            
-            if (remainingCategories.length === 0) {
-                // Si no quedan categorías, eliminar el documento completo
-                await deleteDoc(savedSpotDoc.ref);
-                console.log(`[UserRepository] Deleted saved spot ${spotId} (no categories left)`);
-            } else {
-                // Actualizar el documento eliminando las categorías
-                await updateDoc(savedSpotDoc.ref, {
-                    categories: arrayRemove(...categoriesToRemove),
-                    updatedAt: now,
-                });
-                console.log(`[UserRepository] Removed categories from spot ${spotId}:`, categoriesToRemove);
-            }
-            
-            // Decrementar contadores para las categorías eliminadas
-            const updateData: any = { updatedAt: now };
-            categoriesToRemove.forEach(cat => {
-                const counterField = this.getCounterFieldName(cat);
-                updateData[counterField] = increment(-1);
-            });
-            
-            await updateDoc(spotRef, updateData);
-            
         } catch (error) {
             console.error('Error removing spot from categories:', error);
             throw new Error(error instanceof Error ? error.message : 'Unable to remove spot from categories');
@@ -513,17 +400,23 @@ export class UserRepositoryImpl implements IUserRepository {
      */
     async getSpotCategories(userId: string, spotId: string): Promise<SpotCategory[]> {
         try {
+            const categories: SpotCategory[] = [];
             const userRef = doc(firestore, this.USERS_COLLECTION, userId);
-            const savedSpotsRef = collection(userRef, this.SAVED_SPOTS_SUBCOLLECTION);
             
-            const q = query(savedSpotsRef, where('spotId', '==', spotId));
-            const querySnapshot = await getDocs(q);
+            // Verificar cada categoría individualmente
+            // El backend guarda en: users/{userId}/{category}/{spotId}
+            const categoriesToCheck: SpotCategory[] = ['favorites', 'visited', 'bucketList'];
             
-            if (querySnapshot.empty) {
-                return [];
+            for (const category of categoriesToCheck) {
+                const spotInCategoryRef = doc(userRef, category, spotId);
+                const spotSnap = await getDoc(spotInCategoryRef);
+                
+                if (spotSnap.exists()) {
+                    categories.push(category);
+                }
             }
             
-            return querySnapshot.docs[0].data().categories || [];
+            return categories;
         } catch (error) {
             console.error('Error getting spot categories:', error);
             return [];
@@ -584,21 +477,6 @@ export class UserRepositoryImpl implements IUserRepository {
         }
     }
 
-    /**
-     * Obtiene el nombre del campo contador según la categoría
-     */
-    private getCounterFieldName(category: SpotCategory): string {
-        switch (category) {
-            case 'Favorites':
-                return 'favoritesCount';
-            case 'Visited':
-                return 'visitedCount';
-            case 'WantToVisit':
-                return 'wantToVisitCount';
-            default:
-                throw new Error(`Unknown category: ${category}`);
-        }
-    }
 
     async getUserFavoriteSports(userId: string): Promise<string[]> {
         try {
@@ -687,39 +565,8 @@ export class UserRepositoryImpl implements IUserRepository {
 
     async followUser(userId: string, targetUserId: string): Promise<void> {
         try {
-            // ESTRUCTURA: 
-            // - users/{userId}/following/{targetUserId}
-            // - users/{targetUserId}/followers/{userId}
-            const followerRef = doc(firestore, this.USERS_COLLECTION, userId);
-            const followedRef = doc(firestore, this.USERS_COLLECTION, targetUserId);
-            
-            // Subcollection references
-            const followingDocRef = doc(firestore, this.USERS_COLLECTION, userId, this.FOLLOWING_SUBCOLLECTION, targetUserId);
-            const followersDocRef = doc(firestore, this.USERS_COLLECTION, targetUserId, this.FOLLOWERS_SUBCOLLECTION, userId);
-
-            await runTransaction(firestore, async (transaction) => {
-                const followingDoc = await transaction.get(followingDocRef);
-                if (followingDoc.exists()) {
-                    // already following
-                    return;
-                }
-
-                const now = Timestamp.now();
-                
-                // Añadir a la subcolección following del usuario
-                transaction.set(followingDocRef, {
-                    createdAt: now
-                });
-                
-                // Añadir a la subcolección followers del usuario objetivo
-                transaction.set(followersDocRef, {
-                    createdAt: now
-                });
-
-                // Update counters
-                transaction.update(followedRef, { followersCount: increment(1), updatedAt: now });
-                transaction.update(followerRef, { followingCount: increment(1), updatedAt: now });
-            });
+            const followUserFn = httpsCallable(functions, 'users_follow');
+            await followUserFn({ targetUserId });
         } catch (error) {
             console.error('Error following user:', error);
             throw new Error(error instanceof Error ? error.message : 'Unable to follow user');
@@ -728,35 +575,8 @@ export class UserRepositoryImpl implements IUserRepository {
 
     async unfollowUser(userId: string, targetUserId: string): Promise<void> {
         try {
-            // ESTRUCTURA: 
-            // - users/{userId}/following/{targetUserId}
-            // - users/{targetUserId}/followers/{userId}
-            const followerRef = doc(firestore, this.USERS_COLLECTION, userId);
-            const followedRef = doc(firestore, this.USERS_COLLECTION, targetUserId);
-            
-            // Subcollection references
-            const followingDocRef = doc(firestore, this.USERS_COLLECTION, userId, this.FOLLOWING_SUBCOLLECTION, targetUserId);
-            const followersDocRef = doc(firestore, this.USERS_COLLECTION, targetUserId, this.FOLLOWERS_SUBCOLLECTION, userId);
-
-            await runTransaction(firestore, async (transaction) => {
-                const followingDoc = await transaction.get(followingDocRef);
-                if (!followingDoc.exists()) {
-                    // Nothing to do
-                    return;
-                }
-
-                const now = Timestamp.now();
-                
-                // Eliminar de la subcolección following del usuario
-                transaction.delete(followingDocRef);
-                
-                // Eliminar de la subcolección followers del usuario objetivo
-                transaction.delete(followersDocRef);
-                
-                // Decrement counters
-                transaction.update(followedRef, { followersCount: increment(-1), updatedAt: now });
-                transaction.update(followerRef, { followingCount: increment(-1), updatedAt: now });
-            });
+            const unfollowUserFn = httpsCallable(functions, 'users_unfollow');
+            await unfollowUserFn({ targetUserId });
         } catch (error) {
             console.error('Error unfollowing user:', error);
             throw new Error(error instanceof Error ? error.message : 'Unable to unfollow user');

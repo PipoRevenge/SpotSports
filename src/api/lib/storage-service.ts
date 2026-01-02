@@ -1,5 +1,6 @@
 import { storage } from "@/src/lib/firebase-config";
 import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from "firebase/storage";
+import { parseFirebaseError } from "../repositories/utils/firebase-parsers";
 
 /**
  * Storage Service
@@ -15,18 +16,30 @@ import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from "firebas
  * @returns Promise with the resolved URL
  */
 export const resolveStorageUrl = async (path: string): Promise<string> => {
-  // If already a URL, return as-is
-  if (
-    path.startsWith('http://') || 
-    path.startsWith('https://') ||
-    path.includes('firebasestorage.googleapis.com')
-  ) {
-    return path;
-  }
+  try {
+    // If already a URL, return as-is
+    if (
+      path.startsWith('http://') || 
+      path.startsWith('https://') ||
+      path.includes('firebasestorage.googleapis.com')
+    ) {
+      return path;
+    }
 
-  // Resolve from Firebase Storage
-  const storageRef = ref(storage, path);
-  return getDownloadURL(storageRef);
+    // Resolve from Firebase Storage
+    console.log('[StorageService:resolveStorageUrl] Resolving path:', path);
+    const storageRef = ref(storage, path);
+    const url = await getDownloadURL(storageRef);
+    console.log('[StorageService:resolveStorageUrl] Resolved URL:', url);
+    return url;
+  } catch (error) {
+    const parsedError = parseFirebaseError(error);
+    console.error('[StorageService:resolveStorageUrl] Failed to resolve URL', {
+      path,
+      error: parsedError,
+    });
+    throw error;
+  }
 };
 
 /**
@@ -56,9 +69,38 @@ export const resolveStorageUrls = async (paths: string[]): Promise<string[]> => 
  * @returns Promise with the download URL of the uploaded file
  */
 export const uploadFile = async (path: string, file: Blob): Promise<string> => {
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file);
-  return getDownloadURL(storageRef);
+  const startTime = Date.now();
+  console.log('[StorageService:uploadFile] Starting upload', {
+    path,
+    size: file.size,
+    type: file.type,
+  });
+
+  try {
+    const storageRef = ref(storage, path);
+    const snapshot = await uploadBytes(storageRef, file);
+    const url = await getDownloadURL(storageRef);
+    
+    const duration = Date.now() - startTime;
+    console.log('[StorageService:uploadFile] Upload completed', {
+      path,
+      url,
+      size: file.size,
+      durationMs: duration,
+    });
+    
+    return url;
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const parsedError = parseFirebaseError(error);
+    console.error('[StorageService:uploadFile] Upload failed', {
+      path,
+      size: file.size,
+      durationMs: duration,
+      error: parsedError,
+    });
+    throw error;
+  }
 };
 
 /**
@@ -69,9 +111,31 @@ export const uploadFile = async (path: string, file: Blob): Promise<string> => {
  * @returns Promise with the download URL of the uploaded file
  */
 export const uploadFileFromUri = async (path: string, uri: string): Promise<string> => {
-  const response = await fetch(uri);
-  const blob = await response.blob();
-  return uploadFile(path, blob);
+  console.log('[StorageService:uploadFileFromUri] Fetching file from URI', { path, uri });
+  
+  try {
+    const response = await fetch(uri);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch file from URI: ${response.statusText}`);
+    }
+    
+    const blob = await response.blob();
+    console.log('[StorageService:uploadFileFromUri] File fetched, uploading...', {
+      path,
+      size: blob.size,
+      type: blob.type,
+    });
+    
+    return await uploadFile(path, blob);
+  } catch (error) {
+    const parsedError = parseFirebaseError(error);
+    console.error('[StorageService:uploadFileFromUri] Failed', {
+      path,
+      uri,
+      error: parsedError,
+    });
+    throw error;
+  }
 };
 
 /**

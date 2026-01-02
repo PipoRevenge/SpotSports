@@ -1,23 +1,21 @@
-import { createFirestoreDiscussionData, mapFirestoreDiscussionToEntity } from '@/src/api/repositories/mappers/discussion-mapper';
+import { mapFirestoreDiscussionToEntity } from '@/src/api/repositories/mappers/discussion-mapper';
 import { Discussion, DiscussionDetails } from '@/src/entities/discussion/model/discussion';
-import { firestore, storage } from '@/src/lib/firebase-config';
+import { firestore, functions, storage } from '@/src/lib/firebase-config';
 import * as FileSystem from 'expo-file-system';
 import { ref as dbRef, getDatabase, push } from 'firebase/database';
 import {
-    collection,
-    collectionGroup,
-    doc,
-    limit as firestoreLimit,
-    getDoc,
-    getDocs,
-    increment,
-    orderBy,
-    query,
-    runTransaction,
-    Timestamp,
-    updateDoc,
-    where
+  collection,
+  collectionGroup,
+  doc,
+  limit as firestoreLimit,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  Timestamp,
+  where
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { IDiscussionRepository } from '../interfaces/i-discussion-repository';
 import { voteRepository } from './vote-repository-impl';
@@ -75,95 +73,44 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
 
   async createDiscussion(spotId: string, userId: string, discussionData: DiscussionDetails): Promise<Discussion> {
     try {
-      const now = Timestamp.now();
-
-      const discussion = {
-        userId,
-        spotId,
-        title: discussionData.title,
-        titleLower: (discussionData.title || '').toLowerCase(),
-        description: discussionData.description || '',
-        tags: discussionData.tags || ['Q&A'],
-        media: discussionData.media || [],
-        likesCount: 0,
-        dislikesCount: 0,
-        commentsCount: 0,
-        reports: 0,
-        createdAt: now,
-        updatedAt: now,
-        isDeleted: false,
-      };
-
-      const colRef = collection(firestore, this.getDiscussionsCollectionPath(spotId));
-
-      // Check for duplicate title within the spot
-      const existingQ = query(
-        colRef,
-        where('titleLower', '==', (discussionData.title || '').toLowerCase()),
-        where('isDeleted', '==', false),
-        firestoreLimit(1)
-      );
-      const existingSnap = await getDocs(existingQ);
-      if (!existingSnap.empty) {
-        const first = existingSnap.docs[0];
-        return mapFirestoreDiscussionToEntity(first, spotId);
-      }
-
-      const firestoreData = createFirestoreDiscussionData(
-        userId,
-        spotId,
-        discussionData.title,
-        discussionData.description,
-        discussionData.tags,
-        []
-      );
-      // Use transaction to create discussion and increment spot discussions counter atomically
-      const docRef = doc(colRef); // auto-generated id
-
-      await runTransaction(firestore, async (tr) => {
-        const spotRef = doc(firestore, `spots/${spotId}`);
-        const spotDoc = await tr.get(spotRef);
-
-        if (!spotDoc.exists()) {
-          throw new Error(`Spot ${spotId} not found`);
-        }
-
-        tr.set(docRef, firestoreData);
-        tr.update(spotRef, { discussionsCount: increment(1), updatedAt: Timestamp.now() } as any);
-      });
-
-      // Handle media uploads AFTER the transaction, update doc if needed
+      // Upload media files to Storage if provided
       const mediaUris: string[] = discussionData.media || [];
+      let uploadedMediaUrls: string[] = [];
+      
       if (mediaUris.length > 0) {
         const { local, remote } = this.separateLocalAndRemoteMedia(mediaUris);
         if (local.length > 0) {
+          // Create a temporary discussion ID for media uploads
+          const tempDiscussionId = push(dbRef(getDatabase())).key || `${Date.now()}`;
           try {
-            const uploaded = await this.uploadDiscussionMedia(spotId, docRef.id, local);
-            const finalMedia = [...remote, ...uploaded];
-            await updateDoc(
-              doc(firestore, this.getDiscussionDocPath(spotId, docRef.id)),
-              { media: finalMedia, updatedAt: Timestamp.now() } as any
-            );
-            return mapFirestoreDiscussionToEntity(
-              { id: docRef.id, data: () => ({ ...discussion, media: finalMedia }) },
-              spotId
-            );
+            const uploaded = await this.uploadDiscussionMedia(spotId, tempDiscussionId, local);
+            uploadedMediaUrls = [...remote, ...uploaded];
           } catch (uploadErr) {
             console.error('[DiscussionRepository] createDiscussion: media upload failed', uploadErr);
-            await updateDoc(
-              doc(firestore, this.getDiscussionDocPath(spotId, docRef.id)),
-              { media: [], updatedAt: Timestamp.now() } as any
-            );
             throw new Error('Failed to upload discussion media. Please try again.');
           }
+        } else {
+          uploadedMediaUrls = remote;
         }
-        return mapFirestoreDiscussionToEntity(
-          { id: docRef.id, data: () => ({ ...discussion, media: remote }) },
-          spotId
-        );
       }
 
-      return mapFirestoreDiscussionToEntity({ id: docRef.id, data: () => discussion }, spotId);
+      // Call cloud function
+      const createDiscussionFn = httpsCallable(functions, 'discussions_create');
+      const result = await createDiscussionFn({
+        spotId,
+        title: discussionData.title,
+        description: discussionData.description || '',
+        tags: discussionData.tags || ['Q&A'],
+        mediaUrls: uploadedMediaUrls,
+      });
+
+      const { discussionId, discussion } = result.data as { discussionId: string; discussion: any };
+
+      // Map the response to entity
+      return mapFirestoreDiscussionToEntity(
+        { id: discussionId, data: () => discussion },
+        spotId
+      );
     } catch (error) {
       console.error('[DiscussionRepository] createDiscussion:', error);
       throw error;
@@ -368,11 +315,25 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       if (updates.title) {
         updatesWithTimestamp.titleLower = updates.title.toLowerCase();
       }
-      await updateDoc(discussionRef, updatesWithTimestamp);
 
-      const finalSnap = await getDoc(discussionRef);
-      if (!finalSnap.exists()) throw new Error('Discussion not found after update');
-      return mapFirestoreDiscussionToEntity(finalSnap, resolvedSpotId);
+      // Call cloud function
+      const updateDiscussionFn = httpsCallable(functions, 'discussions_update');
+      const result = await updateDiscussionFn({
+        spotId: resolvedSpotId,
+        discussionId,
+        title: updates.title,
+        description: updates.description,
+        tags: updates.tags,
+        mediaUrls: finalMedia,
+      });
+
+      const { discussion } = result.data as { discussion: any };
+
+      // Map the response to entity
+      return mapFirestoreDiscussionToEntity(
+        { id: discussionId, data: () => discussion },
+        resolvedSpotId
+      );
     } catch (error) {
       console.error('[DiscussionRepository] updateDiscussion:', error);
       throw error;
@@ -388,18 +349,11 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
         resolvedSpotId = found.spotId;
       }
 
-      const discussionRef = doc(firestore, this.getDiscussionDocPath(resolvedSpotId, discussionId));
-      await runTransaction(firestore, async (tr) => {
-        const f = await tr.get(discussionRef);
-        if (!f.exists()) return;
-        tr.update(discussionRef, { isDeleted: true, updatedAt: Timestamp.now() });
-
-        // Decrement spot's discussionsCount atomically
-        const spotRef = doc(firestore, `spots/${resolvedSpotId}`);
-        const spotDoc = await tr.get(spotRef);
-        if (spotDoc.exists()) {
-          tr.update(spotRef, { discussionsCount: increment(-1), updatedAt: Timestamp.now() } as any);
-        }
+      // Call cloud function
+      const deleteDiscussionFn = httpsCallable(functions, 'discussions_delete');
+      await deleteDiscussionFn({
+        spotId: resolvedSpotId,
+        discussionId,
       });
     } catch (error) {
       console.error('[DiscussionRepository] deleteDiscussion:', error);

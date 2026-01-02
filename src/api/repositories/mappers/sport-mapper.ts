@@ -1,4 +1,5 @@
 import { Sport, SportActivity, SportDetails, SportMetadata } from '@/src/entities/sport/model/sport';
+import { parseTimestamp } from '../utils/firebase-parsers';
 
 /**
  * Interface que representa el modelo de sport tal como se almacena en Firebase
@@ -135,33 +136,4 @@ export class SportMapper {
 
     return firebaseUpdate;
   }
-}
-
-/**
- * Convierte varios formatos de timestamp a Date
- * Soporta: Date, number (ms), string, Firestore Timestamp, objeto {seconds, nanoseconds}
- */
-function parseTimestamp(value: any): Date | undefined {
-  if (value == null) return undefined;
-  if (value instanceof Date) return value;
-  if (typeof value === 'number') return new Date(value);
-  if (typeof value === 'string') {
-    const d = new Date(value);
-    return isNaN(d.getTime()) ? undefined : d;
-  }
-  // Firestore Timestamp has toDate()
-  if (typeof value.toDate === 'function') {
-    try {
-      return value.toDate();
-    } catch {
-      return undefined;
-    }
-  }
-  // Raw object like { seconds, nanos } or { seconds, nanoseconds }
-  if (typeof value === 'object' && (value.seconds !== undefined || value.nanoseconds !== undefined || value.nanos !== undefined)) {
-    const secs = Number(value.seconds || 0);
-    const nanos = Number(value.nanoseconds ?? value.nanos ?? 0);
-    return new Date(secs * 1000 + Math.floor(nanos / 1e6));
-  }
-  return undefined;
 }

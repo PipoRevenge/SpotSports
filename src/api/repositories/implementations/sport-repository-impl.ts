@@ -1,18 +1,19 @@
 import { Sport, SportDetails } from '@/src/entities/sport/model/sport';
-import { firestore } from '@/src/lib/firebase-config';
+import { firestore, functions } from '@/src/lib/firebase-config';
 import {
-  addDoc,
-  collection,
-  doc,
-  query as firestoreQuery,
-  getDoc,
-  getDocs,
-  limit,
-  orderBy,
-  Timestamp,
-  updateDoc,
-  where
+    addDoc,
+    collection,
+    doc,
+    query as firestoreQuery,
+    getDoc,
+    getDocs,
+    limit,
+    orderBy,
+    Timestamp,
+    updateDoc,
+    where
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { ISportRepository } from '../interfaces/i-sport-repository';
 import { SportMapper } from '../mappers/sport-mapper';
 
@@ -119,18 +120,17 @@ export class SportRepositoryImpl implements ISportRepository {
   }
 
   /**
-   * Obtiene todos los deportes
+   * Obtiene todos los deportes usando cloud function
    */
   async getAllSports(): Promise<Sport[]> {
     try {
-      const sportsRef = collection(firestore, this.SPORTS_COLLECTION);
-      const q = firestoreQuery(sportsRef, orderBy('name', 'asc'));
-      const querySnapshot = await getDocs(q);
-
-      return querySnapshot.docs.map(doc => 
-        SportMapper.fromFirebase(doc.id, doc.data() as any)
-      );
+      const getSportsFn = httpsCallable(functions, 'sports_get');
+      const result = await getSportsFn({});
       
+      const { sports: sportsData } = result.data as { sports: any[] };
+      const sports = sportsData.map((data: any) => SportMapper.fromFirebase(data.id, data));
+      
+      return sports;
     } catch (error: any) {
       console.error('Error getting all sports:', error);
       throw new Error(error.message || 'No se pudieron obtener los deportes');

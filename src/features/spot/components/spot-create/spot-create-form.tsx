@@ -1,12 +1,13 @@
+import { LoadingScreen } from "@/src/components/commons/loading-screen";
 import { LocationPickerModal } from "@/src/components/commons/map/location-picker-modal";
 import { MediaItem, MediaPickerCarousel } from "@/src/components/commons/media-picker/media-picker-carousel";
 import { Button, ButtonText } from "@/src/components/ui/button";
 import {
-  FormControl,
-  FormControlError,
-  FormControlErrorText,
-  FormControlLabel,
-  FormControlLabelText
+    FormControl,
+    FormControlError,
+    FormControlErrorText,
+    FormControlLabel,
+    FormControlLabelText
 } from "@/src/components/ui/form-control";
 import { HStack } from "@/src/components/ui/hstack";
 import { Input, InputField } from "@/src/components/ui/input";
@@ -20,9 +21,9 @@ import React, { useState } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
 import { useCreateSpot } from "../../hooks/use-create-spot";
 import {
-  SpotCreateFormData,
-  SpotCreateFormProps,
-  SpotFormErrors
+    SpotCreateFormData,
+    SpotCreateFormProps,
+    SpotFormErrors
 } from "../../types/spot-types";
 import { validateSpotCreateForm } from "../../utils/spot-validations";
 
@@ -110,6 +111,7 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
    * Maneja el envío del formulario
    */
   const { showSuccess, showError } = useAppAlert();
+  const [uploadProgress, setUploadProgress] = useState<string | undefined>();
 
   const handleSubmit = async () => {
     // Validar formulario
@@ -117,16 +119,35 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
     
     if (!validation.isValid) {
       setFormErrors(validation.errors);
+      const firstError = Object.values(validation.errors)[0];
+      if (firstError) {
+        showError(firstError, 'Error de validación');
+      }
       return;
     }
 
-    // Crear spot
-    const spotId = await createSpot(formData);
-    
-    if (spotId) {
-      showSuccess('El spot ha sido creado correctamente', '¡Éxito!');
-      // call onSuccess afterwards
-      onSuccess?.(spotId);
+    try {
+      // Mostrar progreso de subida de archivos si hay media
+      if (formData.media && formData.media.length > 0) {
+        setUploadProgress(`Subiendo archivos (0/${formData.media.length})...`);
+      }
+
+      // Crear spot
+      const spotId = await createSpot(formData);
+      
+      if (spotId) {
+        setUploadProgress(undefined);
+        showSuccess('El spot ha sido creado correctamente', '¡Éxito!');
+        // call onSuccess afterwards
+        onSuccess?.(spotId);
+      } else {
+        setUploadProgress(undefined);
+        showError(error || 'No se pudo crear el spot. Por favor, intenta nuevamente.', 'Error');
+      }
+    } catch (err) {
+      setUploadProgress(undefined);
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      showError(errorMessage, 'Error al crear spot');
     }
   };
 
@@ -365,6 +386,13 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
         title="Seleccionar Ubicación del Spot"
         confirmText="Confirmar Ubicación"
         cancelText="Cancelar"
+      />
+
+      {/* Loading screen */}
+      <LoadingScreen
+        visible={isLoading}
+        message={uploadProgress || "Creando spot..."}
+        subMessage={formData.media && formData.media.length > 0 ? "Por favor espera, esto puede tomar unos segundos" : undefined}
       />
     </ScrollView>
   );

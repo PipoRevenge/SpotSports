@@ -21,6 +21,7 @@ export interface IChatRepository {
   markAsRead(chatId: string, userId: string): Promise<void>;
   addGroupMembers(params: { chatId: string; adminId: string; newMemberIds: string[] }): Promise<Chat>;
   promoteToAdmin(params: { chatId: string; adminId: string; targetUserId: string }): Promise<Chat>;
+  removeGroupMember(chatId: string, adminId: string, targetUserId: string): Promise<void>;
   leaveGroup(chatId: string, userId: string): Promise<void>;
   deleteChat(chatId: string, userId: string): Promise<void>;
 }

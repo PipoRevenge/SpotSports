@@ -1,4 +1,4 @@
-import { chatRepository } from '@/src/api/repositories';
+import { chatRepository, meetupRepository } from '@/src/api/repositories';
 import { useAppAlert } from '@/src/context/app-alert-context';
 import { useUser } from '@/src/context/user-context';
 import { Chat } from '@/src/entities/chat';
@@ -32,11 +32,17 @@ export const useLeaveChat = () => {
       try {
         setIsLeaving(true);
         
+        const meetup = await meetupRepository.getMeetupById(chat.meetupSpotId, chat.meetupId);
+        if (!meetup) throw new Error('Meetup no encontrado');
+
+        const isOrganizer = meetup.organizerId === user.id;
+
         // First leave the meetup
         await leaveMeetupAsync({
           spotId: chat.meetupSpotId!,
           meetupId: chat.meetupId!,
-          userId: user.id
+          userId: user.id,
+          isOrganizer
         });
 
         // Then leave/delete the chat

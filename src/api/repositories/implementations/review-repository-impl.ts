@@ -1,5 +1,5 @@
-import { Review, ReviewDetails, ReviewSport } from "@/src/entities/review/model/review";
-import { firestore, storage } from "@/src/lib/firebase-config";
+import { Review, ReviewDetails } from "@/src/entities/review/model/review";
+import { firestore, functions, storage } from "@/src/lib/firebase-config";
 import { ref as dbRef, getDatabase, push } from "firebase/database";
 import {
   collection,
@@ -8,21 +8,15 @@ import {
   limit as firestoreLimit,
   getDoc,
   getDocs,
-  increment,
   orderBy,
   query,
-  runTransaction,
-  Timestamp,
-  where,
-  writeBatch
+  where
 } from "firebase/firestore";
+import { httpsCallable } from 'firebase/functions';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { IReviewRepository } from "../interfaces/i-review-repository";
 import {
-  createFirestoreReviewData,
   FirestoreReviewData,
-  FirestoreSportRating,
-  FirestoreSpotSportMetrics,
   mapFirestoreToReview
 } from "../mappers/review-mapper";
 import { voteRepository } from "./vote-repository-impl";
@@ -45,351 +39,68 @@ export class ReviewRepositoryImpl implements IReviewRepository {
    */
   async createReview(userId: string, reviewData: ReviewDetails): Promise<Review> {
     try {
-      // Crear reviewId único combinando userId y spotId
-      const reviewId = `${userId}_${reviewData.spotId}`;
+      // Upload media files to Storage if provided
+      const mediaUris: string[] = reviewData.media || [];
+      let uploadedMediaUrls: string[] = [];
       
-      // Subir archivos multimedia si existen
-      let mediaUrls: string[] = [];
-      if (reviewData.media && reviewData.media.length > 0) {
+      if (mediaUris.length > 0) {
         try {
-          console.log('[ReviewRepository] Processing', reviewData.media.length, 'media files...');
+          console.log('[ReviewRepository] Processing', mediaUris.length, 'media files...');
           
-          // Separar archivos ya en Storage de archivos locales nuevos
-          const { local, remote } = this.separateLocalAndRemoteMedia(reviewData.media);
+          // Separate files already in Storage from new local files
+          const { local, remote } = this.separateLocalAndRemoteMedia(mediaUris);
           
           console.log('[ReviewRepository] Already in Storage:', remote.length);
           console.log('[ReviewRepository] New files to upload:', local.length);
           
-          // Subir solo los archivos locales nuevos
+          // Upload only new local files
           if (local.length > 0) {
+            // Create a temporary review ID for media uploads
+            const tempReviewId = `${userId}_${reviewData.spotId}`;
             const newUrls = await this.uploadReviewMedia(
               reviewData.spotId,
-              reviewId,
+              tempReviewId,
               local
             );
-            mediaUrls = [...remote, ...newUrls];
+            uploadedMediaUrls = [...remote, ...newUrls];
           } else {
-            // Solo archivos remotos, no hay nada que subir
-            mediaUrls = remote;
+            uploadedMediaUrls = remote;
           }
           
-          console.log('[ReviewRepository] Media processing successful. Total URLs:', mediaUrls.length);
+          console.log('[ReviewRepository] Media processing successful. Total URLs:', uploadedMediaUrls.length);
         } catch (uploadError) {
           console.error('[ReviewRepository] Media upload failed:', uploadError);
-          throw new Error(`Failed to upload media files. Please check:
-              1. Firebase Storage emulator is running
-              2. Network connection is stable
-              3. File permissions are correct
-
-              Original error: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
+          throw new Error(`Failed to upload media files: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
         }
       }
-      
-      return await runTransaction(firestore, async (transaction) => {
-        const now = Timestamp.now();
-        const spotId = reviewData.spotId;
 
-        // ============================================================
-        // FASE 1: TODAS LAS LECTURAS PRIMERO (requerimiento de Firestore)
-        // ============================================================
-
-        // 1.0. Verificar si ya existe una review de este usuario en este spot
-        // ESTRUCTURA: reviews es subcolección de spots
-        const reviewRef = doc(firestore, `spots/${spotId}/reviews/${reviewId}`);
-        const existingReviewDoc = await transaction.get(reviewRef);
-        const isUpdate = existingReviewDoc.exists();
-
-        // 1.1. Leer el spot para verificar que existe
-        const spotRef = doc(firestore, `spots/${spotId}`);
-        const spotDoc = await transaction.get(spotRef);
-
-        if (!spotDoc.exists()) {
-          throw new Error(`Spot ${spotId} not found`);
-        }
-
-        const spotData = spotDoc.data();
-        const currentOverallRating = spotData.overallRating || 0;
-        const currentReviewsCount = spotData.reviewsCount || 0;
-        const currentAvailableSports = spotData.availableSports || [];
-
-        // 1.2. Leer el usuario para actualizar contador
-        const userRef = doc(firestore, `users/${userId}`);
-        const userDoc = await transaction.get(userRef);
-
-        if (!userDoc.exists()) {
-          throw new Error(`User ${userId} not found`);
-        }
-
-        // Si es actualización, obtener el rating anterior para recalcular
-        let previousRating = 0;
-        let previousSportRatings: { [sportId: string]: FirestoreSportRating } = {};
-        let existingCounts = {
-          likesCount: 0,
-          dislikesCount: 0,
-          commentsCount: 0,
-          reports: 0,
+      // Convert ReviewSport[] to Record<string, SportRating>
+      const sportRatings: Record<string, any> = {};
+      for (const sport of reviewData.reviewSports) {
+        sportRatings[sport.sportId] = {
+          sportRating: sport.sportRating,
+          difficulty: sport.difficulty,
+          content: sport.comment,
         };
-        
-        if (isUpdate && existingReviewDoc.data()) {
-          const existingData = existingReviewDoc.data() as FirestoreReviewData;
-          previousRating = existingData.rating || 0;
-          previousSportRatings = existingData.sportRatings || {};
-          // Preservar contadores existentes
-          existingCounts = {
-            likesCount: existingData.likesCount || 0,
-            dislikesCount: existingData.dislikesCount || 0,
-            commentsCount: existingData.commentsCount || 0,
-            reports: existingData.reports || 0,
-          };
-        }
+      }
 
-        // 1.3. Leer las métricas existentes para cada deporte
-        const metricsData: Map<string, { ref: any; data: FirestoreSpotSportMetrics | null }> = new Map();
-        
-        for (const sportReview of reviewData.reviewSports) {
-          // sport_metrics es subcolección de spots: spots/{spotId}/sport_metrics/{sportId}
-          const sportMetricRef = doc(firestore, `spots/${spotId}/sport_metrics/${sportReview.sportId}`);
-          const sportMetricDoc = await transaction.get(sportMetricRef);
-          
-          if (sportMetricDoc.exists()) {
-            metricsData.set(sportReview.sportId, {
-              ref: sportMetricRef,
-              data: sportMetricDoc.data() as FirestoreSpotSportMetrics
-            });
-          } else {
-            metricsData.set(sportReview.sportId, {
-              ref: sportMetricRef,
-              data: null
-            });
-          }
-        }
-
-        // 1.4. Si es update, leer métricas de deportes que fueron ELIMINADOS
-        const removedSportsMetrics: Map<string, { ref: any; data: FirestoreSpotSportMetrics }> = new Map();
-        
-        if (isUpdate) {
-          const currentSportIds = new Set(reviewData.reviewSports.map(s => s.sportId));
-          const previousSportIds = Object.keys(previousSportRatings);
-          
-          for (const previousSportId of previousSportIds) {
-            if (!currentSportIds.has(previousSportId)) {
-              // Este deporte fue eliminado de la review
-              // sport_metrics es subcolección de spots: spots/{spotId}/sport_metrics/{sportId}
-              const sportMetricRef = doc(firestore, `spots/${spotId}/sport_metrics/${previousSportId}`);
-              const sportMetricDoc = await transaction.get(sportMetricRef);
-              
-              if (sportMetricDoc.exists()) {
-                removedSportsMetrics.set(previousSportId, {
-                  ref: sportMetricRef,
-                  data: sportMetricDoc.data() as FirestoreSpotSportMetrics
-                });
-              }
-            }
-          }
-        }
-
-        // ============================================================
-        // FASE 2: TODAS LAS ESCRITURAS DESPUÉS
-        // ============================================================
-
-        // 2.1. Crear review principal usando la nueva estructura
-        // Usar mediaUrls en vez de storagePaths para guardar URLs directamente
-        const firestoreReviewData = createFirestoreReviewData(
-          userId,
-          spotId,
-          reviewData.content,
-          reviewData.rating,
-          reviewData.reviewSports,
-          mediaUrls, // Usar URLs de descarga directamente en gallery
-          isUpdate ? existingCounts : undefined // Preservar contadores si es update
-        );
-        
-        transaction.set(reviewRef, firestoreReviewData);
-
-        // 2.2. Actualizar o crear spot_sport_metrics y determinar nuevos deportes
-        const newSports: string[] = [];
-        
-        for (const sportReview of reviewData.reviewSports) {
-          const metricInfo = metricsData.get(sportReview.sportId);
-          if (!metricInfo) continue;
-
-          if (metricInfo.data) {
-            // ACTUALIZAR métricas existentes
-            if (isUpdate) {
-              // Obtener el rating previo de este deporte en la review anterior
-              const previousSportRating = previousSportRatings[sportReview.sportId];
-              const previousRatingValue = previousSportRating?.sportRating || sportReview.sportRating;
-              const previousDifficulty = previousSportRating?.difficulty || sportReview.difficulty;
-              
-              console.log(`[ReviewRepository] Recalculating metrics for sport ${sportReview.sportId}:`, {
-                previousRating: previousRatingValue,
-                newRating: sportReview.sportRating,
-                previousDifficulty,
-                newDifficulty: sportReview.difficulty,
-              });
-              
-              // Usar sumas para recalcular: (suma_total - valor_viejo + valor_nuevo) / count
-              const currentCount = metricInfo.data.review_count || 1;
-              const currentRatingSum = metricInfo.data.sum_rating || (metricInfo.data.avg_rating * currentCount);
-              const currentDifficultySum = metricInfo.data.sum_difficulty || (metricInfo.data.avg_difficulty * currentCount);
-              
-              const newRatingSum = currentRatingSum - previousRatingValue + sportReview.sportRating;
-              const newDifficultySum = currentDifficultySum - previousDifficulty + sportReview.difficulty;
-              
-              const newAvgRating = newRatingSum / currentCount;
-              const newAvgDifficulty = newDifficultySum / currentCount;
-              
-              transaction.update(metricInfo.ref, {
-                avg_rating: newAvgRating,
-                avg_difficulty: newAvgDifficulty,
-                sum_rating: newRatingSum,
-                sum_difficulty: newDifficultySum,
-                updatedAt: now,
-              });
-            } else {
-              // NUEVA review: incrementar métricas
-              const currentCount = metricInfo.data.review_count || 0;
-              const currentRatingSum = metricInfo.data.sum_rating || 0;
-              const currentDifficultySum = metricInfo.data.sum_difficulty || 0;
-
-              const newCount = currentCount + 1;
-              const newRatingSum = currentRatingSum + sportReview.sportRating;
-              const newDifficultySum = currentDifficultySum + sportReview.difficulty;
-              
-              const newAvgRating = newRatingSum / newCount;
-              const newAvgDifficulty = newDifficultySum / newCount;
-
-              transaction.update(metricInfo.ref, {
-                review_count: newCount,
-                avg_rating: newAvgRating,
-                avg_difficulty: newAvgDifficulty,
-                sum_rating: newRatingSum,
-                sum_difficulty: newDifficultySum,
-                updatedAt: now,
-              });
-            }
-          } else {
-            // Crear nuevas métricas - deporte nuevo en este spot
-            // La ubicación es spots/{spotId}/sport_metrics/{sportId}
-            // spot_ref y sport_ref son implícitos en el path
-            
-            const newMetricData: FirestoreSpotSportMetrics = {
-              avg_rating: sportReview.sportRating,
-              avg_difficulty: sportReview.difficulty,
-              review_count: 1,
-              sum_rating: sportReview.sportRating,
-              sum_difficulty: sportReview.difficulty,
-              createdAt: now,
-              updatedAt: now,
-            };
-
-            transaction.set(metricInfo.ref, newMetricData);
-            
-            // Añadir a la lista de deportes nuevos si no está en availableSports
-            if (!currentAvailableSports.includes(sportReview.sportId)) {
-              newSports.push(sportReview.sportId);
-            }
-          }
-        }
-
-        // 2.2.5. Manejar deportes ELIMINADOS de la review (solo en updates)
-        const sportsToRemoveFromSpot: string[] = [];
-        
-        for (const [removedSportId, metricInfo] of removedSportsMetrics.entries()) {
-          const previousSportRating = previousSportRatings[removedSportId];
-          if (!previousSportRating) continue;
-          
-          const currentCount = metricInfo.data.review_count || 1;
-          const currentRatingSum = metricInfo.data.sum_rating || 0;
-          const currentDifficultySum = metricInfo.data.sum_difficulty || 0;
-          
-          if (currentCount <= 1) {
-            // Era la única review de este deporte, ELIMINAR la métrica
-            console.log(`[ReviewRepository] Deleting metric for sport ${removedSportId} (no more reviews)`);
-            transaction.delete(metricInfo.ref);
-            sportsToRemoveFromSpot.push(removedSportId);
-          } else {
-            // Aún hay otras reviews, DECREMENTAR la métrica
-            const newCount = currentCount - 1;
-            const newRatingSum = currentRatingSum - previousSportRating.sportRating;
-            const newDifficultySum = currentDifficultySum - previousSportRating.difficulty;
-            
-            const newAvgRating = newRatingSum / newCount;
-            const newAvgDifficulty = newDifficultySum / newCount;
-            
-            console.log(`[ReviewRepository] Updating metric for removed sport ${removedSportId}:`, {
-              oldCount: currentCount,
-              newCount,
-              newAvgRating,
-              newAvgDifficulty,
-            });
-            
-            transaction.update(metricInfo.ref, {
-              review_count: newCount,
-              avg_rating: newAvgRating,
-              avg_difficulty: newAvgDifficulty,
-              sum_rating: newRatingSum,
-              sum_difficulty: newDifficultySum,
-              updatedAt: now,
-            });
-          }
-        }
-
-        // 2.3. Actualizar spot: contador y rating
-        // Si es actualización, recalcular el rating considerando el cambio
-        let newReviewsCount = currentReviewsCount;
-        let newOverallRating = currentOverallRating;
-        
-        if (isUpdate) {
-          // Actualización: recalcular rating
-          const totalRating = currentOverallRating * currentReviewsCount;
-          const adjustedTotal = totalRating - previousRating + reviewData.rating;
-          newOverallRating = adjustedTotal / currentReviewsCount;
-        } else {
-          // Nueva review: incrementar contador y recalcular rating
-          newReviewsCount = currentReviewsCount + 1;
-          newOverallRating = ((currentOverallRating * currentReviewsCount) + reviewData.rating) / newReviewsCount;
-        }
-        
-        const spotUpdates: any = {
-          overallRating: newOverallRating,
-          updatedAt: now,
-        };
-
-        // Solo incrementar contador si es nueva review
-        if (!isUpdate) {
-          spotUpdates.reviewsCount = increment(1);
-        }
-
-        // Añadir nuevos deportes si los hay
-        if (newSports.length > 0) {
-          spotUpdates.availableSports = [...currentAvailableSports, ...newSports];
-        }
-        
-        // Eliminar deportes que ya no tienen reviews (solo en updates)
-        if (sportsToRemoveFromSpot.length > 0) {
-          const updatedAvailableSports = currentAvailableSports.filter(
-            (sportId: string) => !sportsToRemoveFromSpot.includes(sportId)
-          );
-          spotUpdates.availableSports = updatedAvailableSports;
-          console.log(`[ReviewRepository] Removing sports from spot:`, sportsToRemoveFromSpot);
-        }
-
-        transaction.update(spotRef, spotUpdates);
-
-        // 2.4. Actualizar contador de reviews del usuario (solo si es nueva)
-        if (!isUpdate) {
-          transaction.update(userRef, {
-            reviewsCount: increment(1),
-          });
-        }
-
-        // 2.5. Retornar la review creada
-        return mapFirestoreToReview(reviewId, firestoreReviewData);
+      // Call cloud function
+      const createReviewFn = httpsCallable(functions, 'reviews_create');
+      const result = await createReviewFn({
+        spotId: reviewData.spotId,
+        rating: reviewData.rating,
+        content: reviewData.content,
+        sportRatings,
+        mediaUrls: uploadedMediaUrls,
       });
+
+      const { reviewId, review } = result.data as { reviewId: string; review: any };
+
+      // Map the response to entity
+      return mapFirestoreToReview(reviewId, review);
     } catch (error) {
-      console.error("[ReviewRepository] Error creating review:", error);
-      throw new Error("Failed to create review");
+      console.error('[ReviewRepository] createReview:', error);
+      throw error;
     }
   }
 
@@ -566,372 +277,105 @@ export class ReviewRepositoryImpl implements IReviewRepository {
     updates: Partial<ReviewDetails>
   ): Promise<Review> {
     try {
-      console.log('[ReviewRepository] Updating review:', reviewId, 'for spot:', spotId);
-      
-      // Obtener review existente - ESTRUCTURA: subcolección de spots
-      const reviewRef = doc(firestore, `spots/${spotId}/reviews/${reviewId}`);
-      const reviewDoc = await getDoc(reviewRef);
-      
-      if (!reviewDoc.exists()) {
-        throw new Error('Review not found');
-      }
+      console.log('[ReviewRepository] updateReview:', spotId, reviewId, updates);
 
-      const existingData = reviewDoc.data() as FirestoreReviewData;
-      
-      // Manejar actualización de medios (ahora gallery con URLs completas)
-      let finalMediaUrls: string[] = existingData.gallery || [];
-      
+      // Get existing data to handle media updates
+      const reviewRef = doc(firestore, `spots/${spotId}/reviews/${reviewId}`);
+      const existingSnap = await getDoc(reviewRef);
+      if (!existingSnap.exists()) throw new Error('Review not found');
+      const existingData = existingSnap.data() as any;
+
+      let uploadedMediaUrls: string[] | undefined;
+
       if (updates.media) {
         const { local, remote } = this.separateLocalAndRemoteMedia(updates.media);
-        console.log('[ReviewRepository] Local media to upload:', local.length);
-        console.log('[ReviewRepository] Remote media (already uploaded):', remote.length);
-        
-        // remote ya contiene URLs completas, mantenerlas tal cual
-        const remoteUrls = remote;
-        
-        // Detectar archivos eliminados
-        // Necesitamos comparar URLs, normalizándolas si es necesario
+
+        // Delete old media that's no longer in the update
         const existingUrls = existingData.gallery || [];
         const normalizeUrl = (url: string) => {
-          // Si es una ruta de Storage, convertirla a un identificador comparable
-          if (!url.startsWith('http')) {
-            return url;
-          }
-          // Extraer el path de Storage de la URL para comparar
+          if (!url.startsWith('http')) return url;
           try {
             const match = url.match(/\/o\/(.+?)(\?|$)/);
-            if (match) {
-              return decodeURIComponent(match[1]);
-            }
-          } catch {
-            // Si no se puede parsear, usar la URL completa
-          }
+            if (match) return decodeURIComponent(match[1]);
+          } catch { /* ignore */ }
           return url;
         };
-        
-        const currentUrlsSet = new Set(remoteUrls.map(normalizeUrl));
+
+        const remoteNormalized = new Set(remote.map(normalizeUrl));
         const urlsToDelete: string[] = [];
-        
+
         for (const existingUrl of existingUrls) {
           const normalized = normalizeUrl(existingUrl);
-          if (!currentUrlsSet.has(normalized)) {
-            // Esta URL fue eliminada, extraer la ruta de Storage para eliminar
+          if (!remoteNormalized.has(normalized)) {
             if (existingUrl.startsWith('http')) {
               try {
                 const match = existingUrl.match(/\/o\/(.+?)(\?|$)/);
-                if (match) {
-                  const storagePath = decodeURIComponent(match[1]);
-                  urlsToDelete.push(storagePath);
-                }
-              } catch {
-                console.warn('[ReviewRepository] Could not extract storage path from:', existingUrl);
-              }
+                if (match?.[1]) urlsToDelete.push(decodeURIComponent(match[1]));
+              } catch { /* ignore */ }
             } else {
-              // Ya es una ruta de Storage
               urlsToDelete.push(existingUrl);
             }
           }
         }
-        
-        // Eliminar archivos de Storage que ya no están en la review
+
         if (urlsToDelete.length > 0) {
-          console.log('[ReviewRepository] Deleting removed media files:', urlsToDelete.length);
           await this.deleteMediaFiles(urlsToDelete);
         }
-        
-        // Subir solo los medios locales nuevos (uploadReviewMedia devuelve URLs completas)
-        let newMediaUrls: string[] = [];
+
+        // Upload new local files
         if (local.length > 0) {
-          newMediaUrls = await this.uploadReviewMedia(spotId, reviewId, local);
-        }
-        
-        // Combinar URLs: medios ya subidos + nuevos medios subidos (todo URLs completas)
-        finalMediaUrls = [...remoteUrls, ...newMediaUrls];
-        
-        console.log('[ReviewRepository] Final media URLs:', {
-          existing: remoteUrls.length,
-          new: newMediaUrls.length,
-          total: finalMediaUrls.length,
-          deleted: urlsToDelete.length
-        });
-      }
-
-      // Extraer reviewSports del sportRatings map existente
-      const existingReviewSports: ReviewSport[] = [];
-      if (existingData.sportRatings) {
-        for (const sportId in existingData.sportRatings) {
-          const sportRating = existingData.sportRatings[sportId];
-          existingReviewSports.push({
-            sportId,
-            sportRating: sportRating.sportRating,
-            difficulty: sportRating.difficulty,
-            comment: sportRating.content || "",
-          });
+          const uploaded = await this.uploadReviewMedia(spotId, reviewId, local);
+          uploadedMediaUrls = [...remote, ...uploaded];
+        } else {
+          uploadedMediaUrls = [...remote];
         }
       }
 
-      // Construir ReviewDetails completo con los cambios
-      const fullReviewData: ReviewDetails = {
+      // Convert ReviewSport[] to Record<string, SportRating> if provided
+      let sportRatings: Record<string, any> | undefined;
+      if (updates.reviewSports) {
+        sportRatings = {};
+        for (const sport of updates.reviewSports) {
+          sportRatings[sport.sportId] = {
+            sportRating: sport.sportRating,
+            difficulty: sport.difficulty,
+            content: sport.comment,
+          };
+        }
+      }
+
+      // Call cloud function
+      const updateReviewFn = httpsCallable(functions, 'reviews_update');
+      const result = await updateReviewFn({
         spotId,
-        content: updates.content ?? existingData.content,
-        rating: updates.rating ?? existingData.rating,
-        reviewSports: updates.reviewSports ?? existingReviewSports,
-        media: finalMediaUrls, // Usar URLs completas en vez de paths
-      };
+        reviewId,
+        rating: updates.rating,
+        content: updates.content,
+        sportRatings,
+        mediaUrls: uploadedMediaUrls,
+      });
 
-      // Extraer userId del reviewId (formato: userId_spotId)
-      const userId = reviewId.split('_')[0];
-      
-      // Re-crear la review (esto actualizará todo incluyendo métricas)
-      console.log('[ReviewRepository] Re-creating review with updated data...');
-      return await this.createReview(userId, fullReviewData);
-      
+      const { review } = result.data as { success: boolean; review: any };
+
+      // Map the response to entity
+      return mapFirestoreToReview(reviewId, review);
     } catch (error) {
-      console.error("[ReviewRepository] Error updating review:", error);
-      
-      // Propagar el error original si tiene mensaje útil
-      if (error instanceof Error) {
-        throw error;
-      }
-      
-      throw new Error("Failed to update review");
+      console.error('[ReviewRepository] updateReview:', error);
+      throw error;
     }
   }
 
-  /**
-   * Elimina una review permanentemente
-   * Actualiza todas las métricas relacionadas:
-   * - ELIMINA la review de la colección
-   * - ELIMINA todos los comentarios de la review
-   * - Actualiza/elimina spot_sport_metrics
-   * - Actualiza overallRating y reviewsCount del spot
-   * - Actualiza reviewsCount del usuario
-   * - Elimina archivos multimedia de Storage
-   */
   async deleteReview(reviewId: string, spotId: string): Promise<void> {
     try {
-      console.log('[ReviewRepository] Deleting review:', reviewId, 'from spot:', spotId);
-      
-      // Primero leer la review para obtener las URLs de multimedia (antes de la transacción)
-      const reviewRef = doc(firestore, `spots/${spotId}/reviews/${reviewId}`);
-      const initialReviewDoc = await getDoc(reviewRef);
-      
-      if (!initialReviewDoc.exists()) {
-        throw new Error('Review not found');
-      }
-      
-      const initialReviewData = initialReviewDoc.data() as FirestoreReviewData;
-      const mediaUrls = initialReviewData.gallery || [];
-      
-      // Ejecutar la transacción de eliminación
-      await runTransaction(firestore, async (transaction) => {
-        const now = Timestamp.now();
-        
-        // ============================================================
-        // FASE 1: LECTURAS
-        // ============================================================
-        
-        // 1.1. Leer la review a eliminar - ESTRUCTURA: subcolección de spots
-        const reviewRef = doc(firestore, `spots/${spotId}/reviews/${reviewId}`);
-        const reviewDoc = await transaction.get(reviewRef);
-        
-        if (!reviewDoc.exists()) {
-          throw new Error('Review not found');
-        }
-        
-        const reviewData = reviewDoc.data() as FirestoreReviewData;
-        
-        // Verificar que pertenece al spot correcto
-        if (reviewData.spotId !== spotId) {
-          throw new Error('Review does not belong to this spot');
-        }
-        
-        const userId = reviewData.userId;
-        const reviewRating = reviewData.rating;
-        const sportRatings = reviewData.sportRatings || {};
-        
-        // 1.2. Leer el spot
-        const spotRef = doc(firestore, `spots/${spotId}`);
-        const spotDoc = await transaction.get(spotRef);
-        
-        if (!spotDoc.exists()) {
-          throw new Error('Spot not found');
-        }
-        
-        const spotData = spotDoc.data();
-        const currentReviewsCount = spotData.reviewsCount || 0;
-        const currentOverallRating = spotData.overallRating || 0;
-        const currentAvailableSports = spotData.availableSports || [];
-        
-        // 1.3. Leer el usuario
-        const userRef = doc(firestore, `users/${userId}`);
-        const userDoc = await transaction.get(userRef);
-        
-        if (!userDoc.exists()) {
-          console.warn('[ReviewRepository] User not found:', userId);
-        }
-        
-        // 1.4. Leer métricas de todos los deportes de la review
-        const sportsMetrics: Map<string, { ref: any; data: FirestoreSpotSportMetrics }> = new Map();
-        const sportsToRemove: string[] = [];
-        
-        for (const sportId in sportRatings) {
-          // sport_metrics es subcolección de spots: spots/{spotId}/sport_metrics/{sportId}
-          const sportMetricRef = doc(firestore, `spots/${spotId}/sport_metrics/${sportId}`);
-          const sportMetricDoc = await transaction.get(sportMetricRef);
-          
-          if (sportMetricDoc.exists()) {
-            sportsMetrics.set(sportId, {
-              ref: sportMetricRef,
-              data: sportMetricDoc.data() as FirestoreSpotSportMetrics
-            });
-          }
-        }
-        
-        // ============================================================
-        // FASE 2: ESCRITURAS
-        // ============================================================
-        
-        // 2.1. ELIMINAR la review permanentemente (NO soft delete)
-        transaction.delete(reviewRef);
-        
-        // 2.2. Actualizar/eliminar métricas de deportes
-        for (const [sportId, metricInfo] of sportsMetrics.entries()) {
-          const sportRating = sportRatings[sportId];
-          const currentCount = metricInfo.data.review_count || 1;
-          const currentRatingSum = metricInfo.data.sum_rating || 0;
-          const currentDifficultySum = metricInfo.data.sum_difficulty || 0;
-          
-          if (currentCount <= 1) {
-            // Era la única review de este deporte, ELIMINAR la métrica
-            console.log(`[ReviewRepository] Deleting metric for sport ${sportId} (was last review)`);
-            transaction.delete(metricInfo.ref);
-            sportsToRemove.push(sportId);
-          } else {
-            // Aún hay otras reviews, DECREMENTAR la métrica
-            const newCount = currentCount - 1;
-            const newRatingSum = currentRatingSum - sportRating.sportRating;
-            const newDifficultySum = currentDifficultySum - sportRating.difficulty;
-            
-            const newAvgRating = newRatingSum / newCount;
-            const newAvgDifficulty = newDifficultySum / newCount;
-            
-            console.log(`[ReviewRepository] Updating metric for sport ${sportId}:`, {
-              oldCount: currentCount,
-              newCount,
-              newAvgRating,
-              newAvgDifficulty,
-            });
-            
-            transaction.update(metricInfo.ref, {
-              review_count: newCount,
-              avg_rating: newAvgRating,
-              avg_difficulty: newAvgDifficulty,
-              sum_rating: newRatingSum,
-              sum_difficulty: newDifficultySum,
-              updatedAt: now,
-            });
-          }
-        }
-        
-        // 2.3. Actualizar el spot
-        if (currentReviewsCount > 0) {
-          const newReviewsCount = currentReviewsCount - 1;
-          let newOverallRating = 0;
-
-          if (newReviewsCount > 0) {
-            // Recalcular rating sin esta review
-            const totalRating = currentOverallRating * currentReviewsCount;
-            const adjustedTotal = totalRating - reviewRating;
-            newOverallRating = adjustedTotal / newReviewsCount;
-          }
-
-          const spotUpdates: any = {
-            // Use atomic decrement for concurrency; overallRating still computed deterministically
-            reviewsCount: increment(-1),
-            overallRating: newOverallRating,
-            updatedAt: now,
-          };
-          
-          // Eliminar deportes que ya no tienen reviews
-          if (sportsToRemove.length > 0) {
-            const updatedAvailableSports = currentAvailableSports.filter(
-              (sportId: string) => !sportsToRemove.includes(sportId)
-            );
-            spotUpdates.availableSports = updatedAvailableSports;
-            console.log('[ReviewRepository] Removing sports from spot:', sportsToRemove);
-          }
-          
-          transaction.update(spotRef, spotUpdates);
-        }
-        
-        // 2.4. Decrementar contador de reviews del usuario
-        if (userDoc.exists()) {
-          // Decrement user reviews counter atomically
-          transaction.update(userRef, {
-            reviewsCount: increment(-1),
-          });
-        }
-        
-        console.log('[ReviewRepository] Review deleted successfully');
+      // Call cloud function
+      const deleteReviewFn = httpsCallable(functions, 'reviews_delete');
+      await deleteReviewFn({
+        spotId,
+        reviewId,
       });
-      
-      // ============================================================
-      // FASE 3: ELIMINAR COMENTARIOS Y MULTIMEDIA (fuera de transacción)
-      // ============================================================
-      
-      // 3.1. Eliminar todos los comentarios de la review
-      try {
-        // ESTRUCTURA: comentarios en spots/{spotId}/reviews/{reviewId}/comments
-        const commentsRef = collection(firestore, `spots/${spotId}/reviews/${reviewId}/comments`);
-        const commentsSnapshot = await getDocs(commentsRef);
-        
-        if (!commentsSnapshot.empty) {
-          console.log(`[ReviewRepository] Deleting ${commentsSnapshot.size} comments`);
-          const deleteBatch = writeBatch(firestore);
-          
-          commentsSnapshot.docs.forEach(commentDoc => {
-            deleteBatch.delete(commentDoc.ref);
-          });
-          
-          await deleteBatch.commit();
-          console.log('[ReviewRepository] Comments deleted successfully');
-        }
-      } catch (error) {
-        console.error('[ReviewRepository] Error deleting comments:', error);
-        // No lanzar error, continuar con la eliminación de multimedia
-      }
-      
-      // 3.2. Eliminar archivos multimedia de Storage
-      // Esto se hace después porque no es crítico si falla
-      if (mediaUrls.length > 0) {
-        const storagePaths: string[] = [];
-        
-        for (const url of mediaUrls) {
-          if (url.startsWith('http')) {
-            try {
-              const match = url.match(/\/o\/(.+?)(\?|$)/);
-              if (match?.[1]) {
-                const storagePath = decodeURIComponent(match[1]);
-                storagePaths.push(storagePath);
-              }
-            } catch {
-              console.warn('[ReviewRepository] Could not extract storage path from:', url);
-            }
-          } else {
-            storagePaths.push(url);
-          }
-        }
-        
-        if (storagePaths.length > 0) {
-          console.log('[ReviewRepository] Deleting media files:', storagePaths.length);
-          await this.deleteMediaFiles(storagePaths);
-        }
-      }
-      
     } catch (error) {
-      console.error("[ReviewRepository] Error deleting review:", error);
-      throw new Error(error instanceof Error ? error.message : "Failed to delete review");
+      console.error('[ReviewRepository] deleteReview:', error);
+      throw error;
     }
   }
 

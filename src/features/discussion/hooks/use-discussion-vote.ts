@@ -43,37 +43,90 @@ export const useDiscussionVote = (
     isVoting: false,
   } as DiscussionVoteState;
 
-  const mutationVote = useMutation({
-    mutationFn: async ({ isLike }: { isLike: boolean }) => {
+  const mutation = useMutation({
+    mutationFn: async ({ isLike, currentLikes, currentDislikes }: { isLike: boolean; currentLikes: number; currentDislikes: number }) => {
       if (!spotId || !discussionId || !userId) throw new Error('User must be logged in to vote');
-      return await discussionRepository.voteDiscussion(spotId, discussionId, userId, isLike);
+      
+      const isRemoving = (isLike && voteState.isLiked) || (!isLike && voteState.isDisliked);
+      
+      if (isRemoving) {
+        await discussionRepository.removeDiscussionVote(spotId, discussionId, userId);
+        return { isLike, removed: true };
+      }
+      
+      await discussionRepository.voteDiscussion(spotId, discussionId, userId, isLike);
+      return { isLike, removed: false };
+    },
+    onMutate: async ({ isLike, currentLikes, currentDislikes }) => {
+      const key = ['discussionVote', spotId, discussionId, userId];
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<boolean | null>(key);
+      
+      // Optimistically update vote state
+      const isRemoving = (isLike && voteState.isLiked) || (!isLike && voteState.isDisliked);
+      queryClient.setQueryData(key, isRemoving ? null : isLike);
+      
+      // Calculate optimistic counter changes
+      let newLikes = currentLikes;
+      let newDislikes = currentDislikes;
+      
+      if (isRemoving) {
+        if (isLike) newLikes = Math.max(0, currentLikes - 1);
+        else newDislikes = Math.max(0, currentDislikes - 1);
+      } else {
+        if (isLike) {
+          newLikes = currentLikes + 1;
+          if (voteState.isDisliked) newDislikes = Math.max(0, currentDislikes - 1);
+        } else {
+          newDislikes = currentDislikes + 1;
+          if (voteState.isLiked) newLikes = Math.max(0, currentLikes - 1);
+        }
+      }
+      
+      // Immediately notify UI of counter changes
+      onVoteChange?.(newLikes, newDislikes);
+      
+      return { previous, previousLikes: currentLikes, previousDislikes: currentDislikes };
+    },
+    onError: (_err, _variables, context) => {
+      const key = ['discussionVote', spotId, discussionId, userId];
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(key, context.previous);
+      }
+      // Revert counter changes on error
+      if (context?.previousLikes !== undefined && context?.previousDislikes !== undefined) {
+        onVoteChange?.(context.previousLikes, context.previousDislikes);
+      }
     },
     onSuccess: () => {
-      // Update vote cache and invalidate discussion counters
       queryClient.invalidateQueries({ predicate: q => Array.isArray(q.queryKey) && q.queryKey[0] === 'discussion' });
       queryClient.invalidateQueries({ predicate: q => Array.isArray(q.queryKey) && q.queryKey[0] === 'discussions' });
       queryClient.invalidateQueries({ predicate: q => Array.isArray(q.queryKey) && q.queryKey[0] === 'discussionVote' });
     }
   });
 
-  const mutationRemove = useMutation({
-    mutationFn: async () => {
-      if (!spotId || !discussionId || !userId) throw new Error('User must be logged in to vote');
-      return await discussionRepository.removeDiscussionVote(spotId, discussionId, userId);
+  const handleLike = useCallback(
+    (currentLikes: number, currentDislikes: number) => {
+      mutation.mutate({ isLike: true, currentLikes, currentDislikes });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ predicate: q => Array.isArray(q.queryKey) && q.queryKey[0] === 'discussion' });
-      queryClient.invalidateQueries({ predicate: q => Array.isArray(q.queryKey) && q.queryKey[0] === 'discussions' });
-      queryClient.invalidateQueries({ predicate: q => Array.isArray(q.queryKey) && q.queryKey[0] === 'discussionVote' });
-    }
-  });
+    [mutation]
+  );
 
-  const handleLike = useCallback(() => mutationVote.mutate({ isLike: true }), [mutationVote]);
-
-  const handleDislike = useCallback(() => mutationVote.mutate({ isLike: false }), [mutationVote]);
+  const handleDislike = useCallback(
+    (currentLikes: number, currentDislikes: number) => {
+      mutation.mutate({ isLike: false, currentLikes, currentDislikes });
+    },
+    [mutation]
+  );
 
   // React Query handles fetching/updating, expose method to refetch when needed
   const refetch = () => voteQuery.refetch();
 
-  return { voteState, handleLike, handleDislike, error: voteQuery.isError ? (voteQuery.error as Error)?.message : null, refetch };
+  return { 
+    voteState: { ...voteState, isVoting: mutation.isPending }, 
+    handleLike, 
+    handleDislike, 
+    error: voteQuery.isError ? (voteQuery.error as Error)?.message : null, 
+    refetch 
+  };
 };

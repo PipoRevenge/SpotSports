@@ -120,10 +120,10 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
             <ScrollView className="max-h-[500px]">
               <VStack className="p-4 gap-4">
                 {/* Imagen del spot */}
-                {spot.details.media && spot.details.media.length > 0 ? (
+                {spot.details?.media && spot.details.media.length > 0 ? (
                   <MediaCarousel
                     media={mediaUrls}
-                    altText={spot.details.name}
+                    altText={spot.details?.name}
                     height={192}
                     resizeMode="contain"
                     loading={mediaLoading}
@@ -138,13 +138,13 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
                 <VStack className="gap-2">
                   {/* Nombre */}
                   <Text className="font-bold text-typography-900 text-xl">
-                    {spot.details.name}
+                    {spot.details?.name}
                   </Text>
 
                   {/* Rating y verificación */}
                   <HStack className="items-center gap-3 flex-wrap">
                     {/* Rating */}
-                    {spot.details.overallRating !== undefined && (
+                    {spot.details?.overallRating !== undefined && (
                       <HStack className="items-center gap-1">
                         <RatingStars 
                           rating={spot.details.overallRating} 
@@ -191,7 +191,7 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
                   )}
 
                   {/* Descripción */}
-                  {spot.details.description && (
+                  {spot.details?.description && (
                     <VStack className="gap-1">
                       <Text className="font-semibold text-typography-900">
                         Descripción
@@ -203,7 +203,7 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
                   )}
 
                   {/* Deportes disponibles */}
-                  {spot.details.availableSports &&
+                  {spot.details?.availableSports &&
                     spot.details.availableSports.length > 0 && (
                       <VStack className="gap-2">
                         <Text className="font-semibold text-typography-900">
@@ -218,7 +218,7 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
                     )}
 
                   {/* Información de contacto */}
-                  {spot.details.contactInfo &&
+                  {spot.details?.contactInfo &&
                     (spot.details.contactInfo.phone ||
                       spot.details.contactInfo.email ||
                       spot.details.contactInfo.website) && (

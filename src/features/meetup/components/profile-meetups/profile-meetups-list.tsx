@@ -137,7 +137,17 @@ export const ProfileMeetupsList: React.FC<{ userId?: string }> = ({ userId }) =>
           saved={!!m._saved}
           onOpen={() => router.push(`/spot/${m.spotId}/meetup/${m.id}`)}
           onRemove={async () => { await local.remove(m.id); await local.reload(); }}
-          onLeave={async () => { try { if (!currentUser?.id) return; console.debug('[ProfileMeetupsList] leaving meetup', m.id, 'user=', currentUser.id); await leaveAsync({ spotId: m.spotId, meetupId: m.id, userId: currentUser.id }); await local.reload(); } catch (e) { console.debug('[ProfileMeetupsList] leave error', e); } }}
+          onLeave={async () => { 
+            try { 
+              if (!currentUser?.id) return; 
+              console.debug('[ProfileMeetupsList] leaving meetup', m.id, 'user=', currentUser.id); 
+              const isOrganizer = m.organizerId === currentUser.id;
+              await leaveAsync({ spotId: m.spotId, meetupId: m.id, userId: currentUser.id, isOrganizer }); 
+              await local.reload(); 
+            } catch (e) { 
+              console.debug('[ProfileMeetupsList] leave error', e); 
+            } 
+          }}
           isLeaving={isLeaving}
         />
       ))}

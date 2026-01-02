@@ -1,5 +1,5 @@
 import { Vote } from '@/src/entities/vote/model/vote';
-import { Timestamp } from 'firebase/firestore';
+import { parseTimestamp } from '../utils/firebase-parsers';
 
 export function mapFirestoreVoteToEntity(doc: any): Vote {
   const data = doc.data ? doc.data() : doc;
@@ -28,8 +28,10 @@ export function mapFirestoreVoteToEntity(doc: any): Vote {
     resourceId: resourceId,
     userId: userId,
     isLike: data.isLike,
-    createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
+    createdAt: parseTimestamp(data.createdAt) || new Date(),
     // updatedAt not stored on vote documents anymore
     updatedAt: undefined,
   };
 }
+
+

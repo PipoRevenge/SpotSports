@@ -51,19 +51,6 @@ export const CreateMeetupForm: React.FC<CreateMeetupFormProps> = ({ spotId }) =>
   const spotSportsQuery = useSpotSports(spotId);
   const sportOptions = (spotSportsQuery.data && spotSportsQuery.data.length > 0) ? spotSportsQuery.data : undefined;
 
-  // Use first sport option by default when available
-  React.useEffect(() => {
-    if (sportOptions && sportOptions.length && !sport) {
-      // store sport id instead of name to keep a consistent reference
-      setSport(sportOptions[0].id);
-      setErrors((prev) => {
-        const n = { ...prev };
-        delete n.sport;
-        return n;
-      });
-    }
-  }, [sportOptions, sport]);
-
   const buildPayload = (): CreateMeetupFormData => {
     const base: any = {
       title,
@@ -232,34 +219,31 @@ export const CreateMeetupForm: React.FC<CreateMeetupFormProps> = ({ spotId }) =>
         <View>
           <Text className="mb-1 font-medium text-gray-700">Sport</Text>
           {sportOptions && sportOptions.length > 0 ? (
-            (() => {
-              const selectedSportName = sportOptions.find(s => s.id === sport)?.name ?? 'Selecciona un deporte';
-              return (
-                <Select selectedValue={sport} onValueChange={(v) => setSport(v as string)}>
-                  <SelectTrigger>
-                    <SelectInput value={selectedSportName} placeholder="Selecciona un deporte" />
-                    <SelectIcon as={ChevronDownIcon} />
-                  </SelectTrigger>
-                  <SelectPortal>
-                    <SelectBackdrop />
-                    <SelectContent>
-                      <SelectDragIndicatorWrapper>
-                        <SelectDragIndicator />
-                      </SelectDragIndicatorWrapper>
-                      {sportOptions.map((s) => (
-                        <SelectItem key={s.id} label={s.name} value={s.id} />
-                      ))}
-                    </SelectContent>
-                  </SelectPortal>
-                </Select>
-              );
-            })()
+            <Select selectedValue={sport} onValueChange={(v) => setSport(v as string)}>
+              <SelectTrigger>
+                <SelectInput 
+                  placeholder="Selecciona un deporte" 
+                  value={sportOptions.find(s => s.id === sport)?.name || ''} 
+                />
+                <SelectIcon as={ChevronDownIcon} />
+              </SelectTrigger>
+              <SelectPortal>
+                <SelectBackdrop />
+                <SelectContent>
+                  <SelectDragIndicatorWrapper>
+                    <SelectDragIndicator />
+                  </SelectDragIndicatorWrapper>
+                  {sportOptions.map((s) => (
+                    <SelectItem key={s.id} label={s.name} value={s.id} />
+                  ))}
+                </SelectContent>
+              </SelectPortal>
+            </Select>
           ) : (
             <Select isDisabled>
               <SelectTrigger>
                 <SelectInput 
-                  value={spotSportsQuery.isLoading ? 'Cargando deportes...' : 'No hay deportes disponibles'} 
-                  placeholder="Selecciona un deporte" 
+                  placeholder={spotSportsQuery.isLoading ? 'Cargando deportes...' : 'No hay deportes disponibles'}
                 />
                 <SelectIcon as={ChevronDownIcon} />
               </SelectTrigger>

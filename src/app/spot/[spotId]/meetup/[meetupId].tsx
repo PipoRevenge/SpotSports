@@ -39,19 +39,32 @@ export default function MeetupDetails() {
   }, [spotId, spot?.id, spotLoading, spotError]);
   const { joinAsync, isJoining } = useJoinMeetup();
   const { leaveAsync, isLeaving } = useLeaveMeetup();
-  const { participants, isLoading: isParticipantsLoading } = useChatParticipants(meetup?.participants);
+  const { participants, isLoading: isParticipantsLoading } = useChatParticipants(meetup?.participants, { type: 'meetup', id: meetupId, spotId: spotId });
   const { user: organizer } = useProfile(meetup?.organizerId);
   const { deleteMeetup, isDeleting } = useDeleteMeetup();
   const { approveAsync, isApproving } = useApproveRequest();
   const { rejectAsync, isRejecting } = useRejectRequest();
   
   // Get sport name
-  const { data: sports } = useSpotSports(spotId);
+  const { data: sports, isLoading: sportsLoading } = useSpotSports(spotId);
   const sportName = useMemo(() => {
-    if (!meetup || !sports) return (meetup as any)?.sport || 'Deporte';
-    const s = sports.find(s => s.id === (meetup as any).sport);
-    return s ? s.name : (meetup as any).sport;
-  }, [meetup, sports]);
+    if (!meetup) return 'Deporte';
+    if (!sports || sportsLoading) return 'Cargando...';
+    
+    const sportId = (meetup as any)?.sport;
+    if (!sportId) return 'Deporte';
+    
+    const foundSport = sports.find(s => s.id === sportId);
+    
+    // Debug log
+    console.log('[MeetupDetails] Sport lookup:', { 
+      sportId, 
+      foundSport: foundSport?.name, 
+      availableSports: sports.map(s => ({ id: s.id, name: s.name }))
+    });
+    
+    return foundSport ? foundSport.name : sportId;
+  }, [meetup, sports, sportsLoading]);
 
   const [requestUsers, setRequestUsers] = React.useState<any[]>([]);
   const [loadingRequests, setLoadingRequests] = React.useState(false);
@@ -73,9 +86,9 @@ export default function MeetupDetails() {
   };
 
   const handleLeave = async () => {
-    if (!meetupId || !user || !spotId) return;
+    if (!meetupId || !user || !spotId || !meetup) return;
     try {
-      await leaveAsync({ spotId, meetupId, userId: user.id });
+      await leaveAsync({ spotId, meetupId, userId: user.id, creatorId: meetup.organizerId });
       await fetchMeetupById(spotId, meetupId);
     } catch (err) {
       showError((err as Error).message || 'No se pudo salir');
@@ -284,7 +297,7 @@ export default function MeetupDetails() {
             <HStack className="justify-between items-center mb-4">
               <Text className="text-lg font-semibold text-slate-900">Participantes</Text>
               <Badge variant="solid" action="success" className="rounded-full">
-                <BadgeText>{meetup.participants?.length ?? 0} / {(meetup as any).participantLimit || '∞'}</BadgeText>
+                <BadgeText>{meetup.participantsCount ?? 0} / {(meetup as any).participantLimit || '∞'}</BadgeText>
               </Badge>
             </HStack>
 

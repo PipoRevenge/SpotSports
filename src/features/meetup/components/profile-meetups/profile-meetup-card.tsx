@@ -33,10 +33,13 @@ export const ProfileMeetupCard: React.FC<ProfileMeetupCardProps> = ({ meetup, is
   const { getSportName } = useAllSportsMap();
   const { spot } = useSpotData(meetup?.spotId);
 
-  const participantsCount = Array.isArray(meetup?.participants) ? meetup.participants.length : (typeof meetup?.participantLimit === 'number' ? meetup.participantLimit : undefined);
+  const participantsCount = typeof meetup?.participantsCount === 'number' 
+    ? meetup.participantsCount 
+    : (Array.isArray(meetup?.participants) ? meetup.participants.length : 0);
 
   const toDate = (v: any): Date | undefined => {
     if (!v) return undefined;
+    if (v instanceof Date) return v;
     if (typeof v === 'number') return new Date(v);
     if (typeof v === 'string') {
       const n = Date.parse(v);
@@ -47,8 +50,10 @@ export const ProfileMeetupCard: React.FC<ProfileMeetupCardProps> = ({ meetup, is
   };
 
   const d = toDate(meetup?.date ?? meetup?.nextDate);
-  const dateText = d ? d.toLocaleDateString() : '';
-  const timeText = d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+  // Format: "Lun, 02 Ene"
+  const dateText = d ? d.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' }) : '';
+  // Format: "14:30"
+  const timeText = d ? d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '';
 
   const sportId = meetup?.sport ? String(meetup.sport) : undefined;
   const { sportNames } = useSportNames(sportId ? [sportId] : []);

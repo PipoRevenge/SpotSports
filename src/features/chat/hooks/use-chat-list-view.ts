@@ -114,8 +114,15 @@ export const useChatListView = (filter: ChatFilter = 'all') => {
         }
 
         if (chat.type === 'direct') {
+          // Try to find other user from memberIds (populated from subcollection)
           const otherId = chat.memberIds.find(id => id !== user.id);
-          if (!otherId) continue;
+          
+          // If no otherId found (e.g. empty members), skip or show placeholder
+          if (!otherId) {
+             console.warn(`[useChatListView] Direct chat ${chat.id} has no other member`);
+             continue;
+          }
+
           let other = cache.get(otherId);
           if (!other) {
             try {

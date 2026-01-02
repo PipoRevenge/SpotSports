@@ -1,29 +1,28 @@
 import {
-  arrayRemove,
-  arrayUnion,
-  collection,
-  collectionGroup,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  orderBy,
-  query,
-  runTransaction,
-  serverTimestamp,
-  setDoc,
-  Timestamp,
-  updateDoc,
-  where
+    collection,
+    collectionGroup,
+    doc,
+    getDoc,
+    getDocs,
+    orderBy,
+    query,
+    serverTimestamp,
+    Timestamp,
+    updateDoc,
+    where
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 
-import { chatRepository } from '@/src/api/repositories';
-import { DEFAULT_MEETUP_PARTICIPANT_LIMIT, Meetup, MeetupType, MeetupVisibility } from '@/src/entities/meetup';
-import { firestore } from '@/src/lib/firebase-config';
+import { Meetup, MeetupType, MeetupVisibility } from '@/src/entities/meetup';
+import { firestore, functions } from '@/src/lib/firebase-config';
+import { ChatRepositoryImpl } from './chat-repository-impl';
 
-import { meetupFromFirestore, meetupToFirestore } from '../mappers/meetup-mapper';
+import { meetupFromFirestore } from '../mappers/meetup-mapper';
 // helper: compute next occurrence for routine meetups
 import { IMeetupRepository, MeetupFilters, MeetupTimeOfDay } from '../interfaces/i-meetup-repository';
+
+// Create singleton instance to avoid circular dependency
+const chatRepository = new ChatRepositoryImpl();
 
 export class MeetupRepositoryImpl implements IMeetupRepository {
   private collectionName = 'meetups';
@@ -31,10 +30,6 @@ export class MeetupRepositoryImpl implements IMeetupRepository {
   async createMeetup(meetupData: Omit<Meetup, 'id' | 'createdAt' | 'updatedAt' | 'participants'>): Promise<string> {
     if (!meetupData.spotId) throw new Error('spotId es requerido');
     console.debug('[MeetupRepo][createMeetup] creating meetup for spot=', meetupData.spotId, 'sport=', (meetupData as any).sport);
-    const collectionRef = collection(firestore, `spots/${meetupData.spotId}/${this.collectionName}`);
-
-    // Ensure organizer is added as initial participant, and default status
-    const participants = meetupData.organizerId ? [meetupData.organizerId] : [];
 
     // Enforce maximum participant limit
     if ((meetupData as any).type === MeetupType.CASUAL) {
@@ -49,49 +44,18 @@ export class MeetupRepositoryImpl implements IMeetupRepository {
       participantLimit = DEFAULT_MEETUP_PARTICIPANT_LIMIT;
     }
 
-    // Map dates to Firestore Timestamps and remove undefined fields
-    const rawPayload: Partial<Meetup> = {
-      ...meetupData,
-      participants,
-      status: (meetupData as any).status ?? ("SCHEDULED" as any),
-      participantLimit,
-      createdAt: undefined as any, // serverTimestamp will be used instead
-      updatedAt: undefined as any,
-    };
-
-    // If ROUTINE, compute nextDate and persist
-    if ((meetupData as any).type === MeetupType.ROUTINE) {
-      const rm = meetupData as any;
-      if (!rm.daysOfWeek?.length || !rm.time) {
-        throw new Error('Routine meetups require daysOfWeek and time');
-      }
-      const next = this.computeNextOccurrence(rm.daysOfWeek, rm.time, new Date());
-      (rawPayload as any).nextDate = next;
-    }
-
-    const payload = meetupToFirestore(rawPayload);
-    // Ensure server timestamps are set
-    payload.createdAt = serverTimestamp();
-    payload.updatedAt = serverTimestamp();
-
-    const docRef = doc(collectionRef);
-    const meetupId = docRef.id;
-    
-    // Create chat for the meetup
-    const chat = await chatRepository.createGroupChat({
-      ownerId: meetupData.organizerId,
-      name: `Meetup: ${(meetupData as any).title || 'Sin título'}`,
-      memberIds: [meetupData.organizerId],
-      description: `Chat for meetup ${(meetupData as any).title || ''}`,
-      meetupId: meetupId,
-      meetupSpotId: meetupData.spotId,
+    // Call cloud function
+    const createMeetupFn = httpsCallable(functions, 'meetups_create');
+    const result = await createMeetupFn({
+      spotId: meetupData.spotId,
+      meetupData: {
+        ...meetupData,
+        participantLimit,
+        status: (meetupData as any).status ?? 'SCHEDULED',
+      },
     });
-    
-    // Add chatId to payload
-    payload.chatId = chat.id;
-    
-    await setDoc(docRef, payload);
 
+    const { meetupId } = result.data as { meetupId: string; meetup: any };
     return meetupId;
   }
 
@@ -102,111 +66,42 @@ export class MeetupRepositoryImpl implements IMeetupRepository {
       throw new Error(`El límite máximo es ${DEFAULT_MEETUP_PARTICIPANT_LIMIT} participantes`);
     }
 
-    const meetupRef = doc(firestore, `spots/${spotId}/${this.collectionName}`, meetupId);
-
-    // Any update must be done by organizer when requester provided
-    if (requestingUserId) {
-      const snap = await getDoc(meetupRef);
-      if (!snap.exists()) throw new Error('Meetup not found');
-      const existing = meetupFromFirestore(snap.id, snap.data());
-      if (existing.organizerId !== requestingUserId) throw new Error('No tienes permisos para editar este meetup');
-    }
-
-    // If updating scheduling fields (date/time/daysOfWeek/nextDate), ensure the requester is organizer
-    const schedulingKeys = ['date', 'time', 'daysOfWeek', 'nextDate'];
-    const touchScheduling = schedulingKeys.some(k => Object.prototype.hasOwnProperty.call(data, k));
-
-    if (touchScheduling) {
-      if (!requestingUserId) throw new Error('Se requieren permisos de organizador para cambiar la fecha/hora');
-      const snap = await getDoc(meetupRef);
-      if (!snap.exists()) throw new Error('Meetup not found');
-      const meetup = meetupFromFirestore(snap.id, snap.data());
-      if (meetup.organizerId !== requestingUserId) throw new Error('No tienes permisos para cambiar la fecha/hora');
-
-      // If this is a ROUTINE meetup and daysOfWeek/time change, compute new nextDate
-      if ((meetup as any).type === MeetupType.ROUTINE && ((data as any).daysOfWeek || (data as any).time)) {
-        const days = (data as any).daysOfWeek ?? (meetup as any).daysOfWeek;
-        const time = (data as any).time ?? (meetup as any).time;
-        if (!days || !time) throw new Error('Routine meetups require days and time');
-        const computed = this.computeNextOccurrence(days, time, new Date());
-        (data as any).nextDate = computed;
-      }
-
-      // For non-routine, if date changed we don't need extra checks beyond organizer permission
-    }
-
-    const payload = meetupToFirestore({ ...data });
-    payload.updatedAt = serverTimestamp();
-    await updateDoc(meetupRef, payload);
+    // Call cloud function
+    const updateMeetupFn = httpsCallable(functions, 'meetups_update');
+    await updateMeetupFn({
+      spotId,
+      meetupId,
+      data,
+    });
   }
 
   async approveJoinRequest(spotId: string, meetupId: string, requesterId: string, approverId: string): Promise<void> {
-    const meetupRef = doc(firestore, `spots/${spotId}/${this.collectionName}`, meetupId);
-
-    await runTransaction(firestore, async (transaction) => {
-      const snap = await transaction.get(meetupRef);
-      if (!snap.exists()) throw new Error('Meetup not found');
-
-      const meetup = snap.data() as Meetup;
-      if (meetup.organizerId !== approverId) throw new Error('No tienes permisos para aprobar solicitudes');
-
-      meetup.joinRequests = meetup.joinRequests || [];
-      if (!meetup.joinRequests.includes(requesterId)) return; // nothing to approve
-
-      // Check capacity for casual
-      if (meetup.type === MeetupType.CASUAL) {
-        const limit = (meetup.participantLimit ?? DEFAULT_MEETUP_PARTICIPANT_LIMIT);
-        if (limit && meetup.participants?.length >= limit) throw new Error('Meetup is full');
-      }
-
-      transaction.update(meetupRef, {
-        joinRequests: arrayRemove(requesterId),
-        participants: arrayUnion(requesterId),
-        updatedAt: serverTimestamp(),
-      });
+    // Call cloud function
+    const approveRequestFn = httpsCallable(functions, 'meetups_approveRequest');
+    await approveRequestFn({
+      spotId,
+      meetupId,
+      requesterId,
     });
   }
 
   async rejectJoinRequest(spotId: string, meetupId: string, requesterId: string, approverId: string): Promise<void> {
-    const meetupRef = doc(firestore, `spots/${spotId}/${this.collectionName}`, meetupId);
-
-    await runTransaction(firestore, async (transaction) => {
-      const snap = await transaction.get(meetupRef);
-      if (!snap.exists()) throw new Error('Meetup not found');
-
-      const meetup = snap.data() as Meetup;
-      if (meetup.organizerId !== approverId) throw new Error('No tienes permisos para rechazar solicitudes');
-
-      meetup.joinRequests = meetup.joinRequests || [];
-      if (!meetup.joinRequests.includes(requesterId)) return; // nothing to reject
-
-      transaction.update(meetupRef, {
-        joinRequests: arrayRemove(requesterId),
-        updatedAt: serverTimestamp(),
-      });
+    // Call cloud function
+    const rejectRequestFn = httpsCallable(functions, 'meetups_rejectRequest');
+    await rejectRequestFn({
+      spotId,
+      meetupId,
+      requesterId,
     });
   }
 
   async deleteMeetup(spotId: string, meetupId: string, requestingUserId: string): Promise<void> {
-    const meetupRef = doc(firestore, `spots/${spotId}/${this.collectionName}`, meetupId);
-    const snap = await getDoc(meetupRef);
-    if (!snap.exists()) throw new Error('Meetup not found');
-
-    const meetup = meetupFromFirestore(snap.id, snap.data());
-    if (meetup.organizerId !== requestingUserId) throw new Error('No tienes permisos para eliminar este meetup');
-
-    // Attempt to delete associated chat if exists
-    if (meetup.chatId) {
-      try {
-        await chatRepository.deleteChat(meetup.chatId, requestingUserId);
-      } catch (err) {
-        // Non-fatal, continue
-        console.warn('Could not delete associated chat', err);
-      }
-    }
-
-    // Also try to cleanup any pending join requests (no-op for deleteDoc)
-    await deleteDoc(meetupRef);
+    // Call cloud function
+    const deleteMeetupFn = httpsCallable(functions, 'meetups_delete');
+    await deleteMeetupFn({
+      spotId,
+      meetupId,
+    });
   }
 
   private computeNextOccurrence(daysOfWeek: number[], time: string, fromDate = new Date()): Date {
@@ -472,231 +367,86 @@ export class MeetupRepositoryImpl implements IMeetupRepository {
 
   async getMeetupsByUser(userId: string): Promise<Meetup[]> {
     console.debug('[MeetupRepo][getMeetupsByUser] userId=', userId);
+    
+    // 1. Query meetups where user is organizer
     const group = collectionGroup(firestore, this.collectionName);
-
-    // Query meetups where user is participant
-    const participantQuery = query(group, where('participants', 'array-contains', userId));
     const organizerQuery = query(group, where('organizerId', '==', userId));
+    const organizerSnap = await getDocs(organizerQuery);
 
-    const [participantSnap, organizerSnap] = await Promise.all([getDocs(participantQuery), getDocs(organizerQuery)]);
+    // 2. Query participants subcollection
+    const participantsGroup = collectionGroup(firestore, 'participants');
+    const participantQuery = query(participantsGroup, where('userId', '==', userId));
+    const participantSnap = await getDocs(participantQuery);
 
-    const docs: any[] = [];
-    participantSnap.forEach(d => docs.push(d));
-    organizerSnap.forEach(d => docs.push(d));
+    // 3. Fetch parent meetups
+    const meetupRefs = new Set<string>();
+    const meetups: Meetup[] = [];
 
-    // Deduplicate by id
-    const seen = new Set<string>();
-    const results: any[] = [];
+    // Add organizer meetups
+    organizerSnap.forEach(d => {
+        meetupRefs.add(d.ref.path);
+        meetups.push(meetupFromFirestore(d.id, d.data()));
+    });
 
-    for (const d of docs) {
-      if (seen.has(d.id)) continue;
-      seen.add(d.id);
-
-      const m = d.data() as any;
-      const meetup: any = {
-        id: d.id,
-        title: m.title,
-        description: m.description,
-        type: m.type,
-        visibility: m.visibility,
-        sport: m.sport,
-        date: m.date,
-        time: m.time,
-        nextDate: m.nextDate ? new Date(m.nextDate.seconds * 1000) : undefined,
-        organizerId: m.organizerId,
-        participants: m.participants || [],
-        spotId: (d.ref.parent.parent && (d.ref.parent.parent as any).id) || m.spotId,
-        participantLimit: m.participantLimit,
-        chatId: m.chatId,
-        createdAt: m.createdAt ? new Date(m.createdAt.seconds * 1000) : undefined,
-        updatedAt: m.updatedAt ? new Date(m.updatedAt.seconds * 1000) : undefined,
-        metadata: m.metadata || {},
-      };
-
-      results.push(meetup);
+    // Add participant meetups
+    const fetchPromises: Promise<any>[] = [];
+    for (const d of participantSnap.docs) {
+        const parentRef = d.ref.parent.parent;
+        if (parentRef && !meetupRefs.has(parentRef.path)) {
+            meetupRefs.add(parentRef.path);
+            fetchPromises.push(getDoc(parentRef));
+        }
     }
 
-    // Optional: sort by nextDate or date
-    results.sort((a: any, b: any) => {
+    if (fetchPromises.length > 0) {
+        const fetchedSnaps = await Promise.all(fetchPromises);
+        fetchedSnaps.forEach(snap => {
+            if (snap.exists()) {
+                meetups.push(meetupFromFirestore(snap.id, snap.data()));
+            }
+        });
+    }
+
+    // Populate participantsCount if missing (for older meetups)
+    // Note: We don't fetch full participants list here to avoid N+1, 
+    // but we ensure the entity has the count if available in the doc.
+    // If the UI needs the list, it should call getMeetupParticipants.
+
+    // Sort
+    meetups.sort((a: any, b: any) => {
       const da = (a as any).nextDate ? (a as any).nextDate.getTime() : ((a as any).date ? new Date((a as any).date).getTime() : 0);
       const db = (b as any).nextDate ? (b as any).nextDate.getTime() : ((b as any).date ? new Date((b as any).date).getTime() : 0);
       return da - db;
     });
 
-    console.debug('[MeetupRepo][getMeetupsByUser] found=', results.length);
-    return results as any as Meetup[];
+    console.debug('[MeetupRepo][getMeetupsByUser] found=', meetups.length);
+    return meetups;
+  }
+
+  async getMeetupParticipants(spotId: string, meetupId: string): Promise<any[]> {
+    const participantsRef = collection(firestore, `spots/${spotId}/${this.collectionName}`, meetupId, 'participants');
+    const snap = await getDocs(participantsRef);
+    return snap.docs.map(d => d.data());
   }
 
   async joinMeetup(spotId: string, meetupId: string, userId: string): Promise<{ status: 'joined' | 'requested' }> {
-    const meetupRef = doc(firestore, `spots/${spotId}/${this.collectionName}`, meetupId);
-
-    // First transaction: validate existence, capacity and whether user already joined
-    await runTransaction(firestore, async (transaction) => {
-      const meetupDoc = await transaction.get(meetupRef);
-      if (!meetupDoc.exists()) {
-        throw new Error("Meetup does not exist!");
-      }
-
-      const data = meetupDoc.data() as Meetup;
-      data.participants = data.participants || [];
-      data.joinRequests = data.joinRequests || [];
-
-      // If already a participant, nothing to do
-      if (data.participants.includes(userId)) {
-        return;
-      }
-
-      // If meetup is CLOSED, add to joinRequests instead of joining
-      if ((data as any).visibility === 'CLOSED') {
-        // If already requested, nothing to do
-        if ((data.joinRequests || []).includes(userId)) return;
-        transaction.update(meetupRef, {
-          joinRequests: arrayUnion(userId),
-          updatedAt: serverTimestamp(),
-        });
-        return;
-      }
-
-      // OPEN: proceed to check limits for Casual meetups
-      if (data.type === MeetupType.CASUAL) {
-        const limit = (data.participantLimit ?? DEFAULT_MEETUP_PARTICIPANT_LIMIT);
-        if (limit && data.participants.length >= limit) {
-          throw new Error("Meetup is full!");
-        }
-      }
-
-      // If there's already a chatId, just add the participant inside the transaction
-      if (data.chatId) {
-        transaction.update(meetupRef, {
-          participants: arrayUnion(userId),
-          updatedAt: serverTimestamp()
-        });
-        return;
-      }
-
-      // Otherwise, leave the creation of the chat outside the transaction to avoid complex cross-collection writes
+    // Call cloud function
+    const joinMeetupFn = httpsCallable(functions, 'meetups_join');
+    const result = await joinMeetupFn({
+      spotId,
+      meetupId,
     });
 
-    // Re-fetch to see if action was a request or an actual join
-    const meetupSnapshot = await getDoc(meetupRef);
-    if (!meetupSnapshot.exists()) throw new Error('Meetup disappeared');
-
-    const meetupData = meetupSnapshot.data() as Meetup;
-
-    if ((meetupData.joinRequests || []).includes(userId)) {
-      return { status: 'requested' };
-    }
-
-    if (meetupData.participants?.includes(userId)) return { status: 'joined' };
-
-    if (!meetupData.chatId) {
-      // Create chat via chatRepository
-      const createdChat = await chatRepository.createGroupChat({
-        ownerId: meetupData.organizerId,
-        name: `Meetup: ${meetupData.title}`,
-        memberIds: [meetupData.organizerId, userId],
-        description: `Chat for meetup ${meetupData.title}`,
-        meetupId: meetupId,
-        meetupSpotId: spotId,
-      });
-
-      // Second transaction: set chatId if still empty, and add participant
-      await runTransaction(firestore, async (transaction) => {
-        const meetupDoc2 = await transaction.get(meetupRef);
-        if (!meetupDoc2.exists()) throw new Error('Meetup disappeared');
-
-        const current = meetupDoc2.data() as Meetup;
-
-        if (!current.chatId) {
-          transaction.update(meetupRef, {
-            chatId: createdChat.id,
-            participants: arrayUnion(userId),
-            updatedAt: serverTimestamp(),
-          });
-        } else {
-          // Another process set chatId already; just add participant and delete the chat we created
-          transaction.update(meetupRef, {
-            participants: arrayUnion(userId),
-            updatedAt: serverTimestamp(),
-          });
-
-          // Clean up the extra chat we created
-          try {
-            await chatRepository.deleteChat(createdChat.id, userId);
-          } catch (err) {
-            // Non-fatal: log cleanup error
-            console.warn('Failed to cleanup redundant chat', err);
-          }
-        }
-      });
-    } else {
-      // chat exists but participant not added yet - add in a simple update
-      await updateDoc(meetupRef, {
-        participants: arrayUnion(userId),
-        updatedAt: serverTimestamp(),
-      });
-    }
-
-    return { status: 'joined' };
+    // The cloud function should return the status
+    return result.data as { status: 'joined' | 'requested' };
   }
 
   async leaveMeetup(spotId: string, meetupId: string, userId: string): Promise<void> {
-    const meetupRef = doc(firestore, `spots/${spotId}/${this.collectionName}`, meetupId);
-
-    // Also remove any outstanding join requests from this user (cleanup)
-    await runTransaction(firestore, async (transaction) => {
-      const meetupDoc = await transaction.get(meetupRef);
-      if (!meetupDoc.exists()) throw new Error('Meetup does not exist');
-      const data = meetupDoc.data() as Meetup;
-      if ((data.joinRequests || []).includes(userId)) {
-        transaction.update(meetupRef, { joinRequests: arrayRemove(userId), updatedAt: serverTimestamp() });
-      }
+    // Call cloud function
+    const leaveMeetupFn = httpsCallable(functions, 'meetups_leave');
+    await leaveMeetupFn({
+      spotId,
+      meetupId,
     });
-
-    // We capture whether we deleted the meetup and its chatId to cleanup after the transaction
-    let deletedChatId: string | undefined;
-    let deletedMeetup = false;
-
-    await runTransaction(firestore, async (transaction) => {
-      const meetupDoc = await transaction.get(meetupRef);
-      if (!meetupDoc.exists()) throw new Error('Meetup does not exist');
-
-      const data = meetupDoc.data() as Meetup;
-      if (!data.participants || !data.participants.includes(userId)) return; // not a member
-
-      // If organizer leaves, delete the meetup regardless of remaining participants
-      if (data.organizerId === userId) {
-        deletedChatId = data.chatId;
-        transaction.delete(meetupRef);
-        deletedMeetup = true;
-        return;
-      }
-
-      const remaining = (data.participants || []).filter(id => id !== userId);
-
-      if (remaining.length === 0) {
-        // Delete meetup if no participants remain
-        deletedChatId = data.chatId;
-        transaction.delete(meetupRef);
-        deletedMeetup = true;
-        return;
-      }
-
-      transaction.update(meetupRef, {
-        participants: arrayRemove(userId),
-        updatedAt: serverTimestamp(),
-      });
-    });
-
-    if (deletedMeetup) {
-      // Attempt to delete associated chat if it exists
-      if (deletedChatId) {
-        try {
-          await chatRepository.deleteChat(deletedChatId, userId);
-        } catch (err) {
-          console.warn('Failed to delete chat for removed meetup', err);
-        }
-      }
-    }
   }
 }

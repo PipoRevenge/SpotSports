@@ -31,7 +31,8 @@ export interface BaseMeetup {
   description?: string;
   createdAt: Date;
   updatedAt: Date;
-  participants: string[]; // Array of User IDs
+  participants?: string[]; // Array of User IDs (Deprecated: use subcollection)
+  participantsCount?: number;
   status: MeetupStatus;
   visibility?: MeetupVisibility;
   joinRequests?: string[]; // IDs of users who requested to join (for CLOSED meetups)

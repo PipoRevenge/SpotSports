@@ -1,10 +1,9 @@
 import { SportSpotRating, Spot, SpotDetails } from '@/src/entities/spot/model/spot';
-import { firestore, storage } from '@/src/lib/firebase-config';
-import { GeoPoint } from '@/src/types/geopoint';
+import { firestore, functions, storage } from '@/src/lib/firebase-config';
 import { ref as dbRef, getDatabase, push } from 'firebase/database';
-import { addDoc, collection, doc, GeoPoint as FirebaseGeoPoint, limit as firestoreLimit, getDoc, getDocs, increment, orderBy, query, setDoc, Timestamp, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, limit as firestoreLimit, getDoc, getDocs, increment, query, Timestamp, updateDoc, where } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
-import { distanceBetween, geohashForLocation, geohashQueryBounds } from 'geofire-common';
 import { ISpotRepository, SpotSearchFilters } from '../interfaces/i-spot-repository';
 import { SpotMapper } from '../mappers/spot-mapper';
 
@@ -18,91 +17,92 @@ export class SpotRepositoryImpl implements ISpotRepository {
   // Path: spots/{spotId}/sport_metrics/{sportId}
 
   /**
-   * Crear un nuevo spot
+   * Crear un nuevo spot usando cloud function
    */
   async createSpot(spotData: SpotDetails, userId: string, username: string): Promise<string> {
+    const startTime = Date.now();
+    console.log('[SpotRepository:createSpot] Starting spot creation', {
+      userId,
+      spotName: spotData.name,
+      mediaCount: spotData.media?.length || 0,
+      timestamp: new Date().toISOString(),
+    });
+
     try {
-      if (!spotData) {
-        throw new Error('Spot data is required');
-      }
-
-      if (!spotData.name || spotData.name.trim().length === 0) {
-        throw new Error('Spot name is required');
-      }
-
+      // Validaciones en el cliente
+      if (!spotData) throw new Error('Spot data is required');
+      if (!spotData.name || spotData.name.trim().length === 0) throw new Error('Spot name is required');
       if (!spotData.location || !spotData.location.latitude || !spotData.location.longitude) {
         throw new Error('Valid location is required');
       }
 
-      if (!userId || userId.trim().length === 0) {
-        throw new Error('User ID is required');
-      }
-
-      if (!username || username.trim().length === 0) {
-        throw new Error('Username is required');
-      }
-
-      const spotDataWithoutMedia = {
-        ...spotData,
-        media: []
-      };
-
-      const geohash = await this.createGeohash(spotData.location);
-      
-      // Crear referencia al usuario
-      const userRef = doc(firestore, `users/${userId}`);
-
-      const firestoreData = {
-        name: spotDataWithoutMedia.name,
-        description: spotDataWithoutMedia.description,
-        gallery: [], // NUEVA ESTRUCTURA: gallery en lugar de media
-        availableSports: spotDataWithoutMedia.availableSports || [],
-        location: new FirebaseGeoPoint(
-          spotDataWithoutMedia.location.latitude,
-          spotDataWithoutMedia.location.longitude
-        ),
-        geohash: geohash,
-        overallRating: spotDataWithoutMedia.overallRating || 0,
-        contactPhone: spotDataWithoutMedia.contactInfo?.phone || "",
-        contactEmail: spotDataWithoutMedia.contactInfo?.email || "",
-        contactWebsite: spotDataWithoutMedia.contactInfo?.website || "",
-        isVerified: false,
-        isActive: true,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-        createdBy: userRef, // NUEVA ESTRUCTURA: referencia en lugar de string
-        reviewsCount: 0,
-        visitsCount: 0,
-        favoritesCount: 0,
-        visitedCount: 0,
-        wantToVisitCount: 0,
-        discussionsCount: 0,
-      };
-
-      const cleanedData = this.removeUndefinedFields(firestoreData);
-      const spotsCollection = collection(firestore, this.COLLECTION_NAME);
-      const docRef = await addDoc(spotsCollection, cleanedData);
-      const spotId = docRef.id;
-
-      if (spotData.availableSports && spotData.availableSports.length > 0) {
-        await this.createSpotSportMetrics(spotId, spotData.availableSports);
-      }
-
+      // Upload media files to Storage if provided
+      let galleryUrls: string[] = [];
       if (spotData.media && spotData.media.length > 0) {
-        const galleryUrls = await this.uploadSpotMedia(spotId, userId, spotData.media);
+        console.log(`[SpotRepository:createSpot] Uploading ${spotData.media.length} media files`);
+        const uploadStartTime = Date.now();
         
-        // Actualizar el documento del spot con las URLs de la galería
-        const spotRef = doc(firestore, this.COLLECTION_NAME, spotId);
-        await updateDoc(spotRef, {
-          gallery: galleryUrls,
-          updatedAt: Timestamp.now()
+        // Create a temporary spot ID for media uploads
+        const tempSpotId = push(dbRef(getDatabase())).key || `${Date.now()}`;
+        galleryUrls = await this.uploadSpotMedia(tempSpotId, userId, spotData.media);
+        
+        const uploadDuration = Date.now() - uploadStartTime;
+        console.log('[SpotRepository:createSpot] Media upload completed', {
+          count: galleryUrls.length,
+          durationMs: uploadDuration,
+          urls: galleryUrls,
         });
       }
 
-      return spotId;
+      // Call cloud function
+      console.log('[SpotRepository:createSpot] Calling cloud function spots_create');
+      const createSpotFn = httpsCallable(functions, 'spots_create');
+      const functionCallData = {
+        name: spotData.name,
+        description: spotData.description,
+        location: {
+          lat: spotData.location.latitude,
+          lng: spotData.location.longitude,
+        },
+        availableSports: spotData.availableSports || [],
+        galleryUrls,
+        contactPhone: spotData.contactInfo?.phone,
+        contactEmail: spotData.contactInfo?.email,
+        contactWebsite: spotData.contactInfo?.website,
+      };
+      
+      console.log('[SpotRepository:createSpot] Function payload', {
+        ...functionCallData,
+        galleryUrls: `${galleryUrls.length} URLs`,
+      });
+      
+      const functionStartTime = Date.now();
+      const result = await createSpotFn(functionCallData);
+      const functionDuration = Date.now() - functionStartTime;
 
+      const { spotId } = result.data as { spotId: string; spot: any };
+      const totalDuration = Date.now() - startTime;
+      
+      console.log('[SpotRepository:createSpot] Spot created successfully', {
+        spotId,
+        totalDurationMs: totalDuration,
+        functionDurationMs: functionDuration,
+        timestamp: new Date().toISOString(),
+      });
+      
+      return spotId;
     } catch (error) {
-      console.error('Error creating spot:', error);
+      const totalDuration = Date.now() - startTime;
+      console.error('[SpotRepository:createSpot] Failed to create spot', {
+        error,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: (error as any)?.code,
+        errorDetails: (error as any)?.details,
+        userId,
+        spotName: spotData.name,
+        durationMs: totalDuration,
+        timestamp: new Date().toISOString(),
+      });
       
       if (error instanceof Error) {
         throw new Error(`Failed to create spot: ${error.message}`);
@@ -225,55 +225,14 @@ export class SpotRepositoryImpl implements ISpotRepository {
     }
   }
 
-  private async createGeohash(location: GeoPoint): Promise<string> {
-    if (!location || !location.latitude || !location.longitude) {
-      throw new Error('Valid location is required');
-    }
-
-    const geohash = geohashForLocation([location.latitude, location.longitude]);
-    return geohash;
-  }
-
-  /**
-   * Crear documentos en sport_metrics subcollection para cada deporte disponible
-   * Uses sportId as document ID for easy access and updates
-   * Path: spots/{spotId}/sport_metrics/{sportId}
-   */
-  private async createSpotSportMetrics(spotId: string, sportIds: string[]): Promise<void> {
-    try {
-      // Create a document for each sport using sportId as the document ID
-      const createPromises = sportIds.map(async (sportId) => {
-        const metricData = {
-          avg_difficulty: 0,
-          avg_rating: 0,
-          review_count: 0,
-          sum_difficulty: 0,
-          sum_rating: 0,
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-        };
-        
-        // Use setDoc with sportId as document ID - creates or overwrites
-        const metricDocRef = doc(firestore, `spots/${spotId}/sport_metrics/${sportId}`);
-        await setDoc(metricDocRef, metricData, { merge: true });
-        
-        console.log(`Created/updated sport_metrics for sport: ${sportId}`);
-      });
-      
-      await Promise.all(createPromises);
-    } catch (error) {
-      console.error('Error creating spot sport metrics:', error);
-      throw new Error(`Failed to create spot sport metrics: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
   /**
    * Subir archivos multimedia a Storage y retornar las URLs
+   * Solo usado para subir archivos antes de crear/actualizar spots
    */
   private async uploadSpotMedia(spotId: string, userId: string, mediaUris: string[]): Promise<string[]> {
+    const galleryUrls: string[] = [];
+    
     try {
-      const galleryUrls: string[] = [];
-      
       // Subir cada archivo
       for (let i = 0; i < mediaUris.length; i++) {
         const mediaUri = mediaUris[i];
@@ -310,7 +269,16 @@ export class SpotRepositoryImpl implements ISpotRepository {
       
       return galleryUrls;
     } catch (error) {
-      console.error('Error uploading spot media:', error);
+      console.error('[SpotRepository:uploadSpotMedia] Media upload failed', {
+        error,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: (error as any)?.code,
+        spotId,
+        userId,
+        mediaCount: mediaUris.length,
+        uploadedCount: galleryUrls.length,
+        timestamp: new Date().toISOString(),
+      });
       throw new Error(`Failed to upload media: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -391,29 +359,47 @@ export class SpotRepositoryImpl implements ISpotRepository {
   }
 
   /**
-   * Buscar spots con filtros
+   * Buscar spots usando cloud function
    */
   async searchSpots(filters: SpotSearchFilters): Promise<Spot[]> {
     try {
       console.log('[SpotRepository] Iniciando búsqueda con filtros:', filters);
 
-      let spots: Spot[] = [];
-
-      // Si hay filtro de ubicación y distancia, usar geohash para búsqueda eficiente
+      // Use cloud function if location-based search is requested
       if (filters.location && filters.maxDistance) {
-        spots = await this.searchSpotsByLocation(filters);
-      } else {
-        // Búsqueda sin filtro de ubicación
-        spots = await this.searchSpotsWithoutLocation(filters);
+        const searchSpotsFn = httpsCallable(functions, 'spots_search');
+        const result = await searchSpotsFn({
+          location: {
+            lat: filters.location.latitude,
+            lng: filters.location.longitude,
+          },
+          radiusKm: filters.maxDistance,
+          sports: filters.sportIds,
+          minRating: filters.minRating,
+          limit: filters.limit || 50,
+        });
+
+        const { spots: spotData } = result.data as { spots: any[] };
+        let spots = spotData.map((data: any) => SpotMapper.fromFirebase(data.id, data));
+        
+        // Apply text filter in memory since cloud function doesn't support it yet
+        if (filters.searchQuery && filters.searchQuery.trim().length > 0) {
+          const query = filters.searchQuery.toLowerCase().trim();
+          spots = spots.filter(spot => 
+            spot.details.name.toLowerCase().includes(query) ||
+            spot.details.description.toLowerCase().includes(query)
+          );
+        }
+        
+        console.log(`[SpotRepository] Búsqueda completada. ${spots.length} spots encontrados`);
+        return spots;
       }
 
-      // Aplicar filtros adicionales en memoria (más flexible)
+      // Fallback to local search for non-location queries
+      let spots = await this.searchSpotsWithoutLocation(filters);
       spots = await this.applyInMemoryFilters(spots, filters);
-
-      // Ordenar resultados
       spots = this.sortSpots(spots, filters);
 
-      // Aplicar límite si existe
       if (filters.limit && filters.limit > 0) {
         const offset = filters.offset || 0;
         spots = spots.slice(offset, offset + filters.limit);
@@ -421,7 +407,6 @@ export class SpotRepositoryImpl implements ISpotRepository {
 
       console.log(`[SpotRepository] Búsqueda completada. ${spots.length} spots encontrados`);
       return spots;
-
     } catch (error) {
       console.error('Error searching spots:', error);
       if (error instanceof Error) {
@@ -433,70 +418,7 @@ export class SpotRepositoryImpl implements ISpotRepository {
   }
 
   /**
-   * Buscar spots por ubicación usando geohash
-   */
-  private async searchSpotsByLocation(filters: SpotSearchFilters): Promise<Spot[]> {
-    if (!filters.location || !filters.maxDistance) {
-      return [];
-    }
-
-    const center = [filters.location.latitude, filters.location.longitude] as [number, number];
-    const radiusInM = filters.maxDistance * 1000; // Convertir km a metros
-
-    // Generar los bounds de geohash para la búsqueda
-    const bounds = geohashQueryBounds(center, radiusInM);
-    const spotsCollection = collection(firestore, this.COLLECTION_NAME);
-    
-    // Ejecutar queries para cada bound en paralelo
-    const queryPromises = bounds.map(async (b) => {
-      const q = query(
-        spotsCollection,
-        orderBy('geohash'),
-        where('geohash', '>=', b[0]),
-        where('geohash', '<=', b[1])
-      );
-      
-      const snapshot = await getDocs(q);
-      return snapshot.docs;
-    });
-
-    const snapshots = await Promise.all(queryPromises);
-    const allDocs = snapshots.flat();
-
-    // Convertir documentos a spots y filtrar por distancia exacta
-    const spots: Spot[] = [];
-    
-    for (const docSnap of allDocs) {
-      try {
-        const spotData = docSnap.data() as any;
-        const spotLocation = spotData.location as FirebaseGeoPoint;
-        
-        // Calcular distancia exacta
-        const distanceInKm = distanceBetween(
-          [spotLocation.latitude, spotLocation.longitude],
-          center
-        );
-        
-        // Solo incluir si está dentro del radio
-        if (distanceInKm <= filters.maxDistance) {
-          // Cargar las URLs de media
-          const mediaUrls = await this.getSpotMediaUrls(docSnap.id);
-          spotData.media = mediaUrls;
-          
-          const spot = SpotMapper.fromFirebase(docSnap.id, spotData);
-          spots.push(spot);
-        }
-      } catch (error) {
-        console.error(`Error processing spot ${docSnap.id}:`, error);
-        // Continuar con el siguiente spot
-      }
-    }
-
-    return spots;
-  }
-
-  /**
-   * Buscar spots sin filtro de ubicación
+   * Buscar spots sin filtro de ubicación (fallback para búsquedas no geoespaciales)
    */
   private async searchSpotsWithoutLocation(filters: SpotSearchFilters): Promise<Spot[]> {
     const spotsCollection = collection(firestore, this.COLLECTION_NAME);

@@ -1,5 +1,6 @@
 import { Review, ReviewActivity, ReviewDetails, ReviewMetadata, ReviewSport } from "@/src/entities/review/model/review";
 import { DocumentReference, Timestamp } from "firebase/firestore";
+import { parseTimestamp } from '../utils/firebase-parsers';
 
 /**
  * Estructura de sportRating individual dentro del map
@@ -37,8 +38,8 @@ export interface FirestoreReviewData {
   reports: number;
   
   // Metadatos y Estado
-  createdAt: Timestamp;
-  updatedAt?: Timestamp;
+  createdAt: Timestamp | string; // Can be Timestamp from Firestore or ISO string from cloud functions
+  updatedAt?: Timestamp | string;
   isDeleted?: boolean;
 }
 
@@ -109,8 +110,8 @@ export const mapFirestoreToReview = (
   };
 
   const metadata: ReviewMetadata = {
-    createdAt: data.createdAt.toDate(),
-    updatedAt: data.updatedAt?.toDate(),
+    createdAt: parseTimestamp(data.createdAt) || new Date(),
+    updatedAt: parseTimestamp(data.updatedAt),
     createdBy: data.userId, // userId es string ahora
     isDeleted: data.isDeleted,
   };
@@ -211,3 +212,5 @@ export const createFirestoreSportReviewData = (
     comment: comment || "", // Convertir undefined a string vacío
   };
 };
+
+

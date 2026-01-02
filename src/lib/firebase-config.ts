@@ -48,7 +48,8 @@ const firestore = initializeFirestore(app, {
 
 // Initialize other services
 const database = getDatabase(app);
-const functions = getFunctions(app, 'europe-west1');
+// In development (emulator), don't specify region. In production, use 'europe-west1'
+const functions = __DEV__ ? getFunctions(app) : getFunctions(app, 'europe-west1');
 const storage = getStorage(app);
 
 // Replace 'YOUR_LOCAL_IP' with the actual IP address of your machine
@@ -72,3 +73,4 @@ if (__DEV__) {
 
 // Export the services
 export { app, auth, database, firestore, functions, localIp, storage };
+

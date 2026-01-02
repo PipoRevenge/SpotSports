@@ -69,6 +69,17 @@ export default function ChatInfo() {
     await chatRepository.promoteToAdmin({ chatId, adminId: user.id, targetUserId });
   };
 
+  const handleRemoveMember = async (targetUserId: string) => {
+    if (!chatId || !user) return;
+    try {
+      await chatRepository.removeGroupMember(chatId, user.id, targetUserId);
+      setParticipants(prev => prev.filter(p => p.id !== targetUserId));
+    } catch (e) {
+      console.error('Failed to remove member', e);
+      // Optionally show an alert
+    }
+  };
+
   const handleAddMember = async (userIdToAdd: string) => {
     if (!chatId || !user) return;
     await chatRepository.addGroupMembers({ chatId, adminId: user.id, newMemberIds: [userIdToAdd] });
@@ -142,6 +153,7 @@ export default function ChatInfo() {
             isAdmin={isAdmin}
             currentUserId={user?.id || null}
             onPromote={(id) => handlePromote(id)}
+            onRemove={(id) => handleRemoveMember(id)}
             onPress={(id) => router.push(`/profile/${id}`)}
           />
         ))}

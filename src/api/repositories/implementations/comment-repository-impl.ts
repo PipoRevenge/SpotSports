@@ -1,22 +1,21 @@
 import { buildFirestorePath, extractSourceInfoFromPath, mapFirestoreCommentToEntity } from '@/src/api/repositories/mappers/comment-mapper';
 import { Comment, CommentSourceType } from '@/src/entities/comment/model/comment';
-import { firestore, storage } from '@/src/lib/firebase-config';
+import { firestore, functions, storage } from '@/src/lib/firebase-config';
 import { ref as dbRef, getDatabase, push } from 'firebase/database';
 import {
-    collection,
-    collectionGroup,
-    doc,
-    DocumentReference,
-    limit as firestoreLimit,
-    getDoc,
-    getDocs,
-    orderBy,
-    query,
-    runTransaction,
-    Timestamp,
-    updateDoc,
-    where,
+  collection,
+  collectionGroup,
+  doc,
+  limit as firestoreLimit,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  Timestamp,
+  updateDoc,
+  where,
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { ICommentRepository } from '../interfaces/i-comment-repository';
 import { voteRepository } from './vote-repository-impl';
@@ -263,63 +262,37 @@ export class CommentRepositoryImpl implements ICommentRepository {
     tags?: string[]
   ): Promise<Comment> {
     try {
-      const now = Timestamp.now();
-      const sourcePath = this.buildSourcePath(contextId, sourceType, sourceId);
+      // Create a temporary comment ID for media uploads
+      const tempCommentId = push(dbRef(getDatabase())).key || `${Date.now()}`;
       
-      // Create reference to the parent document (review or discussion) - stored in Firebase
-      const sourceDocRef: DocumentReference = doc(firestore, sourcePath);
-
-      const commentsCollectionPath = this.getCommentsCollectionPath(contextId, sourceType, sourceId);
-      const collectionRef = collection(firestore, commentsCollectionPath);
-      const newDocRef = doc(collectionRef);
-      const commentId = newDocRef.id;
-
       // Upload media files to Storage if provided
       let uploadedMediaUrls: string[] = [];
       if (media && media.length > 0) {
-        uploadedMediaUrls = await this.uploadCommentMedia(commentId, media);
+        uploadedMediaUrls = await this.uploadCommentMedia(tempCommentId, media);
       }
 
-      const data = {
-        userId,
-        sourceRef: sourceDocRef, // Store as Firebase reference for backwards compatibility
-        type: sourceType,
+      // Call cloud function
+      const createCommentFn = httpsCallable(functions, 'comments_create');
+      const result = await createCommentFn({
+        spotId: contextId,
+        sourceType,
+        sourceId,
         parentId,
         level,
         content,
-        media: uploadedMediaUrls,
+        mediaUrls: uploadedMediaUrls,
         tags: tags || [],
-        likesCount: 0,
-        dislikesCount: 0,
-        commentsCount: 0,
-        reports: 0,
-        createdAt: now,
-        updatedAt: now,
-        isDeleted: false,
-      };
-
-      // Determine parent document path for updating commentsCount
-      let parentDocPath: string;
-      if (level === 0) {
-        // Parent is the root resource (review or discussion)
-        parentDocPath = sourcePath;
-      } else {
-        // Parent is another comment
-        parentDocPath = `${commentsCollectionPath}/${parentId}`;
-      }
-      const parentRef = doc(firestore, parentDocPath);
-
-      await runTransaction(firestore, async (transaction) => {
-        const parentSnap = await transaction.get(parentRef);
-        transaction.set(newDocRef, data);
-
-        if (parentSnap.exists()) {
-          const currentCommentsCount = parentSnap.data().commentsCount || 0;
-          transaction.update(parentRef, { commentsCount: currentCommentsCount + 1 });
-        }
       });
 
-      return mapFirestoreCommentToEntity({ id: newDocRef.id, data: () => data }, contextId, sourceType, sourceId);
+      const { commentId, comment } = result.data as { commentId: string; comment: any };
+
+      // Map the response to entity
+      return mapFirestoreCommentToEntity(
+        { id: commentId, data: () => comment },
+        contextId,
+        sourceType,
+        sourceId
+      );
     } catch (error) {
       console.error('[CommentRepository] addComment:', error);
       throw error;
@@ -352,35 +325,12 @@ export class CommentRepositoryImpl implements ICommentRepository {
     commentId: string
   ): Promise<void> {
     try {
-      const ref = doc(firestore, this.getCommentDocPath(contextId, sourceType, sourceId, commentId));
-      const sourcePath = this.buildSourcePath(contextId, sourceType, sourceId);
-      const commentsCollectionPath = this.getCommentsCollectionPath(contextId, sourceType, sourceId);
-
-      await runTransaction(firestore, async (tr) => {
-        const com = await tr.get(ref);
-        if (!com.exists()) return;
-        tr.update(ref, { isDeleted: true, updatedAt: Timestamp.now() });
-
-        // Update parent commentsCount
-        const commentData = com.data();
-        const parentIdFromData = commentData.parentId;
-        const level = commentData.level || 0;
-
-        let parentDocPath: string;
-        if (level === 0) {
-          parentDocPath = sourcePath;
-        } else {
-          parentDocPath = `${commentsCollectionPath}/${parentIdFromData}`;
-        }
-
-        const parentRef = doc(firestore, parentDocPath);
-        const parentSnap = await tr.get(parentRef);
-        if (parentSnap.exists()) {
-          const currentCount = parentSnap.data().commentsCount || 0;
-          if (currentCount > 0) {
-            tr.update(parentRef, { commentsCount: currentCount - 1 });
-          }
-        }
+      const deleteCommentFn = httpsCallable(functions, 'comments_delete');
+      await deleteCommentFn({
+        spotId: contextId,
+        sourceType,
+        sourceId,
+        commentId,
       });
     } catch (error) {
       console.error('[CommentRepository] deleteComment:', error);

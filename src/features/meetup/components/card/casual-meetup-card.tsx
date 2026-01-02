@@ -50,7 +50,7 @@ export const CasualMeetupCard: React.FC<CasualMeetupCardProps> = ({ meetup, onPr
             <Text className="text-xs text-gray-700">{sportName}</Text>
           </View>
           <Text className="text-sm text-gray-600">
-            {meetup.participants.length} / {(meetup.participantLimit ?? DEFAULT_MEETUP_PARTICIPANT_LIMIT)} players
+            {meetup.participantsCount ?? (meetup.participants?.length || 0)} / {(meetup.participantLimit ?? DEFAULT_MEETUP_PARTICIPANT_LIMIT)} players
           </Text>
         </View>
 

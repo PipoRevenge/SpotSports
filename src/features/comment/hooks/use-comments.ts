@@ -114,23 +114,49 @@ export function useComments({
       if (!user?.id) throw new Error('User must be authenticated to comment');
       if (!contextId || !sourceId) throw new Error('contextId and sourceId are required to add comments');
       const comment = await commentRepository.addComment(contextId, sourceType, sourceId, sourceId, user.id, level ?? 0, content, media, tags);
-      return comment;
+      
+      // Immediately enrich with user data
+      let enrichedComment: any = comment;
+      try {
+        const userData = await userRepository.getUserById(user.id);
+        enrichedComment = { 
+          ...comment, 
+          userName: userData?.userDetails.userName, 
+          userProfileUrl: userData?.userDetails.photoURL 
+        };
+      } catch (err) {
+        console.warn('[useComments] Failed to enrich comment with user data', err);
+        // Use current user context as fallback
+        enrichedComment = {
+          ...comment,
+          userName: user?.userDetails?.userName,
+          userProfileUrl: user?.userDetails?.photoURL
+        };
+      }
+      
+      return enrichedComment;
     },
-    onSuccess: async (comment) => {
-      // Optimistically prepend to the first page of comments
+    onSuccess: async (enrichedComment) => {
+      // Optimistically prepend enriched comment to the first page
       queryClient.setQueryData(['comments', { contextId, sourceType, sourceId, pageSize }], (old: any) => {
         if (!old) return old;
         const first = old.pages?.[0]?.items ?? [];
-        const newFirst = [comment, ...first];
+        const newFirst = [enrichedComment, ...first];
         const newPages = [{ ...old.pages[0], items: newFirst }, ...old.pages.slice(1)];
         return { ...old, pages: newPages };
       });
+      
+      // Invalidate and refetch to ensure consistency
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['comments', { contextId, sourceType, sourceId, pageSize }] }),
+        queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'userComments' }),
+      ]);
+      
       try {
         if (user?.id) await userRepository.incrementActivityCounters(user.id, { commentsDelta: 1 });
       } catch (e) {
         console.warn('[useComments] Failed to increment user commentsCount', e);
       }
-      await queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'userComments' });
     }
   });
 
@@ -138,24 +164,46 @@ export function useComments({
     mutationFn: async ({ parentCommentId, content, media, level }: { parentCommentId: string; content: string; media?: string[]; level?: number }) => {
       if (!user?.id) throw new Error('User must be authenticated to reply');
       if (!contextId || !sourceId) throw new Error('contextId and sourceId are required to add replies');
-      return await commentRepository.addComment(contextId, sourceType, sourceId, parentCommentId, user.id, level ?? 1, content, media, undefined);
-    },
-    onSuccess: async (reply, vars) => {
-      // Update the replies list for parentCommentId
-      const parentId = reply.parentId;
-      queryClient.setQueryData(['comments', { contextId, sourceType, sourceId, pageSize }], (old: any) => {
-        if (!old) return old;
-        const pages = old.pages.map((page: any) => ({ ...page, items: page.items.map((c: any) => c.id === parentId ? { ...c, commentsCount: (c.commentsCount || 0) + 1 } : c) }));
-        return { ...old, pages };
-      });
-      // Also update local repliesMap state so the new reply appears immediately in the UI (optimistic update)
+      const reply = await commentRepository.addComment(contextId, sourceType, sourceId, parentCommentId, user.id, level ?? 1, content, media, undefined);
+      
+      // Immediately enrich with user data
       let enrichedReply: any = reply;
       try {
-        const ud = await userRepository.getUserById(reply.userId);
-        enrichedReply = { ...reply, userName: ud?.userDetails?.userName, userProfileUrl: ud?.userDetails?.photoURL };
+        const userData = await userRepository.getUserById(user.id);
+        enrichedReply = { 
+          ...reply, 
+          userName: userData?.userDetails?.userName, 
+          userProfileUrl: userData?.userDetails?.photoURL 
+        };
       } catch (err) {
-        // If enrichment fails, keep original reply
+        console.warn('[useComments] Failed to enrich reply with user data', err);
+        // Use current user context as fallback
+        enrichedReply = {
+          ...reply,
+          userName: user?.userDetails?.userName,
+          userProfileUrl: user?.userDetails?.photoURL
+        };
       }
+      
+      return enrichedReply;
+    },
+    onSuccess: async (enrichedReply, vars) => {
+      // Update the replies list for parentCommentId
+      const parentId = enrichedReply.parentId;
+      
+      // Update parent comment's count in main comments list
+      queryClient.setQueryData(['comments', { contextId, sourceType, sourceId, pageSize }], (old: any) => {
+        if (!old) return old;
+        const pages = old.pages.map((page: any) => ({ 
+          ...page, 
+          items: page.items.map((c: any) => 
+            c.id === parentId ? { ...c, commentsCount: (c.commentsCount || 0) + 1 } : c
+          ) 
+        }));
+        return { ...old, pages };
+      });
+      
+      // Update local repliesMap state with enriched reply
       setRepliesMap(prev => {
         const existing = prev[parentId]?.comments ?? [];
         const alreadyExists = existing.some(r => r.id === enrichedReply.id);
@@ -170,7 +218,9 @@ export function useComments({
           }
         };
       });
-
+      
+      // Invalidate to ensure consistency
+      await queryClient.invalidateQueries({ queryKey: ['comments', { contextId, sourceType, sourceId, pageSize }] });
     }
   });
 

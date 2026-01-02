@@ -135,6 +135,8 @@ export const useMapSpotSearch = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [appliedQuery, setAppliedQuery] = useState("");
+  const [appliedRegion, setAppliedRegion] = useState<Region | undefined>(undefined);
   const [sortBy, setSortBy] = useState<'distance' | 'rating' | 'name'>('distance');
   const [filters, setFilters] = useState<SpotSearchFilters>({
     ...DEFAULT_FILTERS,
@@ -187,8 +189,8 @@ export const useMapSpotSearch = ({
     if (filters.maxDistance !== undefined) {
       searchLocation = userLocation;
       searchRadius = filters.maxDistance;
-    } else if (mapRegion) {
-      const area = calculateSearchArea(mapRegion);
+    } else if (appliedRegion) {
+      const area = calculateSearchArea(appliedRegion);
       searchLocation = area.centerLocation;
       searchRadius = area.calculatedRadius;
     } else {
@@ -197,7 +199,7 @@ export const useMapSpotSearch = ({
     }
 
     return {
-      searchQuery: searchQuery.trim() || undefined,
+      searchQuery: appliedQuery.trim() || undefined,
       location: searchLocation,
       maxDistance: searchRadius,
       sportIds: filters.sports.map(s => s.id),
@@ -212,7 +214,7 @@ export const useMapSpotSearch = ({
       sortOrder: 'asc' as const,
       limit: 100,
     };
-  }, [searchQuery, filters, userLocation, mapRegion]);
+  }, [appliedQuery, filters, userLocation, appliedRegion]);
 
   const spotsQuery = useQuery({
     queryKey: ['spots', repoFilters],
@@ -221,9 +223,11 @@ export const useMapSpotSearch = ({
   });
 
   const searchSpots = useCallback(async () => {
+    setAppliedQuery(searchQuery);
+    setAppliedRegion(mapRegion);
     // Invalidate or refetch spots query
     await queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'spots' });
-  }, [queryClient]);
+  }, [searchQuery, mapRegion, queryClient]);
 
   /**
    * Resetea los filtros
@@ -231,6 +235,7 @@ export const useMapSpotSearch = ({
   const resetFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
     setSearchQuery("");
+    setAppliedQuery("");
     setSortBy('distance');
   }, []);
 
@@ -410,6 +415,18 @@ export const useMapSpotSearch = ({
       return () => clearTimeout(timeout);
     }
   }, [mapRegion, autoSearch, filters.maxDistance, searchSpots]);
+
+  /**
+   * Sincronizar searchQuery con appliedQuery si autoSearch está activado
+   */
+  useEffect(() => {
+    if (autoSearch && searchQuery !== appliedQuery) {
+      const timeout = setTimeout(() => {
+        setAppliedQuery(searchQuery);
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [searchQuery, autoSearch, appliedQuery]);
 
   /**
    * Búsqueda automática inicial cuando se obtiene ubicación del usuario

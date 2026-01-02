@@ -1,5 +1,6 @@
 import { Comment, CommentSourceType } from '@/src/entities/comment/model/comment';
-import { DocumentReference, Timestamp } from 'firebase/firestore';
+import { DocumentReference } from 'firebase/firestore';
+import { parseTimestamp } from '../utils/firebase-parsers';
 
 /**
  * Parse a Firestore path to extract contextId, sourceType, and sourceId
@@ -83,12 +84,8 @@ export function mapFirestoreCommentToEntity(
     dislikesCount: data.dislikesCount ?? 0,
     commentsCount: data.commentsCount ?? 0,
     reports: data.reports ?? 0,
-    createdAt: data.createdAt instanceof Timestamp
-      ? data.createdAt.toDate()
-      : new Date(data.createdAt || Date.now()),
-    updatedAt: data.updatedAt instanceof Timestamp
-      ? data.updatedAt.toDate()
-      : data.updatedAt ? new Date(data.updatedAt) : undefined,
+    createdAt: parseTimestamp(data.createdAt) || new Date(),
+    updatedAt: parseTimestamp(data.updatedAt),
     isDeleted: data.isDeleted ?? false,
   };
 }
@@ -110,3 +107,5 @@ export function extractSourceInfoFromPath(docPath: string): { contextId: string;
   // Fallback: try to parse the full path
   return parseSourcePath(docPath);
 }
+
+

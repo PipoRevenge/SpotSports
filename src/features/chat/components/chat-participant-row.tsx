@@ -11,10 +11,11 @@ interface ChatParticipantRowProps {
   isAdmin?: boolean;
   currentUserId?: string | null;
   onPromote?: (id: string) => void;
+  onRemove?: (id: string) => void;
   onPress?: (id: string) => void;
 }
 
-export const ChatParticipantRow: React.FC<ChatParticipantRowProps> = ({ user, role, isAdmin, currentUserId, onPromote, onPress }) => {
+export const ChatParticipantRow: React.FC<ChatParticipantRowProps> = ({ user, role, isAdmin, currentUserId, onPromote, onRemove, onPress }) => {
   const handleRowPress = () => {
     if (!onPress) return;
     onPress(user.id);
@@ -23,6 +24,11 @@ export const ChatParticipantRow: React.FC<ChatParticipantRowProps> = ({ user, ro
   const handlePromote = (e: any) => {
     e.stopPropagation?.();
     onPromote?.(user.id);
+  };
+
+  const handleRemove = (e: any) => {
+    e.stopPropagation?.();
+    onRemove?.(user.id);
   };
 
   return (
@@ -34,11 +40,18 @@ export const ChatParticipantRow: React.FC<ChatParticipantRowProps> = ({ user, ro
         <Text className="text-sm font-semibold text-slate-900">{user.userDetails.userName}</Text>
         <Text className="text-xs text-slate-500">{role || 'member'}</Text>
       </View>
-      {isAdmin && role !== 'admin' && role !== 'owner' && user.id !== currentUserId ? (
-        <Pressable onPress={handlePromote} className="px-3 py-2">
-          <Text className="text-cyan-600 text-sm font-semibold">Hacer admin</Text>
-        </Pressable>
-      ) : null}
+      <View className="flex-row items-center">
+        {isAdmin && role !== 'admin' && role !== 'owner' && user.id !== currentUserId ? (
+          <Pressable onPress={handlePromote} className="px-2 py-2">
+            <Text className="text-cyan-600 text-sm font-semibold">Admin</Text>
+          </Pressable>
+        ) : null}
+        {isAdmin && role !== 'owner' && user.id !== currentUserId ? (
+          <Pressable onPress={handleRemove} className="px-2 py-2">
+            <Text className="text-red-600 text-sm font-semibold">Eliminar</Text>
+          </Pressable>
+        ) : null}
+      </View>
     </Pressable>
   );
 };

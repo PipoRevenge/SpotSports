@@ -70,21 +70,33 @@ export const useCommentVote = (
     isVoting: false,
   } as CommentVoteState;
 
-  const mutationVote = useMutation({
-    mutationFn: async ({ isLike }: { isLike: boolean }) => {
+  const mutation = useMutation({
+    mutationFn: async ({ isLike, isRemoving }: { isLike: boolean; isRemoving: boolean }) => {
       if (!contextId || !sourceType || !sourceId || !commentId || !userId) throw new Error('User must be logged in to vote');
-      return await commentRepository.voteComment(contextId, sourceType, sourceId, commentId, userId, isLike);
+      
+      if (isRemoving) {
+        await commentRepository.removeCommentVote(contextId, sourceType, sourceId, commentId, userId);
+        return { isLike, removed: true };
+      }
+      
+      await commentRepository.voteComment(contextId, sourceType, sourceId, commentId, userId, isLike);
+      return { isLike, removed: false };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'comments' });
-      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'commentVote' });
-    }
-  });
-
-  const mutationRemove = useMutation({
-    mutationFn: async () => {
-      if (!contextId || !sourceType || !sourceId || !commentId || !userId) throw new Error('User must be logged in to vote');
-      return await commentRepository.removeCommentVote(contextId, sourceType, sourceId, commentId, userId);
+    onMutate: async ({ isLike, isRemoving }) => {
+      const key = ['commentVote', contextId, sourceType, sourceId, commentId, userId];
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<boolean | null>(key);
+      
+      // Optimistically update vote state
+      queryClient.setQueryData(key, isRemoving ? null : isLike);
+      
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      const key = ['commentVote', contextId, sourceType, sourceId, commentId, userId];
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(key, context.previous);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'comments' });
@@ -96,71 +108,65 @@ export const useCommentVote = (
   const error = voteQuery.error;
 
   // compute isVoting based on mutation state
-  voteState.isVoting = mutationVote.isPending || mutationRemove.isPending;
+  voteState.isVoting = mutation.isPending;
 
   // Keep backward-compatible signatures: allow callers to pass current counts (likes, dislikes)
   const handleLike = useCallback(
     (likesCount?: number, dislikesCount?: number) => {
-      // If already liked -> remove vote
-      if (voteQuery.data === true) {
-        mutationRemove.mutateAsync().then(() => {
-          if (typeof likesCount === 'number' && typeof dislikesCount === 'number') {
-            onVoteChange?.(Math.max(0, likesCount - 1), dislikesCount);
-          }
-        }).catch(() => {});
-        return;
-      }
-
-      // If currently disliked -> switch: remove dislike and add like
-      if (voteQuery.data === false) {
-        mutationVote.mutateAsync({ isLike: true }).then(() => {
-          if (typeof likesCount === 'number' && typeof dislikesCount === 'number') {
-            onVoteChange?.(likesCount + 1, Math.max(0, dislikesCount - 1));
-          }
-        }).catch(() => {});
-        return;
-      }
-
-      // No vote yet -> add like
-      mutationVote.mutateAsync({ isLike: true }).then(() => {
-        if (typeof likesCount === 'number' && typeof dislikesCount === 'number') {
-          onVoteChange?.(likesCount + 1, dislikesCount);
+      const isRemoving = voteQuery.data === true;
+      
+      // Optimistically update counters before mutation
+      if (typeof likesCount === 'number' && typeof dislikesCount === 'number') {
+        let newLikes = likesCount;
+        let newDislikes = dislikesCount;
+        
+        if (isRemoving) {
+          // Remove like
+          newLikes = Math.max(0, likesCount - 1);
+        } else if (voteQuery.data === false) {
+          // Switch from dislike to like
+          newLikes = likesCount + 1;
+          newDislikes = Math.max(0, dislikesCount - 1);
+        } else {
+          // Add like
+          newLikes = likesCount + 1;
         }
-      }).catch(() => {});
+        
+        onVoteChange?.(newLikes, newDislikes);
+      }
+      
+      mutation.mutate({ isLike: true, isRemoving });
     },
-    [mutationRemove, mutationVote, onVoteChange, voteQuery.data]
+    [mutation, onVoteChange, voteQuery.data]
   );
 
   const handleDislike = useCallback(
     (likesCount?: number, dislikesCount?: number) => {
-      // If already disliked -> remove
-      if (voteQuery.data === false) {
-        mutationRemove.mutateAsync().then(() => {
-          if (typeof likesCount === 'number' && typeof dislikesCount === 'number') {
-            onVoteChange?.(likesCount, Math.max(0, dislikesCount - 1));
-          }
-        }).catch(() => {});
-        return;
-      }
-
-      // If currently liked -> switch
-      if (voteQuery.data === true) {
-        mutationVote.mutateAsync({ isLike: false }).then(() => {
-          if (typeof likesCount === 'number' && typeof dislikesCount === 'number') {
-            onVoteChange?.(Math.max(0, likesCount - 1), dislikesCount + 1);
-          }
-        }).catch(() => {});
-        return;
-      }
-
-      // No vote yet -> add dislike
-      mutationVote.mutateAsync({ isLike: false }).then(() => {
-        if (typeof likesCount === 'number' && typeof dislikesCount === 'number') {
-          onVoteChange?.(likesCount, dislikesCount + 1);
+      const isRemoving = voteQuery.data === false;
+      
+      // Optimistically update counters before mutation
+      if (typeof likesCount === 'number' && typeof dislikesCount === 'number') {
+        let newLikes = likesCount;
+        let newDislikes = dislikesCount;
+        
+        if (isRemoving) {
+          // Remove dislike
+          newDislikes = Math.max(0, dislikesCount - 1);
+        } else if (voteQuery.data === true) {
+          // Switch from like to dislike
+          newLikes = Math.max(0, likesCount - 1);
+          newDislikes = dislikesCount + 1;
+        } else {
+          // Add dislike
+          newDislikes = dislikesCount + 1;
         }
-      }).catch(() => {});
+        
+        onVoteChange?.(newLikes, newDislikes);
+      }
+      
+      mutation.mutate({ isLike: false, isRemoving });
     },
-    [mutationRemove, mutationVote, onVoteChange, voteQuery.data]
+    [mutation, onVoteChange, voteQuery.data]
   );
 
   useEffect(() => {

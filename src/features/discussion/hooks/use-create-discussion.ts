@@ -1,5 +1,6 @@
 import { discussionRepository, userRepository } from '@/src/api/repositories';
 import { MediaItem } from '@/src/components/commons/media-picker/media-picker-carousel';
+import { useSelectedSpot } from '@/src/context/selected-spot-context';
 import { useUser } from '@/src/context/user-context';
 import { useMutation, useQueryClient } from '@/src/lib/react-query';
 import { useCallback } from 'react';
@@ -15,6 +16,7 @@ interface CreateDiscussionData {
 export function useCreateDiscussion() {
   const { user, setUser } = useUser();
   const queryClient = useQueryClient();
+  const { bumpDiscussionRefresh } = useSelectedSpot();
 
   const incrementDiscussionCounters = useCallback(async (authorId: string) => {
     try {
@@ -85,6 +87,9 @@ export function useCreateDiscussion() {
       if (newDiscussion) {
         queryClient.setQueryData(['discussion', newDiscussion.id, variables.discussionData.spotId], newDiscussion);
       }
+      
+      // Bump discussion refresh counter to notify UI components
+      bumpDiscussionRefresh();
     },
   });
 

@@ -1,7 +1,8 @@
 /**
  * Categorías disponibles para clasificar spots guardados
+ * IMPORTANTE: Estos valores deben coincidir exactamente con el backend
  */
-export type SpotCategory = 'Favorites' | 'Visited' | 'WantToVisit';
+export type SpotCategory = 'favorites' | 'visited' | 'bucketList';
 
 /**
  * Representa un spot guardado en la colección de usuario

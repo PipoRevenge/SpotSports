@@ -1,5 +1,6 @@
 import { Discussion } from '@/src/entities/discussion/model/discussion';
 import { Timestamp } from 'firebase/firestore';
+import { parseTimestamp } from '../utils/firebase-parsers';
 
 export interface FirestoreDiscussionData {
   spotId?: string; // Empty string or undefined for general discussions
@@ -13,8 +14,8 @@ export interface FirestoreDiscussionData {
   dislikesCount: number;
   commentsCount: number;
   reports: number;
-  createdAt: Timestamp;
-  updatedAt?: Timestamp;
+  createdAt: Timestamp | string; // Can be Timestamp from Firestore or ISO string from cloud functions
+  updatedAt?: Timestamp | string;
   isDeleted?: boolean;
 }
 
@@ -42,8 +43,8 @@ export function mapFirestoreDiscussionToEntity(doc: any, spotId?: string): Discu
       media: data.media || [],
     },
     metadata: {
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : data.updatedAt ? new Date(data.updatedAt) : undefined,
+      createdAt: parseTimestamp(data.createdAt) || new Date(),
+      updatedAt: parseTimestamp(data.updatedAt),
       isDeleted: data.isDeleted || false,
       createdBy: data.userId || data.createdBy,
     },
@@ -81,3 +82,5 @@ export const createFirestoreDiscussionData = (
     isDeleted: false,
   } as FirestoreDiscussionData;
 };
+
+

@@ -1,4 +1,5 @@
 import { spotRepository } from "@/src/api/repositories";
+import { parseFirebaseError } from "@/src/api/repositories/utils/firebase-parsers";
 import { useUser } from "@/src/context/user-context";
 import { SpotDetails } from "@/src/entities/spot/model/spot";
 import { useMutation, useQueryClient } from "@/src/lib/react-query";
@@ -23,6 +24,12 @@ export const useCreateSpot = () => {
    */
   const createSpotMutation = useMutation({
     mutationFn: async (formData: SpotCreateFormData): Promise<string> => {
+      console.log('[useCreateSpot] Starting spot creation', {
+        hasUser: !!user,
+        hasUserDetails: !!user?.userDetails,
+        mediaCount: formData.media?.length || 0,
+      });
+
       // Verificar que el usuario esté autenticado
       if (!user || !user.id) {
         throw new Error("Debes estar autenticado para crear un spot");
@@ -37,6 +44,7 @@ export const useCreateSpot = () => {
       const validation = validateSpotCreateForm(formData);
       if (!validation.isValid) {
         const firstError = Object.values(validation.errors)[0];
+        console.error('[useCreateSpot] Form validation failed', validation.errors);
         throw new Error(firstError || "Datos del formulario inválidos");
       }
 
@@ -54,19 +62,35 @@ export const useCreateSpot = () => {
         }
       };
 
+      console.log('[useCreateSpot] Calling repository with spot details', {
+        name: spotDetails.name,
+        mediaCount: spotDetails.media.length,
+        sportsCount: spotDetails.availableSports.length,
+      });
+
       return spotRepository.createSpot(spotDetails, user.id, user.userDetails.userName);
     },
     onSuccess: async (spotId) => {
+      console.log('[useCreateSpot] Spot created successfully', { spotId });
       setState({ isLoading: false, error: null, success: true });
+      
+      // Invalidate queries to refresh data
       await queryClient.invalidateQueries({ queryKey: ['spots'] });
       await queryClient.invalidateQueries({ queryKey: ['spot', spotId] });
     },
     onMutate: () => {
+      console.log('[useCreateSpot] Mutation started');
       setState({ isLoading: true, error: null, success: false });
     },
     onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message : "Error inesperado al crear el spot";
-      setState({ isLoading: false, error: errorMessage, success: false });
+      const parsedError = parseFirebaseError(error);
+      console.error('[useCreateSpot] Mutation failed', parsedError);
+      
+      setState({
+        isLoading: false,
+        error: parsedError.message,
+        success: false
+      });
     },
     retry: 0,
   });

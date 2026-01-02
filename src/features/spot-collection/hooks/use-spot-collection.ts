@@ -153,6 +153,7 @@ export const useSpotCollection = (spotId?: string) => {
 
   /**
    * Toggle una categoría (añadir si no está, quitar si está)
+   * Ahora el backend maneja el toggle automáticamente
    */
   const toggleCategory = async (category: SpotCategory, targetSpotId?: string) => {
     const spotToToggle = targetSpotId || spotId;
@@ -161,13 +162,10 @@ export const useSpotCollection = (spotId?: string) => {
       return false;
     }
 
-    const isInCategory = categories.includes(category);
-    
-    if (isInCategory) {
-      return await removeFromCategories([category], spotToToggle);
-    } else {
-      return await addToCategories([category], spotToToggle);
-    }
+    // El backend ahora hace toggle automáticamente:
+    // - Si no existe, lo añade
+    // - Si ya existe, lo quita
+    return await addToCategories([category], spotToToggle);
   };
 
   /**

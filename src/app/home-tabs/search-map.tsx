@@ -7,20 +7,20 @@ import { VStack } from "@/src/components/ui/vstack";
 import { useMapSearch } from "@/src/context/map-search-context";
 import { Spot } from "@/src/entities/spot/model/spot";
 import {
-  formatDistance,
-  MapSearchBar,
-  MapSearchMap,
-  MapSearchResult,
-  MapSearchResultItem,
-  MapSearchResultList,
-  SpotCardModal,
-  SpotMarker,
-  spotsToMapResults,
-  useMapSpotSearch,
+    formatDistance,
+    MapSearchBar,
+    MapSearchMap,
+    MapSearchResult,
+    MapSearchResultItem,
+    MapSearchResultList,
+    SpotCardModal,
+    SpotMarker,
+    spotsToMapResults,
+    useMapSpotSearch,
 } from "@/src/features/map-search";
 import {
-  SpotSearchFilterModal,
-  useSelectedSpot,
+    SpotSearchFilterModal,
+    useSelectedSpot,
 } from "@/src/features/spot";
 import { SpotCollectionSelector } from "@/src/features/spot-collection";
 import { GeoPoint } from "@/src/types/geopoint";
@@ -82,7 +82,7 @@ export default function SearchMapScreen() {
     shouldCenterOnUser,
   } = useMapSpotSearch({
     userLocation: userLocation || undefined,
-    autoSearch: true,
+    autoSearch: false,
   });
 
   // Calcular filtros activos para mostrar en UI

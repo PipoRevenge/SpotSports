@@ -30,7 +30,7 @@ export default function ChatConversation() {
   const { send, isSending } = useSendMessage(chatId);
   const { pickMultiple } = useImagePicker();
 
-  const { participants } = useChatParticipants(chat?.memberIds);
+  const { participants } = useChatParticipants(chat?.memberIds, { type: 'chat', id: chatId });
   const [isSendingMedia, setIsSendingMedia] = useState(false);
   const { clearLocal, isClearing } = useClearChatLocal(chatId, user?.id);
 

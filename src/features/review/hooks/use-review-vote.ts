@@ -64,47 +64,35 @@ export const useReviewVote = (
   }), [voteQuery.data]);
 
   const mutation = useMutation({
-    mutationFn: async ({ isLike }: { isLike: boolean }) => {
+    mutationFn: async ({ isLike, currentLikes, currentDislikes }: { isLike: boolean; currentLikes: number; currentDislikes: number }) => {
       if (!spotId || !reviewId || !userId) {
         throw new Error('User must be logged in to vote');
       }
 
-      if ((isLike && voteState.isLiked) || (!isLike && voteState.isDisliked)) {
+      const isRemoving = (isLike && voteState.isLiked) || (!isLike && voteState.isDisliked);
+      
+      if (isRemoving) {
         await reviewRepository.removeReviewVote(spotId, reviewId, userId);
-        return null;
+        return { isLike, removed: true };
       }
 
       await reviewRepository.voteReview(spotId, reviewId, userId, isLike);
-      return isLike;
+      return { isLike, removed: false };
     },
-    onMutate: async ({ isLike }) => {
+    onMutate: async ({ isLike, currentLikes, currentDislikes }) => {
       const key = ['review', 'vote', spotId, reviewId, userId];
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData<boolean | null>(key);
-      if (isLike === voteState.isLiked || (!isLike && voteState.isDisliked)) {
-        queryClient.setQueryData(key, null);
-      } else {
-        queryClient.setQueryData(key, isLike);
-      }
-      return { previous };
-    },
-    onError: (_err, _variables, context) => {
-      const key = ['review', 'vote', spotId, reviewId, userId];
-      if (context?.previous !== undefined) {
-        queryClient.setQueryData(key, context.previous);
-      }
-    },
-    onSuccess: (_data) => {
-      queryClient.invalidateQueries({ queryKey: ['reviews'] });
-    },
-  });
-
-  const handleVote = useCallback(
-    async (isLike: boolean, currentLikes: number, currentDislikes: number) => {
-      await mutation.mutateAsync({ isLike });
+      
+      // Optimistically update vote state
+      const isRemoving = (isLike && voteState.isLiked) || (!isLike && voteState.isDisliked);
+      queryClient.setQueryData(key, isRemoving ? null : isLike);
+      
+      // Calculate optimistic counter changes
       let newLikes = currentLikes;
       let newDislikes = currentDislikes;
-      if ((isLike && voteState.isLiked) || (!isLike && voteState.isDisliked)) {
+      
+      if (isRemoving) {
         if (isLike) newLikes = Math.max(0, currentLikes - 1);
         else newDislikes = Math.max(0, currentDislikes - 1);
       } else {
@@ -116,9 +104,33 @@ export const useReviewVote = (
           if (voteState.isLiked) newLikes = Math.max(0, currentLikes - 1);
         }
       }
+      
+      // Immediately notify UI of counter changes
       onVoteChange?.(newLikes, newDislikes);
+      
+      return { previous, previousLikes: currentLikes, previousDislikes: currentDislikes };
     },
-    [mutation, onVoteChange, voteState.isDisliked, voteState.isLiked]
+    onError: (_err, _variables, context) => {
+      const key = ['review', 'vote', spotId, reviewId, userId];
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(key, context.previous);
+      }
+      // Revert counter changes on error
+      if (context?.previousLikes !== undefined && context?.previousDislikes !== undefined) {
+        onVoteChange?.(context.previousLikes, context.previousDislikes);
+      }
+    },
+    onSuccess: (_data) => {
+      queryClient.invalidateQueries({ queryKey: ['reviews'] });
+    },
+  });
+
+  const handleVote = useCallback(
+    async (isLike: boolean, currentLikes: number, currentDislikes: number) => {
+      // Pass counters to mutation for optimistic update
+      await mutation.mutateAsync({ isLike, currentLikes, currentDislikes });
+    },
+    [mutation]
   );
 
   const handleLike = useCallback(

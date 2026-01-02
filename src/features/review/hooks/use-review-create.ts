@@ -52,24 +52,25 @@ export const useReviewCreate = (onSuccess?: () => void) => {
       showSuccess(REVIEW_SUCCESS_MESSAGES.CREATED, 'Success');
 
       const spotId = result.details.spotId;
+      const reviewId = result.id;
 
-      // Update counters cache (optimistic - server already incremented in transaction)
-      try {
-        queryClient.setQueryData(['spot', spotId, 'counters'], (old: any) => {
-          if (!old) return old;
-          return { ...old, reviewsCount: (old.reviewsCount || 0) + 1 };
-        });
+      // Immediately invalidate and refetch all related queries to ensure fresh data
+      await Promise.all([
+        // Invalidate all review-related queries
+        queryClient.invalidateQueries({ queryKey: ['reviews'] }),
+        queryClient.invalidateQueries({ queryKey: ['review', reviewId] }),
+        queryClient.invalidateQueries({ queryKey: ['spot', spotId, 'reviews'] }),
+        
+        // Invalidate spot data to get updated counters
+        queryClient.invalidateQueries({ queryKey: ['spot', spotId] }),
+        queryClient.invalidateQueries({ queryKey: ['spot', spotId, 'counters'] }),
+        queryClient.invalidateQueries({ queryKey: ['spot', spotId, 'sportRatings'] }),
+        
+        // Refetch spot data immediately to show updated info
+        queryClient.refetchQueries({ queryKey: ['spot', spotId] }),
+        queryClient.refetchQueries({ queryKey: ['spot', spotId, 'reviews'] }),
+      ]);
 
-        queryClient.setQueryData<any>(['spot', spotId], (old: any) => {
-          if (!old) return old;
-          return { ...old, activity: { ...old.activity, reviewsCount: (old.activity?.reviewsCount || 0) + 1 } };
-        });
-      } catch (cacheErr) {
-        console.warn('[useReviewCreate] Failed to update spot counters cache', cacheErr);
-      }
-
-      await queryClient.invalidateQueries({ queryKey: ['reviews'] });
-      await queryClient.invalidateQueries({ queryKey: ['spot', spotId] });
       if (onSuccess) onSuccess();
     },
     onError: (err: unknown) => {

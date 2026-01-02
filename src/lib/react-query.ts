@@ -21,14 +21,19 @@ const shouldPersistQuery = (query: Query) => {
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30_000,
-      gcTime: 5 * 60_000,
+      // Reduce stale time for more frequent refetches of critical data
+      staleTime: 30_000, // 30 seconds
+      gcTime: 5 * 60_000, // 5 minutes
       retry: 1,
       refetchOnReconnect: true,
-      refetchOnWindowFocus: false
+      refetchOnWindowFocus: false,
+      // Enable network mode to handle offline scenarios
+      networkMode: 'online',
     },
     mutations: {
-      retry: 0
+      retry: 0,
+      // Enable network mode for mutations
+      networkMode: 'online',
     }
   }
 });
