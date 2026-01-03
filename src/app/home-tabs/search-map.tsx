@@ -115,6 +115,8 @@ export default function SearchMapScreen() {
     useCallback(() => {
       if (shouldRefreshAfterCreateRef.current) {
         shouldRefreshAfterCreateRef.current = false;
+        // Refresh results and clear temporary create marker
+        setCreateSpotLocation(null);
         searchSpots();
       }
     }, [searchSpots])
@@ -226,8 +228,6 @@ export default function SearchMapScreen() {
           longitude: createSpotLocation.longitude.toString(),
         },
       });
-      // Limpiar el marcador después de navegar
-      setCreateSpotLocation(null);
     }
   }, [createSpotLocation]);
 

@@ -1,4 +1,4 @@
-import { Button, ButtonText } from "@/src/components/ui/button";
+import { Button, ButtonIcon, ButtonText } from "@/src/components/ui/button";
 import { HStack } from "@/src/components/ui/hstack";
 import { Select, SelectBackdrop, SelectContent, SelectDragIndicator, SelectDragIndicatorWrapper, SelectIcon, SelectInput, SelectItem, SelectPortal, SelectTrigger } from "@/src/components/ui/select";
 import { Text } from "@/src/components/ui/text";
@@ -6,11 +6,12 @@ import { VStack } from "@/src/components/ui/vstack";
 import { Review } from "@/src/entities/review/model/review";
 import { User } from "@/src/entities/user/model/user";
 import { CommentWithUser } from "@/src/features/comment";
-import { ChevronDown } from "lucide-react-native";
+import { ChevronDown, Filter } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { useReviewLoad } from "../../hooks/use-review-load";
-import { ReviewSortOption } from "../../hooks/use-spot-reviews";
+import { REVIEW_SORT_OPTIONS, type ReviewSortValue } from '../../utils/review-constants';
+import { ReviewFilterModal } from "../filters/review-filter-modal";
 import { ReviewCard } from "./review-card";
 
 /**
@@ -35,8 +36,8 @@ export interface ReviewListProps {
   getSportName?: (sportId: string) => string;
   
   // Ordenamiento
-  sortBy: ReviewSortOption;
-  onSortChange: (sort: ReviewSortOption) => void;
+  sortBy: ReviewSortValue;
+  onSortChange: (sort: ReviewSortValue) => void;
   
   // Interacciones
   onReply?: (reviewId: string) => void;
@@ -69,15 +70,7 @@ export interface ReviewListProps {
   registerLayout?: (id: string, node: any) => void;
 }
 
-/**
- * Opciones de ordenamiento con etiquetas
- */
-const SORT_OPTIONS: { value: ReviewSortOption; label: string }[] = [
-  { value: "recent", label: "Más recientes" },
-  { value: "oldest", label: "Más antiguas" },
-  { value: "rating-high", label: "Mayor calificación" },
-  { value: "rating-low", label: "Menor calificación" },
-];
+// Opciones de ordenamiento ahora importadas desde review-constants.ts
 
 /**
  * Componente ReviewList
@@ -137,6 +130,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
   const [hasUserReview, setHasUserReview] = useState(false);
   const [userReviewId, setUserReviewId] = useState<string | null>(null);
   const { review: userReview, loadingReview } = useReviewLoad(spotId);
+  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   
   // Verificar si el usuario ya tiene una review
   useEffect(() => {
@@ -148,6 +142,8 @@ export const ReviewList: React.FC<ReviewListProps> = ({
   const hasNoReviewsAtAll = totalReviews === 0;
   // Determinar si hay reviews pero ninguna coincide con el filtro actual
   const hasNoMatchingReviews = !hasNoReviewsAtAll && reviews.length === 0;
+
+  const activeFiltersCount = selectedSportId ? 1 : 0;
 
   /**
    * Estado de carga
@@ -226,18 +222,59 @@ export const ReviewList: React.FC<ReviewListProps> = ({
       {/* Header adicional (ej: detalles del spot) */}
       {listHeaderComponent}
 
-      {/* Filtros y contador de reviews */}
-      <VStack className="gap-3 px-6 pb-4">
-        {/* Contador de reviews y botones */}
+      {/* Filtros y contador de reviews (botón filtro + select de orden) */}
+      <VStack className="gap-2 pb-2 px-4">
         <HStack className="justify-between items-center">
           <Text className="text-lg font-bold text-gray-900">
             {reviews.length} {reviews.length === 1 ? "Review" : "Reviews"}
           </Text>
-            <HStack className="gap-2">
-            {/* Botón de escribir/editar review */}
+
+          <HStack className="items-center gap-2">
+            <View className="relative">
+              <Button
+                onPress={() => setIsFilterModalVisible(true)}
+                variant="solid"
+                action="default"
+                size="sm"
+                className="rounded-full p-2 bg-gray-100"
+              >
+                <ButtonIcon as={Filter} className="text-blue-600 h-5 w-5" />
+              </Button>
+              {activeFiltersCount > 0 ? (
+                <View className="absolute -top-1 -right-1 bg-red-500 rounded-full h-4 w-4 items-center justify-center">
+                  <Text className="text-white text-[10px] font-bold">{activeFiltersCount}</Text>
+                </View>
+              ) : null}
+            </View>
+
+            <Select
+              selectedValue={sortBy}
+              onValueChange={(value) => onSortChange(value as ReviewSortValue)}
+            >
+              <SelectTrigger variant="outline" size="sm" className="flex-row items-center gap-2">
+                <SelectInput placeholder="Sort by" className="text-sm" />
+                <SelectIcon as={ChevronDown} />
+              </SelectTrigger>
+              <SelectPortal>
+                <SelectBackdrop />
+                <SelectContent>
+                  <SelectDragIndicatorWrapper>
+                    <SelectDragIndicator />
+                  </SelectDragIndicatorWrapper>
+                  {REVIEW_SORT_OPTIONS.map((option) => (
+                    <SelectItem
+                      key={option.value}
+                      label={option.label}
+                      value={option.value}
+                    />
+                  ))}
+                </SelectContent>
+              </SelectPortal>
+            </Select>
+
             <Button
               size="sm"
-              className="bg-blue-600"
+              variant="outline"
               onPress={() => {
                 if (hasUserReview) {
                   if (onEdit && userReviewId) onEdit(userReviewId);
@@ -246,61 +283,11 @@ export const ReviewList: React.FC<ReviewListProps> = ({
                 if (onCreate) onCreate();
               }}
             >
-              <ButtonText className="text-white font-semibold">
-                {hasUserReview ? "Actualizar Review" : "Escribir Review"}
+              <ButtonText className="font-semibold text-sm">
+                {hasUserReview ? "✏️ Editar" : "➕ Añadir"}
               </ButtonText>
             </Button>
           </HStack>
-        </HStack>
-
-        {/* Filtros y ordenamiento */}
-        <HStack className="gap-2 flex-wrap items-center">
-          {/* Filtro por deporte - Selector simple */}
-          {availableSports && availableSports.length > 0 && (
-            <Select
-              selectedValue={selectedSportId}
-              onValueChange={(value) => onSportFilterChange?.(value)}
-            >
-              <SelectTrigger variant="outline" size="sm" className="min-w-[160px]">
-                <SelectInput placeholder="Todos los deportes" />
-                <SelectIcon className="pr-3" as={ChevronDown} />
-              </SelectTrigger>
-              <SelectPortal>
-                <SelectBackdrop />
-                <SelectContent>
-                  <SelectDragIndicatorWrapper>
-                    <SelectDragIndicator />
-                  </SelectDragIndicatorWrapper>
-                  <SelectItem label="Todos los deportes" value="" />
-                  {availableSports.map((sport) => (
-                    <SelectItem key={sport.id} label={sport.name} value={sport.id} />
-                  ))}
-                </SelectContent>
-              </SelectPortal>
-            </Select>
-          )}
-
-          {/* Ordenamiento */}
-          <Select
-            selectedValue={sortBy}
-            onValueChange={(value) => onSortChange(value as ReviewSortOption)}
-          >
-            <SelectTrigger variant="outline" size="sm" className="min-w-[160px]">
-              <SelectInput placeholder="Ordenar por" />
-              <SelectIcon className="pr-3" as={ChevronDown} />
-            </SelectTrigger>
-            <SelectPortal>
-              <SelectBackdrop />
-              <SelectContent>
-                <SelectDragIndicatorWrapper>
-                  <SelectDragIndicator />
-                </SelectDragIndicatorWrapper>
-                {SORT_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} label={option.label} value={option.value} />
-                ))}
-              </SelectContent>
-            </SelectPortal>
-          </Select>
         </HStack>
       </VStack>
 
@@ -362,6 +349,15 @@ export const ReviewList: React.FC<ReviewListProps> = ({
           </View>
         </View>
       )}
+
+      <ReviewFilterModal
+        visible={isFilterModalVisible}
+        onClose={() => setIsFilterModalVisible(false)}
+        selectedSportId={selectedSportId}
+        onApply={(sportId) => onSportFilterChange?.(sportId)}
+        onClear={() => onSportFilterChange?.('')}
+        availableSports={availableSports}
+      />
     </VStack>
   );
 };

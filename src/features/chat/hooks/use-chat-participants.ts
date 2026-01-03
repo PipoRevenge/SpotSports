@@ -15,12 +15,12 @@ export const useChatParticipants = (memberIds?: string[], context?: Participants
         let ids: string[] = memberIds || [];
 
         if (ids.length === 0 && context) {
-            if (context.type === 'chat') {
-                const members = await chatRepository.getChatMembers(context.id);
-                ids = members.map(m => m.userId);
-            } else if (context.type === 'meetup') {
-                const members = await meetupRepository.getMeetupParticipants(context.spotId, context.id);
-                ids = members.map(m => m.userId);
+            if (context.type === 'chat' && typeof (chatRepository as any).getChatMembers === 'function') {
+                const members = await (chatRepository as any).getChatMembers(context.id) as Array<{ userId: string }>;
+                ids = members.map((m) => m.userId);
+            } else if (context.type === 'meetup' && typeof (meetupRepository as any).getMeetupParticipants === 'function') {
+                const members = await (meetupRepository as any).getMeetupParticipants(context.spotId, context.id) as Array<{ userId: string }>;
+                ids = members.map((m) => m.userId);
             }
         }
 

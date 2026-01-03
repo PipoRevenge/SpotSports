@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
-import { firestore, functions } from '../../../lib/firebase-config';
+import { auth, firestore, functions } from '../../../lib/firebase-config';
 import { IUserRepository } from '../interfaces/i-user-repository';
 import { UserFirebase, UserMapper } from '../mappers/user-mapper';
 
@@ -106,9 +106,51 @@ export class UserRepositoryImpl implements IUserRepository {
         }
     }
 
-    async getUserById(userId: string): Promise<User> {
+    async getUserById(userId: string | any): Promise<User> {
+        const userIdRaw = userId;
         try {
-            const userRef = await doc(firestore, this.USERS_COLLECTION, userId);
+            // Normalize the input: accept string IDs, DocumentReference-like objects, or objects with path/id
+            let resolvedId: any = userId;
+
+            if (!resolvedId) {
+                throw new Error('User ID is required');
+            }
+
+            if (typeof resolvedId !== 'string') {
+                // Firestore DocumentReference has an `id` prop
+                if (resolvedId.id && typeof resolvedId.id === 'string') {
+                    resolvedId = resolvedId.id;
+                } else if (resolvedId.path && typeof resolvedId.path === 'string') {
+                    const parts = resolvedId.path.split('/');
+                    resolvedId = parts[parts.length - 1];
+                } else if (resolvedId.__name__ && typeof resolvedId.__name__ === 'string') {
+                    // Some internal representations expose __name__
+                    resolvedId = resolvedId.__name__;
+                } else if (resolvedId._key && resolvedId._key.path) {
+                    // Firestore internal structure
+                    const segs = resolvedId._key.path.segments || resolvedId._key.path;
+                    if (segs) {
+                      if (Array.isArray(segs)) resolvedId = segs[segs.length - 1];
+                      else if (typeof segs === 'string') {
+                        const parts = segs.split('/');
+                        resolvedId = parts[parts.length - 1];
+                      }
+                    } else {
+                      resolvedId = String(resolvedId);
+                    }
+                } else {
+                    // Fallback to string coercion
+                    resolvedId = String(resolvedId);
+                }
+            }
+
+            // Reject clearly invalid string coercions like "[object Object]"
+            if (typeof resolvedId === 'string' && resolvedId.startsWith('[object')) {
+                console.warn('[UserRepository] Received suspicious userId after normalization', { userIdRaw });
+                throw new Error('Invalid user id format');
+            }
+
+            const userRef = doc(firestore, this.USERS_COLLECTION, resolvedId);
             const userDoc = await getDoc(userRef);
             
             if (!userDoc.exists()) {
@@ -117,9 +159,9 @@ export class UserRepositoryImpl implements IUserRepository {
             
             // Convertir de Firebase a modelo de la aplicación usando el mapper
             const firebaseUser = userDoc.data() as UserFirebase;
-            return UserMapper.fromFirebase(firebaseUser, userId);
+            return UserMapper.fromFirebase(firebaseUser, resolvedId);
         } catch (error: any) {
-            console.error('Error getting user:', error);
+            console.error('Error getting user:', error, { userIdRaw });
             
             // Preservar el mensaje "User not found" para que el contexto pueda hacer retry
             if (error?.message === 'User not found') {
@@ -225,33 +267,81 @@ export class UserRepositoryImpl implements IUserRepository {
      * @returns Array de SavedSpot
      */
     async getUserSavedSpots(userId: string, category?: SpotCategory): Promise<SavedSpot[]> {
-        try {
-            const userRef = doc(firestore, this.USERS_COLLECTION, userId);
-            const savedSpots: SavedSpot[] = [];
-            
-            // El backend guarda en: users/{userId}/{category}/{spotId}
-            const categoriesToCheck: SpotCategory[] = category 
-                ? [category] 
-                : ['favorites', 'visited', 'bucketList'];
-            
-            for (const cat of categoriesToCheck) {
-                const categoryRef = collection(userRef, cat);
-                const querySnapshot = await getDocs(categoryRef);
-                
-                querySnapshot.docs.forEach(doc => {
-                    savedSpots.push({
-                        id: doc.id,
-                        spotId: doc.data().spotId || doc.id, // El ID del documento es el spotId
-                        categories: [cat], // Este spot está en esta categoría
-                        createdAt: doc.data().savedAt?.toDate() || new Date(),
-                        updatedAt: doc.data().savedAt?.toDate() || new Date(),
-                    });
-                });
+        // Only allow reading own saved spots from client SDK. For other users, a callable function (admin) should be used.
+        const waitForAuth = async (timeoutMs = 3000) => {
+            const start = Date.now();
+            while (Date.now() - start < timeoutMs) {
+                if (auth?.currentUser) return auth.currentUser;
+                // small delay
+                await new Promise((r) => setTimeout(r, 200));
             }
+            return null;
+        };
+
+        let currentUser = auth?.currentUser || null;
+        try {
+            // Wait briefly for auth to initialize (avoids race conditions on cold start)
+            if (!currentUser) {
+                currentUser = await waitForAuth(3000);
+            }
+
+            const currentUid = currentUser?.uid || null;
+
+            if (!currentUid) {
+                console.warn('[UserRepository] getUserSavedSpots blocked: unauthenticated request', { userId });
+                throw new Error('User not authenticated');
+            }
+
+            if (userId !== currentUid) {
+                console.warn('[UserRepository] getUserSavedSpots blocked: UID mismatch', { requestedUserId: userId, currentUid });
+                throw new Error('Insufficient permissions to access saved spots of other users');
+            }
+
+            const userRef = doc(firestore, this.USERS_COLLECTION, userId);
+            const savedSpotsRef = collection(userRef, this.SAVED_SPOTS_SUBCOLLECTION);
+            
+            let q;
+            if (category) {
+                q = query(savedSpotsRef, where('categories', 'array-contains', category));
+            } else {
+                q = query(savedSpotsRef);
+            }
+
+            // Retry once if permission-denied occurs due to auth timing
+            let querySnapshot;
+            try {
+                querySnapshot = await getDocs(q);
+            } catch (err: any) {
+                console.warn('[UserRepository] getUserSavedSpots getDocs failed, retrying once', { category, err });
+                // Wait a short moment then retry
+                await new Promise((r) => setTimeout(r, 200));
+                querySnapshot = await getDocs(q);
+            }
+
+            const savedSpots: SavedSpot[] = querySnapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    spotId: data.spotId || doc.id,
+                    categories: data.categories || [],
+                    createdAt: data.savedAt?.toDate() || new Date(),
+                    updatedAt: data.updatedAt?.toDate() || data.savedAt?.toDate() || new Date(),
+                };
+            });
             
             return savedSpots;
-        } catch (error) {
-            console.error('Error getting user saved spots:', error);
+        } catch (error: any) {
+            console.error('Error getting user saved spots:', error, { userId, currentUid: auth?.currentUser?.uid || null });
+
+            // Convert auth/permission errors into user-friendly messages
+            if (error?.message && (error.message.includes('User not authenticated') || error.message.includes('Insufficient permissions'))) {
+                throw new Error('No tienes permisos para ver los spots guardados. Asegúrate de estar autenticado y que sea tu cuenta.');
+            }
+
+            if (error?.code === 'permission-denied') {
+                throw new Error('No tienes permisos para ver los spots guardados.');
+            }
+
             throw new Error('Unable to get user saved spots');
         }
     }
@@ -400,23 +490,16 @@ export class UserRepositoryImpl implements IUserRepository {
      */
     async getSpotCategories(userId: string, spotId: string): Promise<SpotCategory[]> {
         try {
-            const categories: SpotCategory[] = [];
             const userRef = doc(firestore, this.USERS_COLLECTION, userId);
+            const savedSpotRef = doc(userRef, this.SAVED_SPOTS_SUBCOLLECTION, spotId);
+            const spotSnap = await getDoc(savedSpotRef);
             
-            // Verificar cada categoría individualmente
-            // El backend guarda en: users/{userId}/{category}/{spotId}
-            const categoriesToCheck: SpotCategory[] = ['favorites', 'visited', 'bucketList'];
-            
-            for (const category of categoriesToCheck) {
-                const spotInCategoryRef = doc(userRef, category, spotId);
-                const spotSnap = await getDoc(spotInCategoryRef);
-                
-                if (spotSnap.exists()) {
-                    categories.push(category);
-                }
+            if (spotSnap.exists()) {
+                const data = spotSnap.data();
+                return data.categories || [];
             }
             
-            return categories;
+            return [];
         } catch (error) {
             console.error('Error getting spot categories:', error);
             return [];

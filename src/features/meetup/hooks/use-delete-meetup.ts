@@ -17,7 +17,7 @@ export const useDeleteMeetup = () => {
   return {
     deleteMeetup: mutation.mutate,
     deleteMeetupAsync: mutation.mutateAsync,
-    isDeleting: mutation.isLoading || (mutation as any).isPending || false,
+    isDeleting: (mutation as any).isLoading || (mutation as any).isPending || false,
     error: (mutation.error as Error | null)?.message ?? null,
   };
 };

@@ -90,3 +90,49 @@ export const REVIEW_LOADING_STATES = {
 export const REVIEW_SUCCESS_MESSAGES = {
   CREATED: 'Review created successfully!',
 } as const;
+
+/**
+ * Review Sort Options
+ */
+export type ReviewSortValue = 'newest' | 'oldest' | 'ratingHigh' | 'ratingLow' | 'mostVoted';
+
+export interface ReviewSortOption {
+  value: ReviewSortValue;
+  label: string;
+  icon?: string;
+}
+
+export const REVIEW_SORT_OPTIONS: ReviewSortOption[] = [
+  {
+    value: 'newest',
+    label: 'Newest First',
+    icon: 'calendar-arrow-down',
+  },
+  {
+    value: 'oldest',
+    label: 'Oldest First',
+    icon: 'calendar-arrow-up',
+  },
+  {
+    value: 'ratingHigh',
+    label: 'Highest Rating',
+    icon: 'star',
+  },
+  {
+    value: 'ratingLow',
+    label: 'Lowest Rating',
+    icon: 'star-off',
+  },
+  {
+    value: 'mostVoted',
+    label: 'Most Voted',
+    icon: 'trending-up',
+  },
+];
+
+export const DEFAULT_REVIEW_SORT: ReviewSortValue = 'newest';
+
+export const getReviewSortLabel = (value: ReviewSortValue): string => {
+  const option = REVIEW_SORT_OPTIONS.find(opt => opt.value === value);
+  return option?.label || 'Newest First';
+};

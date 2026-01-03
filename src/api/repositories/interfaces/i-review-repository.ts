@@ -1,4 +1,5 @@
 import { Review, ReviewDetails } from "@/src/entities/review/model/review";
+import { ReviewFilters, ReviewSortOptions } from '@/src/types/filtering.types';
 
 /**
  * Interfaz del repositorio de reviews
@@ -45,6 +46,19 @@ export interface IReviewRepository {
    * @returns Array de reviews del spot
    */
   getReviewsBySpot(spotId: string, limit?: number, offset?: number): Promise<Review[]>;
+
+  /**
+   * Get reviews with filters and sorting
+   * @param options - Query options
+   */
+  getReviews(options: {
+    spotId?: string;
+    filters?: ReviewFilters;
+    sort?: ReviewSortOptions;
+    userId?: string; // For createdByMe filter
+    limit?: number;
+    offset?: number;
+  }): Promise<Review[]>;
 
   /**
    * Obtiene todas las reviews de un usuario

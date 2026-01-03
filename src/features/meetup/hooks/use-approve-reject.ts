@@ -17,7 +17,7 @@ export const useApproveRequest = () => {
   return {
     approve: mutation.mutate,
     approveAsync: mutation.mutateAsync,
-    isApproving: mutation.isLoading || (mutation as any).isPending || false,
+    isApproving: (mutation as any).isLoading || (mutation as any).isPending || false,
     error: (mutation.error as Error | null)?.message ?? null,
   };
 };
@@ -38,7 +38,7 @@ export const useRejectRequest = () => {
   return {
     reject: mutation.mutate,
     rejectAsync: mutation.mutateAsync,
-    isRejecting: mutation.isLoading || (mutation as any).isPending || false,
+    isRejecting: (mutation as any).isLoading || (mutation as any).isPending || false,
     error: (mutation.error as Error | null)?.message ?? null,
   };
 };

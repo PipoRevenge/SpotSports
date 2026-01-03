@@ -1,23 +1,24 @@
 import { Review, ReviewDetails } from "@/src/entities/review/model/review";
 import { firestore, functions, storage } from "@/src/lib/firebase-config";
+import { ReviewFilters, ReviewSortOptions, shouldApplyCreatedByMe } from '@/src/types/filtering.types';
 import { ref as dbRef, getDatabase, push } from "firebase/database";
 import {
-  collection,
-  collectionGroup,
-  doc,
-  limit as firestoreLimit,
-  getDoc,
-  getDocs,
-  orderBy,
-  query,
-  where
+    collection,
+    collectionGroup,
+    doc,
+    limit as firestoreLimit,
+    getDoc,
+    getDocs,
+    orderBy,
+    query,
+    where
 } from "firebase/firestore";
 import { httpsCallable } from 'firebase/functions';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { IReviewRepository } from "../interfaces/i-review-repository";
 import {
-  FirestoreReviewData,
-  mapFirestoreToReview
+    FirestoreReviewData,
+    mapFirestoreToReview
 } from "../mappers/review-mapper";
 import { voteRepository } from "./vote-repository-impl";
 
@@ -230,27 +231,52 @@ export class ReviewRepositoryImpl implements IReviewRepository {
     try {
       // Usar collectionGroup para buscar en todas las subcollections 'reviews'
       const reviewsRef = collectionGroup(firestore, 'reviews');
-      const q = query(
+
+      // We'll perform two queries: one that checks 'userId' and another 'createdBy'
+      // to support older documents that used a different field name.
+      const q1 = query(
         reviewsRef,
-        where("userId", "==", userId),
-        where("isDeleted", "==", false),
-        orderBy("createdAt", "desc"),
-        firestoreLimit(limit)
+        where('userId', '==', userId),
+        where('isDeleted', '==', false),
+        orderBy('createdAt', 'desc'),
+        firestoreLimit(limit + offset)
       );
 
-      const querySnapshot = await getDocs(q);
+      const q2 = query(
+        reviewsRef,
+        where('createdBy', '==', userId),
+        where('isDeleted', '==', false),
+        orderBy('createdAt', 'desc'),
+        firestoreLimit(limit + offset)
+      );
+
+      const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+
+      const docMap = new Map<string, any>();
+
+      const pushDocs = (snap: any) => {
+        for (const d of snap.docs) {
+          if (!docMap.has(d.id)) docMap.set(d.id, d);
+        }
+      };
+
+      pushDocs(snap1);
+      pushDocs(snap2);
+
+      const docs = Array.from(docMap.values()).slice(offset, offset + limit);
+
       const reviews: Review[] = [];
 
       // Cargar cada review con URLs de media
-      for (const docSnapshot of querySnapshot.docs) {
+      for (const docSnapshot of docs) {
         const data = docSnapshot.data() as FirestoreReviewData;
-        
+
         // Convertir rutas de Storage a URLs
         let mediaUrls: string[] = [];
         if (data.gallery && data.gallery.length > 0) {
           mediaUrls = await this.getReviewMediaUrls(data.spotId, docSnapshot.id, data.gallery);
         }
-        
+
         const reviewDataWithUrls = { ...data, gallery: mediaUrls };
         reviews.push(mapFirestoreToReview(docSnapshot.id, reviewDataWithUrls));
       }
@@ -259,6 +285,112 @@ export class ReviewRepositoryImpl implements IReviewRepository {
     } catch (error) {
       console.error("[ReviewRepository] Error getting reviews by user:", error);
       throw new Error("Failed to get user reviews");
+    }
+  }
+
+  /**
+   * Get reviews with filters and sorting
+   */
+  async getReviews(options: {
+    spotId?: string;
+    filters?: ReviewFilters;
+    sort?: ReviewSortOptions;
+    userId?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<Review[]> {
+    try {
+      const { spotId, filters, sort, userId, limit = 20, offset = 0 } = options;
+
+      // Check if we should apply createdByMe filter
+      const applyCreatedByMe = userId && filters && shouldApplyCreatedByMe(filters);
+
+      let q;
+
+      if (applyCreatedByMe) {
+        // When createdByMe is active, use collectionGroup to get user's reviews
+        return this.getReviewsByUser(userId, limit, offset);
+      }
+
+      if (spotId || filters?.spotId) {
+        // Query specific spot
+        const targetSpotId = spotId || filters!.spotId!;
+        const reviewsRef = collection(firestore, `spots/${targetSpotId}/reviews`);
+        q = query(
+          reviewsRef,
+          where("isDeleted", "==", false)
+        );
+      } else {
+        // Query across all spots
+        const reviewsRef = collectionGroup(firestore, 'reviews');
+        q = query(
+          reviewsRef,
+          where("isDeleted", "==", false)
+        );
+      }
+
+      // Add Firestore ordering
+      const sortField = sort?.field || 'newest';
+      if (sortField === 'oldest') {
+        q = query(q, orderBy('createdAt', 'asc'));
+      } else if (sortField === 'ratingHigh') {
+        q = query(q, orderBy('rating', 'desc'), orderBy('createdAt', 'desc'));
+      } else if (sortField === 'ratingLow') {
+        q = query(q, orderBy('rating', 'asc'), orderBy('createdAt', 'desc'));
+      } else if (sortField === 'mostVoted') {
+        q = query(q, orderBy('likesCount', 'desc'), orderBy('createdAt', 'desc'));
+      } else {
+        // Default: newest
+        q = query(q, orderBy('createdAt', 'desc'));
+      }
+
+      const querySnapshot = await getDocs(q);
+      let allReviews: Review[] = [];
+
+      for (const docSnapshot of querySnapshot.docs) {
+        const data = docSnapshot.data() as FirestoreReviewData;
+
+        // Extract spotId from path if using collectionGroup
+        const targetSpotId = spotId || filters?.spotId || docSnapshot.ref.path.split('/')[1];
+
+        let mediaUrls: string[] = [];
+        if (data.gallery && data.gallery.length > 0) {
+          mediaUrls = await this.getReviewMediaUrls(targetSpotId, docSnapshot.id, data.gallery);
+        }
+
+        const reviewDataWithUrls = { ...data, gallery: mediaUrls };
+        const review = mapFirestoreToReview(docSnapshot.id, reviewDataWithUrls);
+
+        // Apply client-side filters
+        let includeReview = true;
+
+        if (filters) {
+          // Filter by sport
+          if (filters.sportId) {
+            includeReview = review.details.reviewSports.some(
+              rs => rs.sportId === filters.sportId
+            );
+          }
+
+          // Filter by rating
+          if (includeReview && filters.minRating !== undefined) {
+            includeReview = review.details.rating >= filters.minRating;
+          }
+          if (includeReview && filters.maxRating !== undefined) {
+            includeReview = review.details.rating <= filters.maxRating;
+          }
+        }
+
+        if (includeReview) {
+          allReviews.push(review);
+        }
+      }
+
+      // Apply pagination
+      return allReviews.slice(offset, offset + limit);
+    } catch (error) {
+      console.error("[ReviewRepository] Error in getReviews:", error);
+      throw new Error("Failed to get reviews");
     }
   }
 

@@ -26,6 +26,8 @@ export interface ReviewCommentsProps {
   autoExpand?: boolean;
   /** Optional parent id of the highlighted comment (used to ensure chain loading) */
   parentCommentId?: string;
+  /** Optional layout registration for deep-link precise scrolling */
+  registerLayout?: (id: string, node: any) => void; 
 }
 
 /**

@@ -26,11 +26,12 @@ export type { SportSearchSlotProps } from './components/review-create/add-sport-
 export type { ReviewCardProps } from './components/review-view/review-card';
 export type { ReviewCommentsProps } from './components/review-view/review-comments';
 export type { ReviewListProps } from './components/review-view/review-list';
-export type { ReviewFilters, ReviewSortOption } from './hooks/use-spot-reviews';
+export type { ReviewFilters } from './types/review-filter-types';
 export type {
     CreateReviewData, DifficultyLevel, ReviewFormData,
     ReviewFormErrors, ReviewSportFormData, SimpleSport
 } from './types/review-types';
+export type { ReviewSortOption } from './utils/review-constants';
 
 // Constants
 export {

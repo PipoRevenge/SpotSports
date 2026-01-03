@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectIcon, SelectInput, SelectItem, SelectPorta
 import { ChatType } from '@/src/entities/chat';
 import React from 'react';
 
-export type ChatFilter = 'all' | ChatType;
+type ChatFilter = 'all' | ChatType;
 
 interface ChatFiltersProps {
   value: ChatFilter;

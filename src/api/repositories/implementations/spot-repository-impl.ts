@@ -113,6 +113,60 @@ export class SpotRepositoryImpl implements ISpotRepository {
   }
 
   /**
+   * Update an existing spot. Uploads any new media and calls the update cloud function.
+   */
+  async updateSpot(spotId: string, spotData: Partial<SpotDetails>, userId: string): Promise<void> {
+    if (!spotId || typeof spotId !== 'string' || spotId.trim().length === 0) {
+      throw new Error('Valid spot ID is required');
+    }
+
+    try {
+      const payload: any = { spotId };
+
+      // Handle media: if spotData.media is provided, separate existing remote URLs and local URIs
+      if (spotData.media && spotData.media.length > 0) {
+        const existingUrls: string[] = spotData.media.filter((u: string) => typeof u === 'string' && u.startsWith('http'));
+        const localUris: string[] = spotData.media.filter((u: string) => typeof u === 'string' && !u.startsWith('http'));
+
+        let uploadedUrls: string[] = [];
+        if (localUris.length > 0) {
+          // Upload new files into the spot's gallery folder
+          uploadedUrls = await this.uploadSpotMedia(spotId, userId, localUris);
+        }
+
+        payload.galleryUrls = [...existingUrls, ...uploadedUrls];
+      }
+
+      if (spotData.name !== undefined) payload.name = spotData.name;
+      if (spotData.description !== undefined) payload.description = spotData.description;
+      if (spotData.availableSports !== undefined) payload.availableSports = spotData.availableSports;
+      if ((spotData as any).difficulty !== undefined) payload.difficulty = (spotData as any).difficulty;
+
+      // Remove undefined fields
+      const cleaned = this.removeUndefinedFields(payload);
+
+      console.log('[SpotRepository:updateSpot] Calling cloud function spots_update with', {
+        ...cleaned,
+        galleryUrls: cleaned.galleryUrls ? `${cleaned.galleryUrls.length} URLs` : undefined,
+      });
+
+      const updateFn = httpsCallable(functions, 'spots_update');
+      await updateFn(cleaned);
+
+      console.log('[SpotRepository:updateSpot] Spot updated successfully', { spotId });
+    } catch (error) {
+      console.error('[SpotRepository:updateSpot] Failed to update spot', {
+        error,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        spotId,
+        userId,
+        timestamp: new Date().toISOString(),
+      });
+      throw new Error(error instanceof Error ? error.message : 'Failed to update spot');
+    }
+  }
+
+  /**
    * Obtener spot por ID
    */
   async getSpotById(id: string): Promise<Spot | null> {
@@ -129,8 +183,20 @@ export class SpotRepositoryImpl implements ISpotRepository {
       }
 
       const spotData = docSnap.data() as any;
-      const mediaUrls = await this.getSpotMediaUrls(id);
-      spotData.media = mediaUrls;
+      // Removed getSpotMediaUrls call to rely on Firestore data
+      // const mediaUrls = await this.getSpotMediaUrls(id);
+      // spotData.galleryUrls = mediaUrls;
+
+      if (spotData.createdBy && typeof spotData.createdBy === 'object') {
+        const extracted = SpotMapper.extractCreatedBy(spotData.createdBy);
+        if (extracted) {
+          // Normalize locally to avoid propagating DocumentReference shapes through the app
+          spotData.createdBy = extracted;
+          console.info('[SpotRepository:getSpotById] Normalized createdBy to string', { spotId: id, createdBy: extracted });
+        } else {
+          console.warn('[SpotRepository:getSpotById] Spot has non-string createdBy in Firestore and could not be normalized', { spotId: id, createdByRaw: spotData.createdBy });
+        }
+      }
 
       return SpotMapper.fromFirebase(id, spotData);
 
@@ -450,8 +516,9 @@ export class SpotRepositoryImpl implements ISpotRepository {
         const spotData = docSnap.data() as any;
         
         // Cargar las URLs de media
-        const mediaUrls = await this.getSpotMediaUrls(docSnap.id);
-        spotData.media = mediaUrls;
+        // Removed getSpotMediaUrls call to rely on Firestore data
+        // const mediaUrls = await this.getSpotMediaUrls(docSnap.id);
+        // spotData.galleryUrls = mediaUrls;
         
         const spot = SpotMapper.fromFirebase(docSnap.id, spotData);
         spots.push(spot);

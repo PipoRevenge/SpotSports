@@ -15,11 +15,12 @@ import { httpsCallable } from 'firebase/functions';
 
 import { Meetup, MeetupType, MeetupVisibility } from '@/src/entities/meetup';
 import { firestore, functions } from '@/src/lib/firebase-config';
+import { MeetupFilters, MeetupSortOptions, shouldApplyCreatedByMe } from '@/src/types/filtering.types';
 import { ChatRepositoryImpl } from './chat-repository-impl';
 
 import { meetupFromFirestore } from '../mappers/meetup-mapper';
 // helper: compute next occurrence for routine meetups
-import { IMeetupRepository, MeetupFilters, MeetupTimeOfDay } from '../interfaces/i-meetup-repository';
+import { IMeetupRepository, MeetupTimeOfDay } from '../interfaces/i-meetup-repository';
 
 // Create singleton instance to avoid circular dependency
 const chatRepository = new ChatRepositoryImpl();
@@ -363,6 +364,90 @@ export class MeetupRepositoryImpl implements IMeetupRepository {
     console.debug('[MeetupRepo] Filtering done:', 'before=', results.length, 'after=', filtered.length);
 
     return filtered;
+  }
+
+  /**
+   * Get meetups with filters and sorting
+   */
+  async getMeetups(options: {
+    spotId?: string;
+    filters?: MeetupFilters;
+    sort?: MeetupSortOptions;
+    userId?: string;
+  }): Promise<Meetup[]> {
+    const { spotId, filters, sort, userId } = options;
+
+    // Check if we should apply createdByMe filter
+    const applyCreatedByMe = userId && filters && shouldApplyCreatedByMe(filters);
+
+    let meetups: Meetup[];
+
+    if (applyCreatedByMe) {
+      // Get user's meetups (organizer + participant)
+      meetups = await this.getMeetupsByUser(userId);
+    } else if (spotId || filters?.spotId) {
+      // Get meetups for specific spot with filters
+      const targetSpotId = spotId || filters!.spotId!;
+      meetups = await this.getMeetupsBySpot(targetSpotId, filters);
+    } else {
+      // Query across all spots
+      const group = collectionGroup(firestore, this.collectionName);
+      let q = query(group);
+
+      // Apply server-side filters where possible
+      if (filters?.type) {
+        q = query(q, where('type', '==', filters.type));
+      }
+      if (filters?.visibility) {
+        q = query(q, where('visibility', '==', filters.visibility));
+      }
+
+      const snapshot = await getDocs(q);
+      const results: Meetup[] = [];
+      const now = new Date();
+
+      for (const docSnapshot of snapshot.docs) {
+        const meetup = meetupFromFirestore(docSnapshot.id, docSnapshot.data());
+
+        // Apply client-side filters
+        const keep = this.applyClientFilters(meetup, filters, now);
+        if (keep) {
+          results.push(meetup);
+        }
+      }
+
+      meetups = results;
+    }
+
+    // Apply sorting
+    const sortField = sort?.field || 'nearestDate';
+
+    if (sortField === 'nearestDate') {
+      // Sort by next occurrence date
+      const now = new Date();
+      meetups.sort((a: any, b: any) => {
+        const dateA = this.getMeetupDateForFilter(a, now);
+        const dateB = this.getMeetupDateForFilter(b, now);
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        return dateA.getTime() - dateB.getTime();
+      });
+    } else if (sortField === 'oldest') {
+      meetups.sort((a: any, b: any) => {
+        const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+        const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+        return aTime - bTime;
+      });
+    } else {
+      // Default: newest
+      meetups.sort((a: any, b: any) => {
+        const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+        const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+        return bTime - aTime;
+      });
+    }
+
+    return meetups;
   }
 
   async getMeetupsByUser(userId: string): Promise<Meetup[]> {

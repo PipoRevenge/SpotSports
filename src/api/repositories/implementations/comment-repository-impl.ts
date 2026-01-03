@@ -3,17 +3,17 @@ import { Comment, CommentSourceType } from '@/src/entities/comment/model/comment
 import { firestore, functions, storage } from '@/src/lib/firebase-config';
 import { ref as dbRef, getDatabase, push } from 'firebase/database';
 import {
-  collection,
-  collectionGroup,
-  doc,
-  limit as firestoreLimit,
-  getDoc,
-  getDocs,
-  orderBy,
-  query,
-  Timestamp,
-  updateDoc,
-  where,
+    collection,
+    collectionGroup,
+    doc,
+    limit as firestoreLimit,
+    getDoc,
+    getDocs,
+    orderBy,
+    query,
+    Timestamp,
+    updateDoc,
+    where,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
@@ -345,23 +345,35 @@ export class CommentRepositoryImpl implements ICommentRepository {
   ): Promise<Comment[]> {
     try {
       const commentsGroupRef = collectionGroup(firestore, 'comments');
-      const q = query(
+
+      const q1 = query(
         commentsGroupRef,
         where('userId', '==', userId),
         where('isDeleted', '==', false),
         orderBy('createdAt', 'desc'),
         firestoreLimit(limit + offset)
       );
+      const q2 = query(
+        commentsGroupRef,
+        where('createdBy', '==', userId),
+        where('isDeleted', '==', false),
+        orderBy('createdAt', 'desc'),
+        firestoreLimit(limit + offset)
+      );
 
-      const snapshot = await getDocs(q);
+      const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+      const docMap = new Map<string, any>();
+      for (const d of snap1.docs) if (!docMap.has(d.id)) docMap.set(d.id, d);
+      for (const d of snap2.docs) if (!docMap.has(d.id)) docMap.set(d.id, d);
+
       const all: Comment[] = [];
-      snapshot.forEach((d) => {
+      for (const d of Array.from(docMap.values()).slice(offset, offset + limit)) {
         // Extract source info from the document path
         const { contextId, sourceType, sourceId } = extractSourceInfoFromPath(d.ref.path);
         all.push(mapFirestoreCommentToEntity(d, contextId, sourceType, sourceId));
-      });
+      }
 
-      return all.slice(offset, offset + limit);
+      return all;
     } catch (error) {
       console.error('[CommentRepository] getCommentsByUser:', error);
       throw error;

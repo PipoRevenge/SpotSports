@@ -32,7 +32,9 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
   onCancel,
   initialData,
   initialLocation,
-  sportsSlot: SportsSlot
+  sportsSlot: SportsSlot,
+  onSubmitForm,
+  externalLoading
 }) => {
   // Hook para crear spot
   const { createSpot, isLoading, error, clearError } = useCreateSpot();
@@ -113,6 +115,8 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
   const { showSuccess, showError } = useAppAlert();
   const [uploadProgress, setUploadProgress] = useState<string | undefined>();
 
+  const isEditMode = !!initialData;
+
   const handleSubmit = async () => {
     // Validar formulario
     const validation = validateSpotCreateForm(formData);
@@ -132,7 +136,15 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
         setUploadProgress(`Subiendo archivos (0/${formData.media.length})...`);
       }
 
-      // Crear spot
+      // If a custom submit handler is provided (edit mode), call it
+      if (onSubmitForm) {
+        await onSubmitForm(formData);
+        setUploadProgress(undefined);
+        showSuccess('El spot ha sido actualizado correctamente', '¡Éxito!');
+        return;
+      }
+
+      // Otherwise, create spot
       const spotId = await createSpot(formData);
       
       if (spotId) {
@@ -147,7 +159,7 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
     } catch (err) {
       setUploadProgress(undefined);
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      showError(errorMessage, 'Error al crear spot');
+      showError(errorMessage, isEditMode ? 'Error al actualizar spot' : 'Error al crear spot');
     }
   };
 
@@ -159,7 +171,7 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
       <VStack className="p-4" space="lg">
         {/* Título */}
         <Text className="text-2xl font-bold text-center">
-          Crear Nuevo Spot
+          {isEditMode ? 'Editar Spot' : 'Crear Nuevo Spot'}
         </Text>
 
         {/* Error general */}
@@ -365,13 +377,13 @@ export const SpotCreateForm: React.FC<SpotCreateFormProps> = ({
               <ButtonText>Cancelar</ButtonText>
             </Button>
           )}
-          <Button 
+                  <Button 
             className="flex-1"
             onPress={handleSubmit}
-            disabled={isLoading}
+            disabled={isLoading || !!externalLoading}
           >
             <ButtonText>
-              {isLoading ? "Creando..." : "Crear Spot"}
+              {isLoading || externalLoading ? (isEditMode ? "Guardando..." : "Creando...") : (isEditMode ? "Guardar cambios" : "Crear Spot")}
             </ButtonText>
           </Button>
         </HStack>

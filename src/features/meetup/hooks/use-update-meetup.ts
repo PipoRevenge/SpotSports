@@ -20,7 +20,7 @@ export const useUpdateMeetup = () => {
   return {
     update: (payload: { spotId: string; meetupId: string; data: Partial<Meetup>; requesterId?: string }) => mutation.mutate(payload),
     updateAsync: (payload: { spotId: string; meetupId: string; data: Partial<Meetup>; requesterId?: string }) => mutation.mutateAsync(payload),
-    isUpdating: mutation.isLoading || (mutation as any).isPending || false,
+    isUpdating: (mutation as any).isLoading || (mutation as any).isPending || false,
     error: (mutation.error as Error | null)?.message ?? null,
     currentUserId: user?.id ?? null,
   } as const;

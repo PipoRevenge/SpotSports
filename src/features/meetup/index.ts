@@ -11,3 +11,6 @@ export * from './hooks/use-meetup-details';
 export * from './hooks/use-meetups';
 export * from './hooks/use-spot-sports';
 export * from './utils/validation';
+
+// Types
+export type { MeetupFilters, MeetupSortOptions, MeetupTimeOfDay } from './types/meetup-filter-types';

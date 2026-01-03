@@ -153,7 +153,9 @@ export function useComments({
       ]);
       
       try {
-        if (user?.id) await userRepository.incrementActivityCounters(user.id, { commentsDelta: 1 });
+        if (user?.id && typeof (userRepository as any).incrementActivityCounters === 'function') {
+          await (userRepository as any).incrementActivityCounters(user.id, { commentsDelta: 1 });
+        }
       } catch (e) {
         console.warn('[useComments] Failed to increment user commentsCount', e);
       }

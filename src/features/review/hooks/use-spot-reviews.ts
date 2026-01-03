@@ -1,31 +1,19 @@
 import { reviewRepository, userRepository } from "@/src/api/repositories";
+import { useUser } from '@/src/context/user-context';
 import { User } from "@/src/entities/user/model/user";
+import { ReviewFilters, ReviewSortOptions } from '@/src/features/review/types/review-filter-types';
 import { useQuery, useQueryClient } from "@/src/lib/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
-
-/**
- * Tipos de ordenamiento para las reviews
- */
-export type ReviewSortOption = "recent" | "oldest" | "rating-high" | "rating-low";
-
-/**
- * Filtros para las reviews
- */
-export interface ReviewFilters {
-  sportId?: string; // Filtrar por un deporte específico (vacío = todos)
-  minRating?: number; // Rating mínimo
-}
-
-// No EMPTY_STATE — usamos un literal de retorno cuando spotId no es válido
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * Hook optimizado para obtener y gestionar las reviews de un spot con React Query
  * 
  * Características:
  * - Usa React Query para cache y optimización
- * - Permite filtrar por deporte
- * - Permite ordenar por varios criterios
- * - Cache automático de 1 minuto
+ * - Permite filtrar por deporte, rating, y usuario
+ * - Permite ordenar por varios criterios incluyendo votos
+ * - Soporte para "createdByMe" filter que prioriza contenido del usuario
+ * - Cache automático de 2 minutos
  * - NO ejecuta queries cuando spotId es undefined/null/vacío
  * 
  * @param spotId - ID del spot
@@ -38,8 +26,11 @@ export const useSpotReviews = (
   offset: number = 0
 ) => {
   const queryClient = useQueryClient();
+  const { user } = useUser();
+  const userId = user?.id;
+  
   const [filters, setFilters] = useState<ReviewFilters>({});
-  const [sortBy, setSortBy] = useState<ReviewSortOption>("recent");
+  const [sort, setSort] = useState<ReviewSortOptions>({ field: 'newest' });
 
   // Validar spotId de forma estricta
   const isValidSpotId = Boolean(spotId && typeof spotId === 'string' && spotId.trim().length > 0);
@@ -55,19 +46,27 @@ export const useSpotReviews = (
 
   // Query optimizada con React Query - SOLO se ejecuta si isValidSpotId es true
   const query = useQuery({
-    queryKey: ['spot', spotId, 'reviews', limit, offset],
+    queryKey: ['spot', spotId, 'reviews', filters, sort, userId, limit, offset],
     // CRÍTICO: enabled debe ser false cuando no hay spotId válido
     enabled: isValidSpotId,
-    staleTime: 1 * 60_000, // 1 minuto
+    staleTime: 2 * 60_000, // 2 minutos
     gcTime: 5 * 60_000,
     refetchOnMount: true,
     refetchOnReconnect: true,
     // Solo definimos queryFn cuando hay un spotId válido
     queryFn: isValidSpotId ? async () => {
-      console.log('[useSpotReviews] 🔥 Llamando a Firebase para spotId:', spotId, 'limit:', limit, 'offset:', offset);
+      console.log('[useSpotReviews] 🔥 Calling repository with filters:', filters, 'sort:', sort);
       
-      // Cargar reviews - spotId está garantizado por isValidSpotId
-      const reviews = await reviewRepository.getReviewsBySpot(spotId!, limit, offset);
+      // Cargar reviews usando el nuevo método getReviews con filtros
+      const reviews = await reviewRepository.getReviews({
+        spotId: spotId!,
+        filters,
+        sort,
+        userId,
+        limit,
+        offset
+      });
+      
       console.log('[useSpotReviews] ✅ Loaded', reviews.length, 'reviews from Firebase');
       
       // Cargar usuarios en paralelo
@@ -98,47 +97,18 @@ export const useSpotReviews = (
     },
   });
 
-  // Aplicar filtros y ordenamiento (memoizado)
-  const filteredReviews = useMemo(() => {
-    const reviews = query.data?.reviews ?? [];
-    let result = [...reviews];
-
-    // Aplicar filtro por deporte
-    if (filters.sportId && filters.sportId.trim() !== "") {
-      result = result.filter((review) =>
-        review.details.reviewSports.some((rs: any) => rs.sportId === filters.sportId)
-      );
-    }
-
-    // Aplicar filtro por rating mínimo
-    if (filters.minRating !== undefined) {
-      result = result.filter((review) => review.details.rating >= filters.minRating!);
-    }
-
-    // Aplicar ordenamiento
-    switch (sortBy) {
-      case "recent":
-        result.sort((a, b) => b.metadata.createdAt.getTime() - a.metadata.createdAt.getTime());
-        break;
-      case "oldest":
-        result.sort((a, b) => a.metadata.createdAt.getTime() - b.metadata.createdAt.getTime());
-        break;
-      case "rating-high":
-        result.sort((a, b) => b.details.rating - a.details.rating);
-        break;
-      case "rating-low":
-        result.sort((a, b) => a.details.rating - b.details.rating);
-        break;
-    }
-
-    return result;
-  }, [query.data?.reviews, filters, sortBy]);
-
   /**
    * Actualiza los filtros
    */
   const updateFilters = useCallback((newFilters: Partial<ReviewFilters>) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
+  }, []);
+
+  /**
+   * Actualiza el ordenamiento
+   */
+  const updateSort = useCallback((newSort: ReviewSortOptions) => {
+    setSort(newSort);
   }, []);
 
   /**
@@ -149,7 +119,7 @@ export const useSpotReviews = (
   }, []);
 
   /**
-   * Limpia el cache y fuerza recarga desde Firebase
+   * Limpia el cache de React Query para este spot
    */
   const clearCache = useCallback(async () => {
     console.log('[useSpotReviews] 🗑️ Clearing cache for spotId:', spotId);
@@ -166,7 +136,7 @@ export const useSpotReviews = (
     await query.refetch();
   }, [spotId, isValidSpotId, queryClient, query]);
 
-  // Si no hay spotId válido, retornar estado vacío sin usar la query
+  // Si spotId no es válido, retornar estado vacío inmediatamente
   if (!isValidSpotId) {
     return {
       reviews: [],
@@ -177,17 +147,17 @@ export const useSpotReviews = (
       isFetching: false,
       error: null,
       filters,
-      sortBy,
+      sort,
       updateFilters,
+      updateSort,
       resetFilters,
-      setSortBy,
       refetch: async () => {},
       clearCache: async () => {},
     };
   }
 
   return {
-    reviews: filteredReviews,
+    reviews: query.data?.reviews ?? [],
     allReviews: query.data?.reviews ?? [],
     totalReviews: query.data?.reviews?.length ?? 0,
     usersData: query.data?.users ?? new Map(),
@@ -195,10 +165,10 @@ export const useSpotReviews = (
     isFetching: query.isFetching,
     error: query.error ? (query.error as Error).message : null,
     filters,
-    sortBy,
+    sort,
     updateFilters,
+    updateSort,
     resetFilters,
-    setSortBy,
     refetch: query.refetch,
     clearCache,
   };

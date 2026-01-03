@@ -12,7 +12,8 @@ export interface SpotFirebase {
   description: string;
   availableSports: string[];
   // gallery - Lista de URLs de imágenes/videos en Storage
-  gallery: string[];
+  gallery?: string[];
+  galleryUrls?: string[];
   // GeoPoint de Firebase o objeto plano {lat, lng}
   location: FirebaseGeoPoint | { lat: number; lng: number } | { latitude: number; longitude: number };
   geohash: string;
@@ -60,7 +61,7 @@ export class SpotMapper {
       name: firebaseData.name || '',
       description: firebaseData.description || '',
       availableSports: firebaseData.availableSports || [],
-      media: firebaseData.gallery || [], // gallery → media
+      media: firebaseData.galleryUrls || firebaseData.gallery || [],
       location: parseLocation(firebaseData.location),
       overallRating: firebaseData.overallRating || 0,
       contactInfo: {
@@ -70,12 +71,25 @@ export class SpotMapper {
       }
     };
 
+    // Normalize createdBy to always be a string (some spots store a DocumentReference)
+    const createdByRaw: any = firebaseData.createdBy;
+    const createdByStr = SpotMapper.extractCreatedBy(createdByRaw);
+
+    // If we still ended up with a suspicious value like "[object Object]", clear it to force a safer behavior
+    if (createdByStr === '[object Object]') {
+      // ignore and fallback to empty
+    }
+
+    if (!createdByStr && createdByRaw && typeof createdByRaw === 'object') {
+      console.warn('[SpotMapper] Could not extract createdBy string from Firestore value', { createdByRaw });
+    }
+
     const metadata: SpotMetadata = {
       isVerified: firebaseData.isVerified || false,
       isActive: firebaseData.isActive !== false,
       createdAt: parseTimestamp(firebaseData.createdAt) || new Date(),
       updatedAt: parseTimestamp(firebaseData.updatedAt) || new Date(),
-      createdBy: firebaseData.createdBy || "",
+      createdBy: createdByStr,
     };
 
     const activity: SpotActivity = {
@@ -96,6 +110,80 @@ export class SpotMapper {
   }
 
   /**
+   * Extrae el campo `createdBy` desde varias formas (DocumentReference, paths, objetos internos)
+   * y devuelve siempre un string (o cadena vacía si no puede extraerlo)
+   */
+  static extractCreatedBy(raw: any): string {
+    const tryExtractFromSegments = (segments: any): string => {
+      try {
+        if (Array.isArray(segments) && segments.length > 0) return String(segments[segments.length - 1]);
+        if (typeof segments === 'string') {
+          const parts = segments.split('/');
+          return parts[parts.length - 1] || '';
+        }
+        return '';
+      } catch {
+        return '';
+      }
+    };
+
+    if (typeof raw === 'string') return raw;
+    if (!raw || typeof raw !== 'object') return '';
+
+    // Common DocumentReference shapes
+    if (typeof raw.id === 'string') return raw.id;
+    if (typeof raw.path === 'string') {
+      const parts = raw.path.split('/');
+      return parts[parts.length - 1] || '';
+    }
+    if (raw._key && raw._key.path) return tryExtractFromSegments(raw._key.path.segments || raw._key.path);
+    if (raw._documentPath && raw._documentPath.segments) return tryExtractFromSegments(raw._documentPath.segments);
+    if (raw.__name__ && typeof raw.__name__ === 'string') return raw.__name__;
+
+    // Deep search for any plausible id/path-ish field
+    const queue = [raw];
+    let found = '';
+    while (queue.length > 0 && !found) {
+      const obj = queue.shift();
+      if (!obj || typeof obj !== 'object') continue;
+      for (const k of Object.keys(obj)) {
+        const val = obj[k];
+        if (typeof val === 'string' && (k.toLowerCase().includes('id') || k.toLowerCase().includes('path') || k.toLowerCase().includes('name'))) {
+          if (val.includes('/') && val.split('/').length > 1) {
+            const parts = val.split('/');
+            found = parts[parts.length - 1];
+            break;
+          }
+          if (val.length >= 4) {
+            found = val;
+            break;
+          }
+        }
+        if (typeof val === 'object' && val !== null) queue.push(val);
+      }
+    }
+    if (found) return found;
+
+    // Final fallback: try JSON stringify to preserve some info (avoid [object Object])
+    try {
+      const asJson = JSON.stringify(raw);
+      const match = asJson.match(/"(?:id|path|__name__)"\s*:\s*"([^\"]+)"/i);
+      if (match && match[1]) {
+        const candidate = match[1];
+        if (candidate.includes('/')) {
+          const parts = candidate.split('/');
+          return parts[parts.length - 1] || '';
+        }
+        return candidate;
+      }
+    } catch {
+      // ignore
+    }
+
+    return '';
+  }
+
+  /**
    * Convierte modelo de dominio Spot a formato Firebase
    * @param spot - Spot en formato de dominio
    * @param geohash - Geohash de la ubicación (calculado externamente)
@@ -106,7 +194,7 @@ export class SpotMapper {
       name: spot.details.name,
       description: spot.details.description,
       availableSports: spot.details.availableSports || [],
-      gallery: spot.details.media || [],
+      galleryUrls: spot.details.media || [],
       location: new FirebaseGeoPoint(
         spot.details.location.latitude,
         spot.details.location.longitude
@@ -145,7 +233,7 @@ export class SpotMapper {
       if (details.name !== undefined) firebaseUpdate.name = details.name;
       if (details.description !== undefined) firebaseUpdate.description = details.description;
       if (details.availableSports !== undefined) firebaseUpdate.availableSports = details.availableSports;
-      if (details.media !== undefined) firebaseUpdate.gallery = details.media;
+      if (details.media !== undefined) firebaseUpdate.galleryUrls = details.media;
       if (details.location !== undefined) {
         firebaseUpdate.location = new FirebaseGeoPoint(
           details.location.latitude,

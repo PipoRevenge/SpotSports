@@ -1,22 +1,23 @@
 import { mapFirestoreDiscussionToEntity } from '@/src/api/repositories/mappers/discussion-mapper';
 import { Discussion, DiscussionDetails } from '@/src/entities/discussion/model/discussion';
 import { firestore, functions, storage } from '@/src/lib/firebase-config';
+import { DiscussionFilters, DiscussionSortOptions, shouldApplyCreatedByMe } from '@/src/types/filtering.types';
 import * as FileSystem from 'expo-file-system';
 import { ref as dbRef, getDatabase, push } from 'firebase/database';
 import {
-  collection,
-  collectionGroup,
-  doc,
-  limit as firestoreLimit,
-  getDoc,
-  getDocs,
-  orderBy,
-  query,
-  Timestamp,
-  where
+    collection,
+    collectionGroup,
+    doc,
+    limit as firestoreLimit,
+    getDoc,
+    getDocs,
+    orderBy,
+    query,
+    Timestamp,
+    where
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 import { IDiscussionRepository } from '../interfaces/i-discussion-repository';
 import { voteRepository } from './vote-repository-impl';
 
@@ -72,6 +73,7 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
   }
 
   async createDiscussion(spotId: string, userId: string, discussionData: DiscussionDetails): Promise<Discussion> {
+    let tempDiscussionId: string | null = null;
     try {
       // Upload media files to Storage if provided
       const mediaUris: string[] = discussionData.media || [];
@@ -81,12 +83,16 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
         const { local, remote } = this.separateLocalAndRemoteMedia(mediaUris);
         if (local.length > 0) {
           // Create a temporary discussion ID for media uploads
-          const tempDiscussionId = push(dbRef(getDatabase())).key || `${Date.now()}`;
+          tempDiscussionId = push(dbRef(getDatabase())).key || `${Date.now()}`;
           try {
             const uploaded = await this.uploadDiscussionMedia(spotId, tempDiscussionId, local);
             uploadedMediaUrls = [...remote, ...uploaded];
           } catch (uploadErr) {
             console.error('[DiscussionRepository] createDiscussion: media upload failed', uploadErr);
+            // If upload fails, we might have partial uploads. Cleanup.
+            if (tempDiscussionId) {
+              await this.deleteDiscussionMediaFolder(spotId, tempDiscussionId);
+            }
             throw new Error('Failed to upload discussion media. Please try again.');
           }
         } else {
@@ -113,6 +119,11 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       );
     } catch (error) {
       console.error('[DiscussionRepository] createDiscussion:', error);
+      // Rollback: delete uploaded media if function failed
+      if (tempDiscussionId) {
+        console.log('[DiscussionRepository] Rolling back media uploads for tempId:', tempDiscussionId);
+        await this.deleteDiscussionMediaFolder(spotId, tempDiscussionId);
+      }
       throw error;
     }
   }
@@ -147,17 +158,21 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
   async getDiscussions(options: {
     page: number;
     pageSize: number;
-    spotId?: string;
-    sort?: 'newest' | 'mostVoted';
-    tag?: string;
-    search?: string;
+    filters?: DiscussionFilters;
+    sort?: DiscussionSortOptions;
+    userId?: string;
   }): Promise<{ discussions: Discussion[]; total: number }> {
     try {
+      const { filters, sort, userId } = options;
+      
+      // Check if we should apply createdByMe filter (only if set and no other filters)
+      const applyCreatedByMe = userId && filters && shouldApplyCreatedByMe(filters);
+      
       let baseQuery;
       
-      if (options.spotId) {
+      if (filters?.spotId) {
         // Query within specific spot
-        const colRef = collection(firestore, this.getDiscussionsCollectionPath(options.spotId));
+        const colRef = collection(firestore, this.getDiscussionsCollectionPath(filters.spotId));
         baseQuery = query(colRef, where('isDeleted', '==', false));
       } else {
         // Query across all spots using collectionGroup
@@ -166,14 +181,37 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       }
 
       let q = baseQuery;
-      if (options.tag) q = query(q, where('tags', 'array-contains', options.tag));
-      if (options.search) {
-        const lower = options.search.toLowerCase();
-        q = query(q, where('titleLower', '>=', lower));
+      
+      // Apply createdByMe filter if applicable
+      if (applyCreatedByMe) {
+        q = query(q, where('createdBy', '==', userId));
+      }
+      
+      // Apply other filters only if createdByMe is not in effect
+      if (!applyCreatedByMe && filters) {
+        if (filters.tag) {
+          q = query(q, where('tags', 'array-contains', filters.tag));
+        }
+        if (filters.sportId) {
+          // Filter by sport if spot has sport association
+          q = query(q, where('sportId', '==', filters.sportId));
+        }
+        if (filters.search) {
+          const lower = filters.search.toLowerCase();
+          q = query(q, where('titleLower', '>=', lower));
+        }
       }
 
-      if (!options.sort || options.sort === 'newest') q = query(q, orderBy('createdAt', 'desc'));
-      if (options.sort === 'mostVoted') q = query(q, orderBy('likesCount', 'desc'));
+      // Apply sorting
+      const sortField = sort?.field || 'newest';
+      if (sortField === 'oldest') {
+        q = query(q, orderBy('createdAt', 'asc'));
+      } else if (sortField === 'mostVoted') {
+        q = query(q, orderBy('likesCount', 'desc'));
+      } else {
+        // Default: newest
+        q = query(q, orderBy('createdAt', 'desc'));
+      }
 
       const snap = await getDocs(q);
       const total = snap.size;
@@ -209,17 +247,31 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
   async getDiscussionsByUser(userId: string, limit: number = 20, offset: number = 0): Promise<Discussion[]> {
     try {
       const discussionsGroupRef = collectionGroup(firestore, 'discussions');
-      const q = query(
+
+      const q1 = query(
         discussionsGroupRef,
         where('userId', '==', userId),
         where('isDeleted', '==', false),
         orderBy('createdAt', 'desc'),
         firestoreLimit(limit + offset)
       );
+      const q2 = query(
+        discussionsGroupRef,
+        where('createdBy', '==', userId),
+        where('isDeleted', '==', false),
+        orderBy('createdAt', 'desc'),
+        firestoreLimit(limit + offset)
+      );
 
-      const snapshot = await getDocs(q);
+      const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+      const docMap = new Map<string, any>();
+      for (const d of snap1.docs) if (!docMap.has(d.id)) docMap.set(d.id, d);
+      for (const d of snap2.docs) if (!docMap.has(d.id)) docMap.set(d.id, d);
+
+      const merged = Array.from(docMap.values()).slice(offset, offset + limit);
       const all: Discussion[] = [];
-      for (const d of snapshot.docs) {
+
+      for (const d of merged) {
         const pathSegments = d.ref.path.split('/');
         const spotId = pathSegments[1];
         const data = d.data() as any;
@@ -235,7 +287,7 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
         );
       }
 
-      return all.slice(offset, offset + limit);
+      return all;
     } catch (error) {
       console.error('[DiscussionRepository] getDiscussionsByUser:', error);
       throw error;
@@ -476,6 +528,27 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       await Promise.all(deletePromises);
     } catch (error) {
       console.error('[DiscussionRepository] Error deleting media files:', error);
+    }
+  }
+
+  private async deleteDiscussionMediaFolder(spotId: string, discussionId: string): Promise<void> {
+    try {
+      const folderPath = `spots/${spotId}/discussions/${discussionId}`;
+      const folderRef = ref(storage, folderPath);
+      const listResult = await listAll(folderRef);
+      
+      const deletePromises = listResult.items.map(async (itemRef) => {
+        try {
+          await deleteObject(itemRef);
+          console.log('[DiscussionRepository] Deleted file from Storage (cleanup):', itemRef.fullPath);
+        } catch (error) {
+          console.warn('[DiscussionRepository] Could not delete file during cleanup:', itemRef.fullPath, error);
+        }
+      });
+      
+      await Promise.all(deletePromises);
+    } catch (error) {
+      console.warn('[DiscussionRepository] Failed to cleanup media folder:', error);
     }
   }
 

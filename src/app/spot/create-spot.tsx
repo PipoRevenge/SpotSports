@@ -26,8 +26,8 @@ export default function CreateSpotScreen() {
 
   const handleSuccess = (spotId: string) => {
     console.log("Spot creado con éxito:", spotId);
-    // Navegar de vuelta o a la pantalla del spot
-    router.back();
+    // Navigate to the newly created spot page
+    router.push(`/spot/${spotId}`);
   };
 
   const handleCancel = () => {

@@ -1,15 +1,11 @@
-import { Meetup, MeetupType, MeetupVisibility } from '@/src/entities/meetup';
+import { Meetup } from '@/src/entities/meetup';
+import { MeetupFilters, MeetupSortOptions } from '@/src/types/filtering.types';
 
-export type MeetupTimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
+// Re-export MeetupTimeOfDay for backward compatibility
+export type { MeetupTimeOfDay } from '@/src/types/filtering.types';
 
-export interface MeetupFilters {
-  type?: MeetupType;
-  visibility?: MeetupVisibility;
-  sports?: string[];
-  dateFrom?: Date;
-  dateTo?: Date;
-  timeOfDay?: MeetupTimeOfDay;
-}
+// Re-export MeetupFilters for backward compatibility
+export type { MeetupFilters } from '@/src/types/filtering.types';
 
 export interface IMeetupRepository {
   /**
@@ -30,6 +26,18 @@ export interface IMeetupRepository {
   * Can be filtered by multiple fields (type, visibility, sports, date range, time of day).
    */
   getMeetupsBySpot(spotId: string, filters?: MeetupFilters): Promise<Meetup[]>;
+
+  /**
+   * Get meetups with filters and sorting
+   * @param options - Query options
+   */
+  getMeetups(options: {
+    spotId?: string;
+    filters?: MeetupFilters;
+    sort?: MeetupSortOptions;
+    userId?: string; // For createdByMe filter
+  }): Promise<Meetup[]>;
+
   /**
    * Retrieve meetups where the given user participates or organizes.
    */

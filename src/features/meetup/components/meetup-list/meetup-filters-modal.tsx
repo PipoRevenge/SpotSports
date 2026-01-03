@@ -3,30 +3,30 @@ import DatePickerComponent from '@/src/components/commons/date/date-picker-compo
 import { Button, ButtonText } from '@/src/components/ui/button';
 import { ChevronDownIcon } from '@/src/components/ui/icon';
 import {
-  Modal,
-  ModalBackdrop,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
+    Modal,
+    ModalBackdrop,
+    ModalBody,
+    ModalContent,
+    ModalFooter,
+    ModalHeader,
 } from '@/src/components/ui/modal';
 import {
-  Select,
-  SelectBackdrop,
-  SelectContent,
-  SelectDragIndicator,
-  SelectDragIndicatorWrapper,
-  SelectIcon,
-  SelectInput,
-  SelectItem,
-  SelectPortal,
-  SelectTrigger,
+    Select,
+    SelectBackdrop,
+    SelectContent,
+    SelectDragIndicator,
+    SelectDragIndicatorWrapper,
+    SelectIcon,
+    SelectInput,
+    SelectItem,
+    SelectPortal,
+    SelectTrigger,
 } from '@/src/components/ui/select';
 import { useAppAlert } from '@/src/context/app-alert-context';
 import { MeetupType, MeetupVisibility } from '@/src/entities/meetup';
 import { SimpleSport } from '@/src/entities/sport/model/sport';
 import React from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 interface MeetupFiltersModalProps {
   isOpen: boolean;
@@ -189,11 +189,7 @@ export const MeetupFiltersModal: React.FC<MeetupFiltersModalProps> = ({
 
             <View>
               <Text className="text-sm font-semibold text-gray-700 mb-2">Deportes del spot</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 8, paddingRight: 4 }}
-              >
+              <View className="flex-row flex-wrap gap-2">
                 {(spotSports ?? []).map((sport) => (
                   <Pressable
                     key={sport.id}
@@ -213,11 +209,10 @@ export const MeetupFiltersModal: React.FC<MeetupFiltersModalProps> = ({
                     <Text className="text-gray-500">No hay deportes configurados para este spot.</Text>
                   </View>
                 )}
-
-                <View className="mt-2">
-                  <Text className="text-xs text-gray-500">* Los cambios solo se aplicarán al pulsar <Text className="font-medium">Aplicar</Text></Text>
-                </View>
-              </ScrollView>
+              </View>
+              <View className="mt-2">
+                <Text className="text-xs text-gray-500">* Los cambios solo se aplicarán al pulsar <Text className="font-medium">Aplicar</Text></Text>
+              </View>
             </View>
 
             <View>

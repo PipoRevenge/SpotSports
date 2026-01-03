@@ -52,6 +52,9 @@ export interface ISpotRepository {
   // Buscar spots con filtros
   searchSpots(filters: SpotSearchFilters): Promise<Spot[]>;
 
+  // Update an existing spot (only allowed for creator)
+  updateSpot(spotId: string, spotData: Partial<SpotDetails>, userId: string): Promise<void>;
+
   
 
 }

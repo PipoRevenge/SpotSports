@@ -75,4 +75,8 @@ export interface SpotCreateFormProps {
   initialData?: Partial<SpotCreateFormData>;
   initialLocation?: GeoPoint;
   sportsSlot?: React.ComponentType<SportsSlotProps>;
+  // Optional custom submit handler to support edit mode
+  onSubmitForm?: (formData: SpotCreateFormData) => Promise<string | null | void>;
+  // Optional external loading flag (e.g., when parent handles submit)
+  externalLoading?: boolean;
 }

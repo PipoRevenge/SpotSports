@@ -1,5 +1,7 @@
+import { userRepository } from '@/src/api/repositories';
 import { MapMarker, MapView } from "@/src/components/commons/map";
 import { Button, ButtonIcon, ButtonText } from "@/src/components/ui/button";
+import { Select, SelectBackdrop, SelectContent, SelectDragIndicator, SelectDragIndicatorWrapper, SelectIcon, SelectInput, SelectItem, SelectPortal, SelectTrigger } from '@/src/components/ui/select';
 import { useUser } from "@/src/context/user-context";
 import { Review } from "@/src/entities/review/model/review";
 import {
@@ -8,9 +10,16 @@ import {
   ReviewHeaderForModal,
   useComments,
 } from "@/src/features/comment";
-import { DiscussionCard, useDiscussionLoad } from "@/src/features/discussion";
+import {
+  DiscussionCard,
+  DiscussionListWithFilters,
+  type DiscussionListWithFiltersControls
+} from "@/src/features/discussion";
+import { DEFAULT_DISCUSSION_SORT, DISCUSSION_SORT_OPTIONS } from '@/src/features/discussion/constants/sort-options';
 import { MeetupList } from "@/src/features/meetup";
+import { DEFAULT_MEETUP_SORT, MEETUP_SORT_OPTIONS } from '@/src/features/meetup/constants/sort-options';
 import { ReviewList, useReviewDelete } from "@/src/features/review";
+import type { ReviewSortValue } from '@/src/features/review/utils/review-constants';
 import { SpotSportsTable } from "@/src/features/sport";
 import { SpotDataDetails, useSelectedSpot } from "@/src/features/spot";
 import { SpotCollectionButton } from "@/src/features/spot-collection/components/spot-collection-button";
@@ -50,13 +59,14 @@ export const SpotPage = () => {
   const targetParentCommentId = params.parentCommentId as string | undefined;
 
   const [isSportsTableVisible, setIsSportsTableVisible] = useState(true);
-  const [sortBy, setSortBy] = useState<
-    "recent" | "oldest" | "rating-high" | "rating-low"
-  >("recent");
+  const [sortBy, setSortBy] = useState<ReviewSortValue>('newest');
   const [sportFilter, setSportFilter] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"reviews" | "discussions" | "meetups">(
     "reviews"
   );
+  // Local state to reflect selected sort in the header controls
+  const [meetupSortField, setMeetupSortField] = useState(DEFAULT_MEETUP_SORT);
+  const [discussionSortField, setDiscussionSortField] = useState(DEFAULT_DISCUSSION_SORT);
 
   // Reply modal state for review comments
   const [replyModalVisible, setReplyModalVisible] = useState(false);
@@ -97,29 +107,27 @@ export const SpotPage = () => {
   const [meetupFiltersControls, setMeetupFiltersControls] = useState<{
     open: () => void;
     getActiveFilters: () => number;
+    setSort?: (s: { field: import('@/src/features/meetup/types/meetup-filter-types').MeetupSortField }) => void;
   } | null>(null);
 
-  const FiltersButton = () => {
-    const count = meetupFiltersControls?.getActiveFilters() ?? 0;
-    return (
-      <View className="relative">
-        <Button
-          onPress={() => meetupFiltersControls?.open()}
-          variant="solid"
-          action="default"
-          size="sm"
-          className="rounded-full p-2 bg-gray-100"
-        >
-          <ButtonIcon as={Filter} className="text-blue-600 h-5 w-5" />
-        </Button>
-        {count > 0 ? (
-          <View className="absolute -top-1 -right-1 bg-red-500 rounded-full h-4 w-4 items-center justify-center">
-            <Text className="text-white text-[10px] font-bold">{count}</Text>
-          </View>
-        ) : null}
-      </View>
-    );
-  };
+  // Filters controls exposed by DiscussionListWithFilters
+  const [discussionFiltersControls, setDiscussionFiltersControls] = useState<DiscussionListWithFiltersControls | null>(null);
+  const discussionControlsRef = React.useRef<DiscussionListWithFiltersControls | null>(null);
+
+  // Update ref when controls change
+  React.useEffect(() => {
+    discussionControlsRef.current = discussionFiltersControls;
+  }, [discussionFiltersControls]);
+
+  // Filter reviews based on selected sport
+  const reviewHasSport = (review: Review, sportIdToCheck: string) =>
+    !!review?.details?.reviewSports?.some((s) => s.sportId === sportIdToCheck);
+
+  const filteredReviews = React.useMemo(() => {
+    if (!sportFilter) return reviews;
+    return reviews.filter((review) => reviewHasSport(review, sportFilter));
+  }, [reviews, sportFilter]);
+
 
   // When deep-linking to a comment inside a review, attempt to scroll to its measured position
   React.useEffect(() => {
@@ -222,13 +230,19 @@ export const SpotPage = () => {
   };
 
   const { user } = useUser();
-  const { discussions, refresh: refreshDiscussions } = useDiscussionLoad({ pageSize: 6, spotId });
+
+  // Local state for creator user (in case it's not among review users)
+  const [creatorUser, setCreatorUser] = useState<any | null>(null);
+  const [isLoadingCreator, setIsLoadingCreator] = useState(false);
 
   useEffect(() => {
     if (!spotId) return;
     if (!discussionRefreshCount) return;
-    refreshDiscussions();
-  }, [discussionRefreshCount, spotId, refreshDiscussions]);
+    // Refresh discussions when discussionRefreshCount changes
+    if (discussionControlsRef.current?.refresh) {
+      discussionControlsRef.current.refresh();
+    }
+  }, [discussionRefreshCount, spotId]);
   const handleNavigateToProfile = (userIdToNavigate: string) => {
     if (!userIdToNavigate) return;
     if (userIdToNavigate === user?.id) {
@@ -237,6 +251,35 @@ export const SpotPage = () => {
       router.push(`/profile/${userIdToNavigate}`);
     }
   };
+
+  // Fetch creator user if not present in usersData
+  useEffect(() => {
+    let canceled = false;
+    const fetchCreator = async () => {
+      if (!selectedSpot?.metadata?.createdBy) return;
+      const creatorId = selectedSpot.metadata.createdBy;
+      // If creator already present in users map, use it
+      const fromMap = usersData?.get(creatorId);
+      if (fromMap) {
+        setCreatorUser(fromMap);
+        return;
+      }
+
+      setIsLoadingCreator(true);
+      try {
+        const fetched = await userRepository.getUserById(creatorId);
+        if (!canceled) setCreatorUser(fetched);
+      } catch (err) {
+        console.warn('[SpotPage] Failed to fetch creator user:', err);
+        if (!canceled) setCreatorUser(null);
+      } finally {
+        if (!canceled) setIsLoadingCreator(false);
+      }
+    };
+
+    fetchCreator();
+    return () => { canceled = true; };
+  }, [selectedSpot?.metadata?.createdBy, usersData]);
 
   // Comments hook for the selected review - only load when needed
   const { addComment, addReply } = useComments({
@@ -377,6 +420,21 @@ export const SpotPage = () => {
             <View className="flex-1">
               <SpotDataDetails
                 spot={selectedSpot}
+                // Creator slot: show username and link to profile
+                creatorSlot={
+                  <Pressable onPress={() => {
+                      const cid = selectedSpot.metadata?.createdBy;
+                      if (!cid || (typeof cid === 'string' && cid.startsWith('[object'))) {
+                        console.warn('[SpotPage] Invalid creator id, aborting navigation', { cid });
+                        return;
+                      }
+                      handleNavigateToProfile(cid as string);
+                    }}>
+                    <Text className="pt-2 text-sm text-gray-600">
+                      Creado por @{isLoadingCreator ? 'cargando...' : (creatorUser?.userDetails?.userName || usersData.get(selectedSpot.metadata?.createdBy)?.userDetails?.userName || 'usuario')}
+                    </Text>
+                  </Pressable>
+                }
                 collectionSlot={
                   <View>
                     <SpotCollectionButton
@@ -458,6 +516,18 @@ export const SpotPage = () => {
                   <VStack className="w-full ">
                     <HStack className="flex-row justify-between items-center py-3 border-b border-gray-300">
                       <Text className="text-xl font-bold">Interactions</Text>
+                      {/* Edit button visible only to the creator */}
+                      {user?.id === selectedSpot.metadata.createdBy && (
+                        <Button
+                          onPress={() => {
+                            if (!spotId) return;
+                            router.push({ pathname: `/spot/[spotId]/edit`, params: { spotId } });
+                          }}
+                          variant="outline"
+                        >
+                          <ButtonText>Edit</ButtonText>
+                        </Button>
+                      )}
                     </HStack>
 
                     <View className="flex-row justify-around py-4 bg-gray-50 rounded-lg">
@@ -592,7 +662,7 @@ export const SpotPage = () => {
           {/* Tab Content */}
           {activeTab === "reviews" && (
             <ReviewList
-              reviews={reviews}
+              reviews={filteredReviews}
               spotId={spotId || ""}
               totalReviews={totalReviews}
               usersData={usersData}
@@ -625,6 +695,47 @@ export const SpotPage = () => {
                 <Text className="text-xl font-bold">Meetups</Text>
                 {user?.id && (
                   <HStack className="items-center gap-2">
+                    <View className="relative">
+                      <Button
+                        onPress={() => meetupFiltersControls?.open?.()}
+                        variant="solid"
+                        action="default"
+                        size="sm"
+                        className="rounded-full p-2 bg-gray-100"
+                      >
+                        <ButtonIcon as={Filter} className="text-blue-600 h-5 w-5" />
+                      </Button>
+                      {meetupFiltersControls && meetupFiltersControls.getActiveFilters && meetupFiltersControls.getActiveFilters() > 0 ? (
+                        <View className="absolute -top-1 -right-1 bg-red-500 rounded-full h-4 w-4 items-center justify-center">
+                          <Text className="text-white text-[10px] font-bold">{meetupFiltersControls.getActiveFilters()}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    <Select
+                      selectedValue={meetupSortField}
+                      onValueChange={(value) => {
+                        setMeetupSortField(value as any);
+                        meetupFiltersControls?.setSort?.({ field: value as any });
+                      }}
+                    >
+                      <SelectTrigger variant="outline" size="sm" className="flex-row items-center gap-2">
+                        <SelectInput placeholder="Sort by" className="text-sm" />
+                        <SelectIcon as={ChevronDown} />
+                      </SelectTrigger>
+                      <SelectPortal>
+                        <SelectBackdrop />
+                        <SelectContent>
+                          <SelectDragIndicatorWrapper>
+                            <SelectDragIndicator />
+                          </SelectDragIndicatorWrapper>
+                          {MEETUP_SORT_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} label={option.label} value={option.value} />
+                          ))}
+                        </SelectContent>
+                      </SelectPortal>
+                    </Select>
+
                     <Button
                       onPress={() => {
                         if (!spotId) return;
@@ -634,33 +745,106 @@ export const SpotPage = () => {
                     >
                       <ButtonText>Create Meetup</ButtonText>
                     </Button>
-
-                    {/* Filters button will open MeetupList modal via registered controls */}
-                    <FiltersButton />
                   </HStack>
                 )}
               </HStack>
-              <MeetupList spotId={spotId || ""} onRegisterFiltersControls={setMeetupFiltersControls} />
+
+              <MeetupList spotId={spotId || ""} onRegisterFiltersControls={setMeetupFiltersControls} headerSlot={null} />
             </VStack>
           )}
           {activeTab === "discussions" && (
             <VStack className="p-4">
-              <HStack className="justify-between items-center">
-                <Text className="text-xl font-bold pb-2">Discussions</Text>
-                {user?.id && (
-                  <Button
-                    onPress={() => {
+              <DiscussionListWithFilters
+                spotId={spotId || ""}
+                availableSports={availableSports}
+                spotName={selectedSpot?.details.name}
+                onDiscussionPress={(discussionId) => {
+                  if (!spotId) return;
+                  router.push({
+                    pathname: `/spot/[spotId]/discussion/[discussionId]`,
+                    params: { spotId, discussionId },
+                  });
+                }}
+                onRegisterControls={setDiscussionFiltersControls}
+                discussionCardSlot={(discussion) => (
+                  <DiscussionCard
+                    discussion={discussion}
+                    onPress={(id) => {
                       if (!spotId) return;
-                      router.push({ pathname: `/spot/[spotId]/discussion/create`, params: { spotId } });
+                      router.push({
+                        pathname: `/spot/[spotId]/discussion/[discussionId]`,
+                        params: { spotId, discussionId: id },
+                      });
                     }}
-                    variant="outline"
-                  >
-                    <ButtonText>Create</ButtonText>
-                  </Button>
+                    spotSports={availableSports ?? []}
+                  />
                 )}
-              </HStack>
-              <VStack className="gap-2">
-                {!discussions || discussions.length === 0 ? (
+                headerSlot={
+                  <HStack className="justify-between items-center pb-3">
+                    <Text className="text-xl font-bold">Discussions</Text>
+                    <HStack className="items-center gap-2">
+                      <View className="relative">
+                        <Button
+                          onPress={() => discussionFiltersControls?.openFilters()}
+                          variant="solid"
+                          action="default"
+                          size="sm"
+                          className="rounded-full p-2 bg-gray-100"
+                        >
+                          <ButtonIcon as={Filter} className="text-blue-600 h-5 w-5" />
+                        </Button>
+                        {(discussionFiltersControls?.getActiveFilters() ?? 0) > 0 ? (
+                          <View className="absolute -top-1 -right-1 bg-red-500 rounded-full h-4 w-4 items-center justify-center">
+                            <Text className="text-white text-[10px] font-bold">
+                              {discussionFiltersControls?.getActiveFilters()}
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
+
+                      <Select
+                        selectedValue={discussionSortField}
+                        onValueChange={(value) => {
+                          setDiscussionSortField(value as any);
+                          discussionFiltersControls?.setSortBy?.(value as any);
+                        }}
+                      >
+                        <SelectTrigger variant="outline" size="sm" className="flex-row items-center gap-2">
+                          <SelectInput placeholder="Sort by" className="text-sm" />
+                          <SelectIcon as={ChevronDown} />
+                        </SelectTrigger>
+                        <SelectPortal>
+                          <SelectBackdrop />
+                          <SelectContent>
+                            <SelectDragIndicatorWrapper>
+                              <SelectDragIndicator />
+                            </SelectDragIndicatorWrapper>
+                            {DISCUSSION_SORT_OPTIONS.map((option) => (
+                              <SelectItem key={option.value} label={option.label} value={option.value} />
+                            ))}
+                          </SelectContent>
+                        </SelectPortal>
+                      </Select>
+
+                      {user?.id && (
+                        <Button
+                          onPress={() => {
+                            if (!spotId) return;
+                            router.push({
+                              pathname: `/spot/[spotId]/discussion/create`,
+                              params: { spotId },
+                            });
+                          }}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <ButtonText>Create</ButtonText>
+                        </Button>
+                      )}
+                    </HStack>
+                  </HStack>
+                }
+                emptySlot={
                   <VStack className="items-center py-8">
                     <Text className="text-gray-600">
                       No discussions yet — be the first to start one
@@ -670,35 +854,18 @@ export const SpotPage = () => {
                         className="mt-4"
                         onPress={() => {
                           if (!spotId) return;
-                          router.push({ pathname: `/spot/[spotId]/discussion/create`, params: { spotId } });
+                          router.push({
+                            pathname: `/spot/[spotId]/discussion/create`,
+                            params: { spotId },
+                          });
                         }}
                       >
-                        <ButtonText className="text-white">
-                          Create Discussion
-                        </ButtonText>
+                        <ButtonText className="text-white">Create Discussion</ButtonText>
                       </Button>
                     )}
                   </VStack>
-                ) : (
-                  discussions.map((discussion) =>
-                    typeof DiscussionCard !== "undefined" ? (
-                      <DiscussionCard
-                        key={discussion.id}
-                        discussion={discussion}
-                        onPress={(id) => {
-                          if (!spotId) return;
-                          router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: { spotId, discussionId: id } });
-                        }}
-                        spotSports={availableSports ?? []}
-                      />
-                    ) : (
-                      <Text key={discussion.id}>
-                        {discussion.details.title}
-                      </Text>
-                    )
-                  )
-                )}
-              </VStack>
+                }
+              />
             </VStack>
           )}
 

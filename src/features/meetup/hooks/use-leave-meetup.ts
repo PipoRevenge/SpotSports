@@ -36,12 +36,12 @@ export const useLeaveMeetup = () => {
         // Leaving
         if (previousMeetups) {
            queryClient.setQueryData<Meetup[]>(['meetups'], (old) => 
-            old ? old.map(m => m.id === variables.meetupId ? { ...m, participants: m.participants.filter(id => id !== variables.userId) } : m) : []
+            old ? old.map(m => m.id === variables.meetupId ? { ...m, participants: (m.participants || []).filter(id => id !== variables.userId) } : m) : []
           );
         }
         if (previousMeetup) {
           queryClient.setQueryData<Meetup>(['meetup', variables.spotId, variables.meetupId], (old) => 
-            old ? { ...old, participants: old.participants.filter(id => id !== variables.userId) } : old
+            old ? { ...old, participants: (old.participants || []).filter(id => id !== variables.userId) } : old
           );
         }
       }
@@ -74,7 +74,7 @@ export const useLeaveMeetup = () => {
   return {
     leave: mutation.mutate,
     leaveAsync: mutation.mutateAsync,
-    isLeaving: mutation.isLoading || (mutation as any).isPending || false,
+    isLeaving: (mutation as any).isLoading || (mutation as any).isPending || false,
     error: (mutation.error as Error | null)?.message ?? null,
   };
 };

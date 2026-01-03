@@ -1,4 +1,5 @@
 import { Discussion, DiscussionDetails } from '@/src/entities/discussion/model/discussion';
+import { DiscussionFilters, DiscussionSortOptions } from '@/src/types/filtering.types';
 
 export interface IDiscussionRepository {
   /**
@@ -24,10 +25,9 @@ export interface IDiscussionRepository {
   getDiscussions(options: {
     page: number;
     pageSize: number;
-    spotId?: string;
-    sort?: 'newest' | 'mostVoted';
-    tag?: string;
-    search?: string;
+    filters?: DiscussionFilters;
+    sort?: DiscussionSortOptions;
+    userId?: string; // For createdByMe filter
   }): Promise<{ discussions: Discussion[]; total: number }>;
 
   /**

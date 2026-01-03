@@ -31,21 +31,22 @@ export { SpotSearchFilterModal } from './components/spot-search/spot-search-filt
 
 // Components - Filter Components  
 export {
-  DistanceFilter,
-  RatingFilter,
-  SportFilter,
-  SportSelectedFilter,
-  VerifiedFilter
+    DistanceFilter,
+    RatingFilter,
+    SportFilter,
+    SportSelectedFilter,
+    VerifiedFilter
 } from './components/spot-filter-components';
 
 // Hooks
 export { useCreateSpot } from './hooks/use-create-spot';
 export { useSpotsByIds } from './hooks/use-spots';
+export { useUpdateSpot } from './hooks/use-update-spot';
 
 
 // Utils
 export {
-  validateAvailableSports, validateContactEmail,
-  validateContactWebsite, validateLocation, validateMedia, validateSpotCreateForm, validateSpotDescription, validateSpotName
+    validateAvailableSports, validateContactEmail,
+    validateContactWebsite, validateLocation, validateMedia, validateSpotCreateForm, validateSpotDescription, validateSpotName
 } from './utils/spot-validations';
 

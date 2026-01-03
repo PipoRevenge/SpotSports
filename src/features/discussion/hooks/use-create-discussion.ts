@@ -1,4 +1,4 @@
-import { discussionRepository, userRepository } from '@/src/api/repositories';
+import { discussionRepository } from '@/src/api/repositories';
 import { MediaItem } from '@/src/components/commons/media-picker/media-picker-carousel';
 import { useSelectedSpot } from '@/src/context/selected-spot-context';
 import { useUser } from '@/src/context/user-context';
@@ -18,13 +18,7 @@ export function useCreateDiscussion() {
   const queryClient = useQueryClient();
   const { bumpDiscussionRefresh } = useSelectedSpot();
 
-  const incrementDiscussionCounters = useCallback(async (authorId: string) => {
-    try {
-      await userRepository.incrementActivityCounters(authorId, { discussionsDelta: 1 });
-    } catch (counterError) {
-      console.warn('[useCreateDiscussion] Failed to increment discussion counter', counterError);
-    }
-
+  const updateLocalUserCounters = useCallback((authorId: string) => {
     if (user?.id === authorId) {
       setUser({
         ...user,
@@ -39,31 +33,22 @@ export function useCreateDiscussion() {
   const mutation = useMutation({
     mutationFn: async ({ userId, discussionData }: { userId: string; discussionData: CreateDiscussionData }) => {
       const { spotId, media: mediaItems = [], ...rest } = discussionData;
-      const dataToCreate = { ...rest, media: [] };
+      
+      // Convert MediaItems to strings (uris)
+      const mediaUris = mediaItems.map(m => (typeof m === 'string' ? m : m.uri));
+      
+      const dataToCreate = { 
+        ...rest, 
+        media: mediaUris 
+      };
+      
+      // Repository handles upload and creation in one step (with rollback on failure)
       const discussion = await discussionRepository.createDiscussion(spotId, userId, dataToCreate as any);
-
-      const rawUris = mediaItems.map(m => (typeof m === 'string' ? m : m.uri));
-      const localUris = rawUris.filter(uri => uri && !uri.match(/^https?:\/\//));
-      const remoteUris = rawUris.filter(uri => uri && uri.match(/^https?:\/\//));
-
-      if (localUris.length > 0) {
-        const uploaded = await discussionRepository.uploadDiscussionMedia(spotId, discussion.id, localUris);
-        const finalMedia = [...remoteUris, ...uploaded];
-        if (finalMedia.length > 0) {
-          await discussionRepository.updateDiscussion(discussion.id, { media: finalMedia }, spotId);
-          const updated = await discussionRepository.getDiscussionById(discussion.id, spotId);
-          return updated;
-        }
-      }
       return discussion;
     },
     onSuccess: async (newDiscussion, variables) => {
-      // Increment counters and update cache
-      try {
-        await incrementDiscussionCounters(variables.userId);
-      } catch (e) {
-        console.warn(e);
-      }
+      // Update local user counters (optimistic)
+      updateLocalUserCounters(variables.userId);
 
       // The spot discussions counter is updated inside the repository transaction
       // Update counters cache to reflect the new value immediately

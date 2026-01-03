@@ -7,8 +7,8 @@ import { Input, InputField } from '@/src/components/ui/input';
 import { Text } from '@/src/components/ui/text';
 import { Textarea, TextareaInput } from '@/src/components/ui/textarea';
 import { VStack } from '@/src/components/ui/vstack';
-import { AVAILABLE_TAGS, DEFAULT_TAGS, getTagColor } from '@/src/features/discussion/constants/tags';
 import { SimpleSport } from '@/src/entities/sport/model/sport';
+import { AVAILABLE_TAGS, DEFAULT_TAGS, getTagColor } from '@/src/features/discussion/constants/tags';
 import React, { useEffect, useState } from 'react';
 import { Keyboard, ScrollView, View } from 'react-native';
 
@@ -69,8 +69,11 @@ export const DiscussionForm: React.FC<DiscussionFormProps> = ({ initialData, isS
   const spotTags: SimpleSport[] = spotSports || [];
   const spotTagObjects = spotTags.map(s => ({ label: s.name, color: '#2ECC71' } as { label: string; color?: string }));
 
-  const suggestionPool = [...AVAILABLE_TAGS, ...spotTagObjects];
-  const filteredSuggestions = suggestionPool.filter(s => !selectedTags.includes(s.label) && (!tagQuery || s.label.toLowerCase().includes(tagQuery.toLowerCase())));
+  // Merge available tags and spot tags, removing duplicates by label
+  const allTags = [...AVAILABLE_TAGS, ...spotTagObjects];
+  const uniqueTags = Array.from(new Map(allTags.map(item => [item.label, item])).values());
+
+  const filteredSuggestions = uniqueTags.filter(s => !selectedTags.includes(s.label) && (!tagQuery || s.label.toLowerCase().includes(tagQuery.toLowerCase())));
 
   const addTag = (t: string) => {
     const tag = t.trim();

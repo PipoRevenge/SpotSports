@@ -51,9 +51,11 @@ export const useSpotCollection = (spotId?: string) => {
       setIsLoading(true);
       const spots = await userRepository.getUserSavedSpots(user.id, category);
       setSavedSpots(spots);
-    } catch (error) {
+    } catch (error: any) {
       console.error("[useSpotCollection] Error loading saved spots:", error);
       setSavedSpots([]);
+      // Show a friendly error to the user
+      showError(error?.message || 'No se pudieron cargar los spots guardados');
     } finally {
       setIsLoading(false);
     }
