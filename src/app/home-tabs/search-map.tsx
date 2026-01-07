@@ -115,8 +115,8 @@ export default function SearchMapScreen() {
     useCallback(() => {
       if (shouldRefreshAfterCreateRef.current) {
         shouldRefreshAfterCreateRef.current = false;
-        // Refresh results and clear temporary create marker
-        setCreateSpotLocation(null);
+        // Refresh results
+        // No limpiamos el marcador de creación para que persista si el usuario canceló
         searchSpots();
       }
     }, [searchSpots])
@@ -160,6 +160,9 @@ export default function SearchMapScreen() {
    * Pre-carga datos básicos para mejorar performance
    */
   const handleMarkerPress = useCallback((spot: Spot) => {
+    // Limpiar marcador de creación para evitar superposición visual
+    setCreateSpotLocation(null);
+
     // Pre-cargar datos básicos del spot en background desde el contexto
     prefetchBasicFromContext(spot.id);
     
@@ -451,25 +454,25 @@ export default function SearchMapScreen() {
                   data={null}
                   color="#22c55e"
                   size={40}
-                  onPress={handleCreateSpotPress}
+                  onPress={() => {}} // Override default press to just toggle callout
+                  onCalloutPress={handleCreateSpotPress}
                   calloutConfig={{
                     showDefault: true,
-                    tooltip: false,
+                    tooltip: true,
                   }}
                   renderCallout={() => (
-                    <Pressable
-                      onPress={handleCreateSpotPress}
-                      className="bg-white rounded-lg p-3 shadow-lg min-w-[150px]"
+                    <View
+                      className="bg-white rounded-xl p-4 shadow-lg min-w-[160px] border border-gray-200"
                     >
                       <VStack className="gap-1 items-center">
                         <Text className="text-base font-bold text-green-600">
                           ➕ Crear Spot
                         </Text>
                         <Text className="text-xs text-gray-600 text-center">
-                          Toca para crear un spot aquí
+                          Toca aquí para comenzar
                         </Text>
                       </VStack>
-                    </Pressable>
+                    </View>
                   )}
                 />
               )}

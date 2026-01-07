@@ -116,7 +116,7 @@ export const SpotMarker: React.FC<SpotMarkerProps> = ({
       )}
       calloutConfig={{
         showDefault: false,
-        tooltip: false,
+        tooltip: true,
       }}
     />
   );
@@ -130,61 +130,62 @@ const styles = StyleSheet.create({
   },
   container: {
     flexDirection: 'column',
-    alignSelf: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bubble: {
-    minWidth: 200,
-    maxWidth: 260,
-    flexDirection: 'row',
-    alignSelf: 'flex-start',
+    minWidth: 180,
+    maxWidth: 250,
     backgroundColor: '#ffffff',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     borderColor: '#e5e7eb',
-    borderWidth: 1,
+    borderWidth: 0.5,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
   },
   amount: {
-    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
   },
   arrow: {
     backgroundColor: 'transparent',
-    borderWidth: 12,
     borderColor: 'transparent',
     borderTopColor: '#ffffff',
+    borderWidth: 16,
     alignSelf: 'center',
-    marginTop: -24,
+    marginTop: -32,
   },
   arrowBorder: {
     backgroundColor: 'transparent',
-    borderWidth: 12,
     borderColor: 'transparent',
     borderTopColor: '#e5e7eb',
+    borderWidth: 16,
     alignSelf: 'center',
     marginTop: -0.5,
   },
   calloutName: {
     fontWeight: "bold",
-    fontSize: 16,
+    fontSize: 15,
     color: "#111827",
     marginBottom: 4,
+    textAlign: 'left',
   },
   calloutInfoRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     marginBottom: 6,
   },
   ratingText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: "#374151",
   },
@@ -197,6 +198,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#6b7280",
     fontStyle: "italic",
+    alignSelf: "flex-start",
   },
 });
 

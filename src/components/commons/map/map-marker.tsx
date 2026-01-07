@@ -67,7 +67,12 @@ export const MapMarker = <T,>({
   description,
   ...props
 }: CustomMarkerProps<T>): React.ReactElement => {
-  const handlePress = () => {
+  const handlePress = (e: any) => {
+    // Detener la propagación del evento para evitar conflictos con el mapa
+    if (e && typeof e.stopPropagation === 'function') {
+      e.stopPropagation();
+    }
+    
     if (onPress) {
       onPress();
     }

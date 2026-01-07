@@ -30,7 +30,7 @@ export class AuthRepositoryImpl implements IAuthRepository {
                         throw new Error('Invalid email or password');
                     default:
                         console.error('Login error:', error);
-                        throw new Error('Authentication failed');
+                        throw new Error(`Authentication failed: ${error.code}`);
                 }
             }
             throw error;
