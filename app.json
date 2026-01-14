@@ -12,7 +12,7 @@
       "supportsTablet": true
     },
     "android": {
-      "googleServicesFile": "./android/app/google-services.json",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./src/assets/images/android-icon-foreground.png",
@@ -83,6 +83,7 @@
       "eas": {
         "projectId": "b2229f52-0e80-46d5-b108-7721da76dc2b"
       }
-    }
+    },
+    "owner": "alejandro_sosa"
   }
 }
