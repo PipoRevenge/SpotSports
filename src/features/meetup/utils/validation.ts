@@ -1,4 +1,4 @@
-import { MeetupType } from '@/src/entities/meetup';
+import { MeetupType } from '@/src/entities/meetup/model/meetup';
 import { z } from 'zod';
 
 // Base Schema (Shared fields)

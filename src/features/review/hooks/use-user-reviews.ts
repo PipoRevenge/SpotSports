@@ -64,6 +64,18 @@ export const useUserReviews = (userId: string | undefined, autoFetch = true) => 
       const message = err instanceof Error ? err.message : 'Failed to fetch user reviews';
       setError(message);
       console.error('[useUserReviews] Error:', err);
+
+      // Gracefully handle Firestore Index requirement error
+      // If index is missing, it means there are likely no complex queries possible yet, or just wait.
+      // We can treat this as "no reviews" to avoid crashing UI while index builds.
+      if (message.includes('requires an index') || message.includes('failed-precondition')) {
+         console.warn('[useUserReviews] Index missing. This is normal for new queries. Please create the index using the link in the console.');
+         // Temporarily treat as success with empty list to allow UI to render
+         if (mountedRef.current) {
+            setReviews([]);
+            setError(null); // Clear error so UI doesn't show error state
+         }
+      }
     } finally {
       if (mountedRef.current) setLoading(false);
     }

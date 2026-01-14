@@ -250,13 +250,31 @@ export class ReviewRepositoryImpl implements IReviewRepository {
         firestoreLimit(limit + offset)
       );
 
-      const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+      // Execute queries individually to prevent one index error from failing the whole request
+      let snap1, snap2;
+      try {
+        snap1 = await getDocs(q1);
+      } catch (e) {
+        console.warn('[ReviewRepository] Query by userId failed (likely index missing):', e);
+        // Treat as empty result
+        snap1 = { docs: [] };
+      }
+
+      try {
+        snap2 = await getDocs(q2);
+      } catch (e) {
+        console.warn('[ReviewRepository] Query by createdBy failed (likely index missing):', e);
+        // Treat as empty result
+        snap2 = { docs: [] };
+      }
 
       const docMap = new Map<string, any>();
 
       const pushDocs = (snap: any) => {
-        for (const d of snap.docs) {
-          if (!docMap.has(d.id)) docMap.set(d.id, d);
+        if (snap && snap.docs) {
+            for (const d of snap.docs) {
+            if (!docMap.has(d.id)) docMap.set(d.id, d);
+            }
         }
       };
 

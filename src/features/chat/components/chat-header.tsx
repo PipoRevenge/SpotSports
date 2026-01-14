@@ -1,11 +1,15 @@
-import { Avatar, AvatarFallbackText, AvatarImage } from '@/src/components/ui/avatar';
-import { Pressable } from '@/src/components/ui/pressable';
-import { Text } from '@/src/components/ui/text';
-import { View } from '@/src/components/ui/view';
-import type { ChatType } from '@/src/entities/chat';
-import { MoreVertical, Users as UsersIcon } from 'lucide-react-native';
-import React from 'react';
-import type { GestureResponderEvent } from 'react-native';
+import {
+  Avatar,
+  AvatarFallbackText,
+  AvatarImage,
+} from "@/src/components/ui/avatar";
+import { Pressable } from "@/src/components/ui/pressable";
+import { Text } from "@/src/components/ui/text";
+import { View } from "@/src/components/ui/view";
+import type { ChatType } from "@/src/entities/chat";
+import { MoreVertical, Users as UsersIcon } from "lucide-react-native";
+import React from "react";
+import type { GestureResponderEvent } from "react-native";
 
 interface ChatHeaderProps {
   title: string;
@@ -19,26 +23,66 @@ interface ChatHeaderProps {
   menuTriggerProps?: React.ComponentProps<typeof Pressable>;
 }
 
-export const ChatHeader: React.FC<ChatHeaderProps> = ({ title, avatarUrl, type, onHeaderPress, onAvatarPress, showSubtitle = false, onMenuPress, menuTriggerProps }) => {
-  const avatarLabel = type === 'group' ? 'Información del grupo' : 'Ver perfil';
+export const ChatHeader: React.FC<ChatHeaderProps> = ({
+  title,
+  avatarUrl,
+  type,
+  onHeaderPress,
+  onAvatarPress,
+  showSubtitle = false,
+  onMenuPress,
+  menuTriggerProps,
+}) => {
+  const avatarLabel =
+    type === "group" || type === "meetup-group" || type === "meetup"
+      ? "Información del grupo"
+      : "Ver perfil";
   const handleMenuPress = (e: GestureResponderEvent) => {
     e.stopPropagation();
     menuTriggerProps?.onPress?.(e);
     onMenuPress?.();
   };
   return (
-    <Pressable className="px-4 py-3 border-b border-slate-200 flex-row items-center" onPress={onHeaderPress} accessibilityRole="button" accessibilityLabel={type === 'group' ? 'Ver información del grupo' : 'Ver perfil'}>
+    <Pressable
+      className="px-4 py-3 border-b border-slate-200 flex-row items-center"
+      onPress={onHeaderPress}
+      accessibilityRole="button"
+      accessibilityLabel={
+        type === "group" || type === "meetup-group" || type === "meetup"
+          ? "Ver información del grupo"
+          : "Ver perfil"
+      }
+    >
       <View className="flex-row items-center flex-1">
-        <Pressable onPress={(e: GestureResponderEvent) => { e.stopPropagation(); onAvatarPress?.(e); }} className="mr-3" accessibilityRole="button" accessibilityLabel={avatarLabel}>
-          <Avatar size="md" className={`${type === 'group' ? 'bg-cyan-600' : 'bg-slate-200'}`}>
+        <Pressable
+          onPress={(e: GestureResponderEvent) => {
+            e.stopPropagation();
+            onAvatarPress?.(e);
+          }}
+          className="mr-3"
+          accessibilityRole="button"
+          accessibilityLabel={avatarLabel}
+        >
+          <Avatar
+            size="md"
+            className={`${
+              type === "group" || type === "meetup-group" || type === "meetup"
+                ? "bg-cyan-600"
+                : "bg-slate-200"
+            }`}
+          >
             {avatarUrl ? (
               <AvatarImage source={{ uri: avatarUrl }} />
-            ) : type === 'group' ? (
+            ) : type === "group" ||
+              type === "meetup-group" ||
+              type === "meetup" ? (
               <View className="w-full h-full items-center justify-center">
                 <UsersIcon size={16} color="#ffffff" />
               </View>
             ) : (
-              <AvatarFallbackText>{title?.slice(0, 2)?.toUpperCase()}</AvatarFallbackText>
+              <AvatarFallbackText>
+                {title?.slice(0, 2)?.toUpperCase()}
+              </AvatarFallbackText>
             )}
           </Avatar>
         </Pressable>

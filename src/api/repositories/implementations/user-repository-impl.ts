@@ -15,8 +15,8 @@ import {
     where
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
 import { auth, firestore, functions } from '../../../lib/firebase-config';
+import { uploadFileFromUri } from '../../lib/storage-service';
 import { IUserRepository } from '../interfaces/i-user-repository';
 import { UserFirebase, UserMapper } from '../mappers/user-mapper';
 
@@ -28,7 +28,6 @@ export class UserRepositoryImpl implements IUserRepository {
     private readonly SAVED_SPOTS_SUBCOLLECTION = 'saved_spots';
     private readonly FAVORITE_SPORTS_SUBCOLLECTION = 'favoriteSports';
 
-    private readonly storage = getStorage();
 
     private async batchGetUsersByIds(ids: string[]): Promise<User[]> {
         if (!ids || ids.length === 0) return [];
@@ -61,48 +60,61 @@ export class UserRepositoryImpl implements IUserRepository {
                 throw new Error('El email y nombre de usuario son requeridos');
             }
 
-            // Call cloud function to complete profile
-            // The minimal user document is created by the auth trigger (beforeUserCreated)
-            const completeProfileFn = httpsCallable(functions, 'users_completeProfile');
+            // Call cloud function to complete profile - REMOVED due to persistent 'unauthenticated' errors
+            // Switching to direct client-side write as per updated firestore.rules
+    
+            const now = Timestamp.now();
             
-            await completeProfileFn({
-                fullName: userData.fullName || "",
+            // Prepare data using the same logic as the cloud function
+            const userRef = doc(firestore, this.USERS_COLLECTION, userId);
+            
+            // We use setDoc with merge: true to respect any data created by the onCreate trigger
+            // But we ensure all required fields are present
+            const firebaseUser: any = {
+                email: userData.email,
                 userName: userData.userName,
+                fullName: userData.fullName || "",
                 bio: userData.bio || "",
                 profileUrl: userData.photoURL || "",
-                birthDate: userData.birthDate ? (userData.birthDate instanceof Date ? userData.birthDate.toISOString() : userData.birthDate) : undefined,
                 phoneNumber: userData.phoneNumber || "",
-            });
+                updatedAt: now,
+                // Ensure counters exist (if not already there from onCreate)
+                reviewsCount: 0,
+                commentsCount: 0,
+                discussionsCount: 0,
+                favoriteSpotsCount: 0,
+                followersCount: 0,
+                followingCount: 0,
+                isVerified: false
+            };
 
+            if (userData.birthDate) {
+                 firebaseUser.birthDate = userData.birthDate instanceof Date ? Timestamp.fromDate(userData.birthDate) : userData.birthDate;
+            }
+
+            // We also set createdAt only if it doesn't exist (handled by merge, but if doc is missing, we need it)
+            // Since we can't easily check for existence without reading first, and we want to optimize...
+            // We'll just define createdAt if we are creating. 
+            // Better strategy: Read first to be safe? No, let's just use set with merge.
+            // If it's a new doc, we want createdAt.
+            firebaseUser.createdAt = now; 
+
+            // IMPORTANT: We use setDoc with merge: true. 
+            // If the doc exists (from onCreate), it updates it.
+            // If it doesn't, it creates it.
+            await setDoc(userRef, firebaseUser, { merge: true });
+
+            console.log('User profile created successfully via client-side write');
             return true;
         } catch (error: any) {
             console.error('Error creating user:', error);
             
-            // Si ya es un error con mensaje personalizado, relanzarlo
-            if (error?.message && (
-                error.message.includes('requerido') || 
-                error.message.includes('requeridos')
-            )) {
-                throw error;
+            // Handle specific errors
+            if (error?.code === 'permission-denied') {
+                throw new Error('No tienes permisos para crear este usuario. Verifica tu sesión.');
             }
             
-            // Manejar errores de Firestore/Functions
-            if (error?.code) {
-                switch (error.code) {
-                    case 'permission-denied':
-                        throw new Error('No tienes permisos para crear este usuario. Verifica tu autenticación.');
-                    case 'unavailable':
-                        throw new Error('El servicio no está disponible. Por favor, intenta más tarde.');
-                    case 'already-exists':
-                        throw new Error('Este usuario ya existe en el sistema.');
-                    case 'invalid-argument':
-                        throw new Error(error.message || 'Datos inválidos para el perfil.');
-                    default:
-                        throw new Error('Error al crear el perfil de usuario. Por favor, intenta nuevamente.');
-                }
-            }
-            
-            throw new Error('Error inesperado al crear el perfil de usuario.');
+            throw error;
         }
     }
 
@@ -680,25 +692,19 @@ export class UserRepositoryImpl implements IUserRepository {
 
     async uploadProfilePhoto(userId: string, photoUri: string): Promise<string> {
         try {
-            const photoRef = ref(this.storage, `users/${userId}/profile.jpeg`);
-            const response = await fetch(photoUri);
+            console.log(`[uploadProfilePhoto] Starting upload for ${userId}, uri: ${photoUri}`);
             
-            if (!response.ok) {
-                throw new Error('No se pudo cargar la imagen desde la URI proporcionada');
-            }
+            const extension = photoUri.split('.').pop()?.toLowerCase() || 'jpeg';
+            const path = `users/${userId}/profile.${extension}`;
             
-            const blob = await response.blob();
-            const uploadResult = await uploadBytes(photoRef, blob);
-            return await getDownloadURL(uploadResult.ref);
+            // Use the centralized storage service
+            const downloadUrl = await uploadFileFromUri(path, photoUri);
+            
+            console.log('[uploadProfilePhoto] Upload success');
+            return downloadUrl;
         } catch (error: any) {
-            console.error('Error uploading profile photo:', error);
+            console.error('[uploadProfilePhoto] Critical Error:', error);
             
-            // Si ya es un error con mensaje personalizado, relanzarlo
-            if (error?.message && error.message.includes('cargar la imagen')) {
-                throw error;
-            }
-            
-            // Manejar errores de Storage
             if (error?.code) {
                 switch (error.code) {
                     case 'storage/unauthorized':
@@ -706,17 +712,23 @@ export class UserRepositoryImpl implements IUserRepository {
                     case 'storage/canceled':
                         throw new Error('La carga de la foto fue cancelada.');
                     case 'storage/unknown':
-                        throw new Error('Error desconocido al subir la foto. Por favor, intenta nuevamente.');
+                        throw new Error(`Error desconocido al subir la foto: ${error.message}`);
                     case 'storage/quota-exceeded':
                         throw new Error('Se ha excedido el límite de almacenamiento. Contacta al administrador.');
                     case 'storage/invalid-format':
                         throw new Error('El formato de la imagen no es válido. Usa JPG, PNG o similar.');
+                    case 'storage/object-not-found':
+                        throw new Error('No se pudo encontrar el archivo a subir.');
                     default:
+                        // Si el error ya tiene un mensaje descriptivo (ej: throw new Error...), lo mantenemos
+                        if (error.message && !error.message.startsWith('Firebase Storage:')) {
+                            throw error;
+                        }
                         throw new Error('Error al subir la foto de perfil. Por favor, intenta nuevamente.');
                 }
             }
             
-            throw new Error('No se pudo subir la foto de perfil');
+            throw error;
         }
     }
 

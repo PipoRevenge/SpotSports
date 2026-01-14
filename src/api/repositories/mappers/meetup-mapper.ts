@@ -1,4 +1,4 @@
-import { Meetup } from '@/src/entities/meetup';
+import { Meetup } from '@/src/entities/meetup/model';
 import { Timestamp } from 'firebase/firestore';
 import { parseTimestamp } from '../utils/firebase-parsers';
 
@@ -35,7 +35,7 @@ export const meetupFromFirestore = (id: string, data: any): Meetup => {
     createdAt: parseTimestamp(data.createdAt),
     updatedAt: parseTimestamp(data.updatedAt),
     participantsCount: data.participantsCount || 0,
-    participants: [], // Always empty array as we use subcollections now
+    participants: data.participants || [],
   } as Meetup;
 };
 

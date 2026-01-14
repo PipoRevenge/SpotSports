@@ -361,7 +361,22 @@ export class CommentRepositoryImpl implements ICommentRepository {
         firestoreLimit(limit + offset)
       );
 
-      const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+      // Execute queries individually to handle missing indexes gracefully
+      let snap1, snap2;
+      
+      try {
+        snap1 = await getDocs(q1);
+      } catch (e) {
+        console.warn('[CommentRepository] Query by userId failed (likely index missing):', e);
+        snap1 = { docs: [] };
+      }
+
+      try {
+        snap2 = await getDocs(q2);
+      } catch (e) {
+        console.warn('[CommentRepository] Query by createdBy failed (likely index missing):', e);
+        snap2 = { docs: [] };
+      }
       const docMap = new Map<string, any>();
       for (const d of snap1.docs) if (!docMap.has(d.id)) docMap.set(d.id, d);
       for (const d of snap2.docs) if (!docMap.has(d.id)) docMap.set(d.id, d);

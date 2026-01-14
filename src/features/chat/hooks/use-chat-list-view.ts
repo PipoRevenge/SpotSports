@@ -21,11 +21,19 @@ export const useChatListView = (filter: ChatFilter = 'all') => {
   useEffect(() => {
     if (!user) return;
     setIsLoading(true);
-    const unsubscribe = chatRepository.subscribeToUserChats(user.id, nextChats => {
-      setChats(nextChats);
-      nextChats.forEach(chat => saveCachedChatMeta(chat.id, chat).catch(() => {}));
-      setIsLoading(false);
-    });
+    const unsubscribe = chatRepository.subscribeToUserChats(
+      user.id, 
+      nextChats => {
+        setChats(nextChats);
+        nextChats.forEach(chat => saveCachedChatMeta(chat.id, chat).catch(() => {}));
+        setIsLoading(false);
+      },
+      error => {
+        console.error('Error loading chats:', error);
+        setError(error.message);
+        setIsLoading(false);
+      }
+    );
     return () => unsubscribe();
   }, [user]);
 

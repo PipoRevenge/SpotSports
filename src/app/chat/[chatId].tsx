@@ -1,24 +1,29 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from "react";
 
-import { ChatHeader } from '@/src/features/chat/components/chat-header';
+import { ChatHeader } from "@/src/features/chat/components/chat-header";
 // Pressable import not required in this view (header is now separate component)
-import { uploadFileFromUri } from '@/src/api/lib/storage-service';
-import { useImagePicker } from '@/src/components/commons/media-picker';
-import { Menu, MenuItem, MenuItemLabel } from '@/src/components/ui/menu';
-import { SafeAreaView } from '@/src/components/ui/safe-area-view';
-import { Text } from '@/src/components/ui/text';
-import { View } from '@/src/components/ui/view';
-import { useAppAlert } from '@/src/context/app-alert-context';
-import { useUser } from '@/src/context/user-context';
-import { MessageComposer } from '@/src/features/chat/components/message-composer';
-import { MessageList } from '@/src/features/chat/components/message-list';
-import { useChatDetails } from '@/src/features/chat/hooks/use-chat-details';
-import { useChatParticipants } from '@/src/features/chat/hooks/use-chat-participants';
-import { useClearChatLocal } from '@/src/features/chat/hooks/use-clear-chat-local';
-import { useMessages } from '@/src/features/chat/hooks/use-messages';
-import { useSendMessage } from '@/src/features/chat/hooks/use-send-message';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Keyboard, KeyboardAvoidingView, Platform, TouchableWithoutFeedback } from 'react-native';
+import { uploadFileFromUri } from "@/src/api/lib/storage-service";
+import { useImagePicker } from "@/src/components/commons/media-picker";
+import { Menu, MenuItem, MenuItemLabel } from "@/src/components/ui/menu";
+import { SafeAreaView } from "@/src/components/ui/safe-area-view";
+import { Text } from "@/src/components/ui/text";
+import { View } from "@/src/components/ui/view";
+import { useAppAlert } from "@/src/context/app-alert-context";
+import { useUser } from "@/src/context/user-context";
+import { MessageComposer } from "@/src/features/chat/components/message-composer";
+import { MessageList } from "@/src/features/chat/components/message-list";
+import { useChatDetails } from "@/src/features/chat/hooks/use-chat-details";
+import { useChatParticipants } from "@/src/features/chat/hooks/use-chat-participants";
+import { useClearChatLocal } from "@/src/features/chat/hooks/use-clear-chat-local";
+import { useMessages } from "@/src/features/chat/hooks/use-messages";
+import { useSendMessage } from "@/src/features/chat/hooks/use-send-message";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+} from "react-native";
 
 export default function ChatConversation() {
   const { chatId } = useLocalSearchParams<{ chatId: string }>();
@@ -30,26 +35,29 @@ export default function ChatConversation() {
   const { send, isSending } = useSendMessage(chatId);
   const { pickMultiple } = useImagePicker();
 
-  const { participants } = useChatParticipants(chat?.memberIds, { type: 'chat', id: chatId });
+  const { participants } = useChatParticipants(chat?.memberIds, {
+    type: "chat",
+    id: chatId,
+  });
   const [isSendingMedia, setIsSendingMedia] = useState(false);
   const { clearLocal, isClearing } = useClearChatLocal(chatId, user?.id);
 
   const otherUser = useMemo(() => {
-    if (chat?.type !== 'direct' || !user) return null;
-    return participants.find(u => u.id !== user.id) || null;
+    if (chat?.type !== "direct" || !user) return null;
+    return participants.find((u) => u.id !== user.id) || null;
   }, [chat?.type, participants, user]);
 
   const headerTitle = useMemo(() => {
-    if (chat?.type === 'direct') {
-      return otherUser?.userDetails.userName || 'Chat';
+    if (chat?.type === "direct") {
+      return otherUser?.userDetails.userName || "Chat";
     }
-    return chat?.name || 'Chat';
+    return chat?.name || "Chat";
   }, [chat?.name, chat?.type, otherUser?.userDetails.userName]);
 
   // subtitle intentionally unused (header hides subtitle)
 
   const headerAvatar = useMemo(() => {
-    if (chat?.type === 'direct') return otherUser?.userDetails.photoURL;
+    if (chat?.type === "direct") return otherUser?.userDetails.photoURL;
     return chat?.photoURL;
   }, [chat?.photoURL, chat?.type, otherUser?.userDetails.photoURL]);
 
@@ -66,14 +74,18 @@ export default function ChatConversation() {
     try {
       for (const asset of selection) {
         if (!asset.uri) continue;
-        const mediaType = asset.type === 'video' ? 'video' : 'image';
-        const ext = asset.uri.split('.').pop()?.split('?')[0] || (mediaType === 'video' ? 'mp4' : 'jpg');
+        const mediaType = asset.type === "video" ? "video" : "image";
+        const ext =
+          asset.uri.split(".").pop()?.split("?")[0] ||
+          (mediaType === "video" ? "mp4" : "jpg");
         const path = `chats/${chatId}/${Date.now()}-${user.id}.${ext}`;
         const mediaUrl = await uploadFileFromUri(path, asset.uri);
-        await send({ text: '', senderId: user.id, mediaUrl, mediaType });
+        await send({ text: "", senderId: user.id, mediaUrl, mediaType });
       }
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'No se pudo adjuntar el archivo');
+      showError(
+        err instanceof Error ? err.message : "No se pudo adjuntar el archivo"
+      );
     } finally {
       setIsSendingMedia(false);
     }
@@ -81,45 +93,58 @@ export default function ChatConversation() {
 
   const confirmClearChat = async () => {
     const ok = await showConfirm(
-      'Eliminar para mí',
-      'Borra este chat solo en tu dispositivo. No afecta a la otra persona y solo verás mensajes nuevos a partir de ahora.',
-      'Eliminar',
-      'Cancelar'
+      "Eliminar para mí",
+      "Borra este chat solo en tu dispositivo. No afecta a la otra persona y solo verás mensajes nuevos a partir de ahora.",
+      "Eliminar",
+      "Cancelar"
     );
     if (!ok || !chatId || !user) return;
     try {
       await clearLocal();
       router.back();
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'No se pudo eliminar localmente');
+      showError(
+        err instanceof Error ? err.message : "No se pudo eliminar localmente"
+      );
     }
   };
 
-  const viewLabel = chat?.type === 'group' ? 'Ver info del grupo' : 'Ver perfil';
-  const deleteLabel = 'Eliminar para mí';
-  
+  const viewLabel =
+    chat?.type === "group" ? "Ver info del grupo" : "Ver perfil";
+  const deleteLabel = "Eliminar para mí";
+
   // Special label for meetup chats
-  const actualViewLabel = (chat?.type === 'group' || chat?.type === 'meetup-group') && chat?.meetupId 
-    ? 'Ver detalles del meetup' 
-    : viewLabel;
+  const actualViewLabel =
+    (chat?.type === "group" ||
+      chat?.type === "meetup-group" ||
+      chat?.type === "meetup") &&
+    chat?.meetupId
+      ? "Ver detalles del meetup"
+      : viewLabel;
 
   const goToGroupInfoOrProfile = () => {
     if (!chat || !chatId) return;
-    
+
     // If it's a meetup-group chat, navigate to the meetup details
-    if ((chat.type === 'group' || chat.type === 'meetup-group') && chat.meetupId && chat.meetupSpotId) {
+    if (
+      (chat.type === "group" ||
+        chat.type === "meetup-group" ||
+        chat.type === "meetup") &&
+      chat.meetupId &&
+      chat.meetupSpotId
+    ) {
       router.push(`/spot/${chat.meetupSpotId}/meetup/${chat.meetupId}`);
       return;
     }
-    
+
     // Regular group chat -> open group info
-    if (chat.type === 'group') {
+    if (chat.type === "group") {
       router.push(`/chat/${chatId}/info`);
       return;
     }
-    
+
     // direct chat -> open user profile
-    if (chat.type === 'direct' && otherUser) {
+    if (chat.type === "direct" && otherUser) {
       router.push(`/profile/${otherUser.id}`);
     }
   };
@@ -140,7 +165,7 @@ export default function ChatConversation() {
   if (!chat) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-white">
-        <Text className="text-slate-500">{error || 'Chat no encontrado'}</Text>
+        <Text className="text-slate-500">{error || "Chat no encontrado"}</Text>
       </SafeAreaView>
     );
   }
@@ -161,11 +186,22 @@ export default function ChatConversation() {
           />
         )}
       >
-        <MenuItem key="view" textValue={actualViewLabel} onPress={goToGroupInfoOrProfile}>
+        <MenuItem
+          key="view"
+          textValue={actualViewLabel}
+          onPress={goToGroupInfoOrProfile}
+        >
           <MenuItemLabel size="sm">{actualViewLabel}</MenuItemLabel>
         </MenuItem>
-        <MenuItem key="delete" textValue={deleteLabel} onPress={confirmClearChat} disabled={isClearing}>
-          <MenuItemLabel size="sm" className="text-red-600">{isClearing ? 'Eliminando...' : deleteLabel}</MenuItemLabel>
+        <MenuItem
+          key="delete"
+          textValue={deleteLabel}
+          onPress={confirmClearChat}
+          disabled={isClearing}
+        >
+          <MenuItemLabel size="sm" className="text-red-600">
+            {isClearing ? "Eliminando..." : deleteLabel}
+          </MenuItemLabel>
         </MenuItem>
       </Menu>
       {isMessagesLoading ? (
@@ -173,13 +209,21 @@ export default function ChatConversation() {
           <Text className="text-slate-500">Cargando mensajes...</Text>
         </View>
       ) : (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.select({ ios: 0, android: 0 })}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.select({ ios: 0, android: 0 })}
+        >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={{ flex: 1 }}>
               <View style={{ flex: 1 }}>
                 <MessageList messages={messages} currentUserId={user?.id} />
               </View>
-              <MessageComposer onSend={handleSend} isSending={isSending || isSendingMedia} onAttachPress={handleAttachMedia} />
+              <MessageComposer
+                onSend={handleSend}
+                isSending={isSending || isSendingMedia}
+                onAttachPress={handleAttachMedia}
+              />
             </View>
           </TouchableWithoutFeedback>
         </KeyboardAvoidingView>

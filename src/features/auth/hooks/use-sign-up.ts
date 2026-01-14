@@ -48,6 +48,12 @@ export const useSignUp = (): UseSignUpReturn => {
       // Step 2: Register user with Firebase Auth
       const userId = await authRepository.register(email, password);
 
+      // Wait for Auth state to propagate
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Force token refresh to ensure claims are ready
+      await authRepository.getIdToken(true);
+      console.log('useSignUp: Auth state refreshed for user', userId);
+
       // Step 3: Upload profile photo if provided
       let photoURL: string | undefined;
       if (photo) {
@@ -69,22 +75,48 @@ export const useSignUp = (): UseSignUpReturn => {
         birthDate: birthDate,
       };
       
-      // Step 5: Create user profile in Firestore
-      const userCreated = await userRepository.createUser(userId, userData);
+      // Step 5: Create user profile in Firestore (with retry for unauthenticated error)
+      let userCreated = false;
+      let attempts = 0;
+      const MAX_ATTEMPTS = 3;
+
+      while (!userCreated && attempts < MAX_ATTEMPTS) {
+        try {
+            attempts++;
+            userCreated = await userRepository.createUser(userId, userData);
+        } catch (createError: any) {
+            console.warn(`Attempt ${attempts} to create user profile failed:`, createError);
+            
+            // If unauthenticated (or first attempt generic failure), force refresh token and retry
+            const isAuthError = createError?.message?.includes('unauthenticated') || createError?.code === 'unauthenticated';
+            const isNetworkError = createError?.message?.includes('network');
+            
+            if (isAuthError || isNetworkError || attempts === 1) { // Always retry once on any error just in case
+                if (attempts < MAX_ATTEMPTS) {
+                    console.log('Refreshing token and retrying profile creation...');
+                    await new Promise(resolve => setTimeout(resolve, 1500)); // Wait a bit
+                    await authRepository.getIdToken(true); // Force refresh
+                    continue;
+                }
+            }
+            throw createError;
+        }
+      }
       
       if (!userCreated) {
         throw new Error('No se pudo crear el perfil de usuario');
       }
 
       // Step 6: Wait for user document to be available
-      const documentExists = await authRepository.waitForUserDocument(userId, 5, 500);
+      // Note: users_completeProfile might have created/updated it, or onCreate trigger.
+      // We increased attempts to tolerate cold starts.
+      const documentExists = await authRepository.waitForUserDocument(userId, 10, 1000);
       
       if (!documentExists) {
         throw new Error('El perfil de usuario no está disponible. Por favor, intenta iniciar sesión.');
       }
 
       // Step 7: Load user data immediately and save to context
-      // This ensures the user data is available right away in the app
       try {
         const createdUser = await userRepository.getUserById(userId);
         setUser(createdUser);
@@ -113,6 +145,7 @@ export const useSignUp = (): UseSignUpReturn => {
       setError(errorMessage);
       showError(errorMessage, errorTitle);
       console.error('Sign up error:', err);
+      throw err;
     } finally {
       setIsLoading(false);
       setGlobalLoading(false);

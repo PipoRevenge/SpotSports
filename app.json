@@ -12,6 +12,7 @@
       "supportsTablet": true
     },
     "android": {
+      "googleServicesFile": "./android/app/google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./src/assets/images/android-icon-foreground.png",
@@ -21,9 +22,6 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.RECORD_AUDIO",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
@@ -65,6 +63,13 @@
         "react-native-maps",
         {}
       ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./src/assets/images/app-logo/logo-filled.png",
+          "color": "#ffffff"
+        }
+      ],
       "expo-video",
       "expo-web-browser",
       "expo-secure-store"
@@ -72,6 +77,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b2229f52-0e80-46d5-b108-7721da76dc2b"
+      }
     }
   }
 }

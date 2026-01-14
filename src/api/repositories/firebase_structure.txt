@@ -42,7 +42,7 @@ spots/
     // Metadatos
     createdAt: timestamp
     updatedAt: timestamp
-    createdBy: reference
+    createdBy: idUser
 
     // ============ SUBCOLECCIONES ============
 

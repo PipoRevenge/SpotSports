@@ -1,5 +1,5 @@
 import { meetupRepository } from '@/src/api/repositories';
-import { Meetup } from '@/src/entities/meetup';
+import { Meetup } from '@/src/entities/meetup/model';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { removeUserMeetup } from '../storage/user-meetups-storage';
 

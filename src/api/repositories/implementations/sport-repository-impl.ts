@@ -1,17 +1,15 @@
 import { Sport, SportDetails } from '@/src/entities/sport/model/sport';
 import { firestore, functions } from '@/src/lib/firebase-config';
 import {
-    addDoc,
-    collection,
-    doc,
-    query as firestoreQuery,
-    getDoc,
-    getDocs,
-    limit,
-    orderBy,
-    Timestamp,
-    updateDoc,
-    where
+  collection,
+  doc,
+  query as firestoreQuery,
+  getDoc,
+  getDocs,
+  orderBy,
+  Timestamp,
+  updateDoc,
+  where
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { ISportRepository } from '../interfaces/i-sport-repository';
@@ -40,26 +38,19 @@ export class SportRepositoryImpl implements ISportRepository {
         throw new Error('La descripción del deporte es requerida');
       }
 
-      const now = Timestamp.now();
-      
-      // Crear objeto Sport completo con valores por defecto para el mapper
-      const firestoreData = {
+      const createSportFn = httpsCallable(functions, 'sports_create');
+      const validData = {
         name: sportData.name.trim(),
         description: sportData.description.trim(),
-        icon: sportData.icon?.trim(),
-        image: sportData.image?.trim(),
-        category: sportData.category?.trim(),
-        createdAt: now,
-        updatedAt: now,
-        createdBy: createdBy,
-        spotsCount: 0,
-        usersCount: 0,
-        popularity: 0,
+        icon: sportData.icon?.trim() || '',
+        image: sportData.image?.trim() || '',
+        category: sportData.category?.trim() || ''
       };
-      
-      const sportsRef = collection(firestore, this.SPORTS_COLLECTION);
-      const docRef = await addDoc(sportsRef, firestoreData);
-      return docRef.id;
+
+      const result = await createSportFn(validData);
+      const { sportId } = result.data as { sportId: string };
+      return sportId;
+
       
     } catch (error: any) {
       console.error('Error creating sport:', error);
@@ -146,26 +137,11 @@ export class SportRepositoryImpl implements ISportRepository {
         return [];
       }
 
-      const sportsRef = collection(firestore, this.SPORTS_COLLECTION);
-      const searchQuery = query.trim().toLowerCase();
+      const searchSportsFn = httpsCallable(functions, 'sports_search');
+      const result = await searchSportsFn({ query: query.trim() });
       
-      // Firebase no soporta búsqueda por texto completo nativamente
-      // Esta es una implementación básica que busca por prefijo
-      const q = firestoreQuery(
-        sportsRef,
-        orderBy('name'),
-        limit(20)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const allSports = querySnapshot.docs.map(doc => 
-        SportMapper.fromFirebase(doc.id, doc.data() as any)
-      );
-
-      // Filtrar en el cliente por nombre (incluye substring)
-      return allSports.filter(sport => 
-        sport.details.name.toLowerCase().includes(searchQuery)
-      );
+      const { sports: sportsData } = result.data as { sports: any[] };
+      return sportsData.map((data: any) => SportMapper.fromFirebase(data.id, data));
       
     } catch (error: any) {
       console.error('Error searching sports:', error);
@@ -182,18 +158,11 @@ export class SportRepositoryImpl implements ISportRepository {
         return [];
       }
 
-      const sportsRef = collection(firestore, this.SPORTS_COLLECTION);
-      const q = firestoreQuery(
-        sportsRef,
-        where('category', '==', category.trim()),
-        orderBy('name', 'asc'),
-        limit(50)
-      );
+      const searchSportsFn = httpsCallable(functions, 'sports_search');
+      const result = await searchSportsFn({ category: category.trim() });
       
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => 
-        SportMapper.fromFirebase(doc.id, doc.data() as any)
-      );
+      const { sports: sportsData } = result.data as { sports: any[] };
+      return sportsData.map((data: any) => SportMapper.fromFirebase(data.id, data));
       
     } catch (error: any) {
       console.error('Error searching sports by category:', error);
@@ -213,48 +182,14 @@ export class SportRepositoryImpl implements ISportRepository {
         return [];
       }
 
-      // Si solo hay categoría, usar búsqueda por categoría
-      if (category?.trim() && !query?.trim()) {
-        return this.searchSportsByCategory(category);
-      }
-
-      // Si solo hay query, usar búsqueda por nombre
-      if (query?.trim() && !category?.trim()) {
-        return this.searchSportsByName(query);
-      }
-
-      // Si hay ambos filtros, combinar
-      const sportsRef = collection(firestore, this.SPORTS_COLLECTION);
-      let q = firestoreQuery(
-        sportsRef,
-        orderBy('name', 'asc'),
-        limit(50)
-      );
-
-      // Agregar filtro de categoría si existe
-      if (category?.trim()) {
-        q = firestoreQuery(
-          sportsRef,
-          where('category', '==', category.trim()),
-          orderBy('name', 'asc'),
-          limit(50)
-        );
-      }
-
-      const querySnapshot = await getDocs(q);
-      let results = querySnapshot.docs.map(doc => 
-        SportMapper.fromFirebase(doc.id, doc.data() as any)
-      );
-
-      // Filtrar por nombre en el cliente si hay query
-      if (query?.trim()) {
-        const searchQuery = query.trim().toLowerCase();
-        results = results.filter(sport => 
-          sport.details.name.toLowerCase().includes(searchQuery)
-        );
-      }
-
-      return results;
+      const searchSportsFn = httpsCallable(functions, 'sports_search');
+      const result = await searchSportsFn({ 
+        query: query?.trim(),
+        category: category?.trim()
+      });
+      
+      const { sports: sportsData } = result.data as { sports: any[] };
+      return sportsData.map((data: any) => SportMapper.fromFirebase(data.id, data));
       
     } catch (error: any) {
       console.error('Error searching sports with filters:', error);
@@ -271,17 +206,11 @@ export class SportRepositoryImpl implements ISportRepository {
         return [];
       }
 
-      const sportsRef = collection(firestore, this.SPORTS_COLLECTION);
-      const q = firestoreQuery(
-        sportsRef,
-        where('category', '==', category.trim()),
-        orderBy('name', 'asc')
-      );
+      const searchSportsFn = httpsCallable(functions, 'sports_search');
+      const result = await searchSportsFn({ category: category.trim() });
       
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => 
-        SportMapper.fromFirebase(doc.id, doc.data() as any)
-      );
+      const { sports: sportsData } = result.data as { sports: any[] };
+      return sportsData.map((data: any) => SportMapper.fromFirebase(data.id, data));
       
     } catch (error: any) {
       console.error('Error getting sports by category:', error);
@@ -323,19 +252,19 @@ export class SportRepositoryImpl implements ISportRepository {
       }
       
       if (sportData.description !== undefined) {
-        updateData.description = sportData.description?.trim() || undefined;
+        updateData.description = sportData.description?.trim() || '';
       }
       
       if (sportData.icon !== undefined) {
-        updateData.icon = sportData.icon?.trim() || undefined;
+        updateData.icon = sportData.icon?.trim() || '';
       }
       
       if (sportData.image !== undefined) {
-        updateData.image = sportData.image?.trim() || undefined;
+        updateData.image = sportData.image?.trim() || '';
       }
       
       if (sportData.category !== undefined) {
-        updateData.category = sportData.category?.trim() || undefined;
+        updateData.category = sportData.category?.trim() || '';
       }
 
       await updateDoc(sportRef, updateData);

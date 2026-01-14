@@ -1,4 +1,4 @@
-import { Meetup } from '@/src/entities/meetup';
+import { Meetup } from '@/src/entities/meetup/model';
 import { MeetupFilters, MeetupSortOptions } from '@/src/types/filtering.types';
 
 // Re-export MeetupTimeOfDay for backward compatibility

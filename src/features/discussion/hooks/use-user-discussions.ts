@@ -8,7 +8,20 @@ export const useUserDiscussions = (userId: string | undefined, autoFetch = true)
     queryKey: qk,
     queryFn: async () => {
       if (!userId) return { discussions: [], spotsMap: new Map<string, Spot>() };
-      const fetchedDiscussions = await discussionRepository.getDiscussionsByUser(userId);
+      
+      let fetchedDiscussions: any[] = [];
+      try {
+        fetchedDiscussions = await discussionRepository.getDiscussionsByUser(userId);
+      } catch (err: any) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes('requires an index') || message.includes('failed-precondition')) {
+             console.warn('[useUserDiscussions] Index missing. Returning empty list.');
+             fetchedDiscussions = [];
+        } else {
+            throw err;
+        }
+      }
+
       fetchedDiscussions.sort((a, b) => b.metadata.createdAt.getTime() - a.metadata.createdAt.getTime());
       const spotIds = [...new Set(fetchedDiscussions.map(d => d.details.spotId).filter(Boolean))] as string[];
       const spotMap = new Map<string, Spot>();

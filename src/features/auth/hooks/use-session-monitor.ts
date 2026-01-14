@@ -45,9 +45,23 @@ export const useSessionMonitor = () => {
       const session = await getSession();
       
       if (!session) {
-        // No session found - don't show error, just logout silently
-        // This happens during registration when auth state changes before session is saved
-        console.log('No session found during check (might be registering)');
+        // No session found but useUser thinks we are authenticated.
+        // This might be due to a race condition or lost storage.
+        // Try to recover by saving the current session data if auth.currentUser exists.
+        console.log('No session found during check. Attempting to recover session...');
+        
+        try {
+          const sessionData = await authRepository.getSessionData();
+          if (sessionData) {
+              await saveSession(sessionData);
+              console.log('Session recovered and saved successfully.');
+              return; // Recovery successful, stop here for this check
+          }
+        } catch (recoverError) {
+             console.error('Failed to recover session:', recoverError);
+        }
+
+        console.log('Could not recover session. Proceeding with logout.');
         return;
       }
 

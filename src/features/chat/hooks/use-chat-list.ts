@@ -12,10 +12,18 @@ export const useChatList = () => {
   useEffect(() => {
     if (!user) return;
     setIsLoading(true);
-    const unsubscribe = chatRepository.subscribeToUserChats(user.id, items => {
-      setChats(items);
-      setIsLoading(false);
-    });
+    const unsubscribe = chatRepository.subscribeToUserChats(
+      user.id, 
+      items => {
+        setChats(items);
+        setIsLoading(false);
+      },
+      err => {
+        console.error('Error loading chat list:', err);
+        setError(err.message);
+        setIsLoading(false);
+      }
+    );
     return () => unsubscribe();
   }, [user]);
 

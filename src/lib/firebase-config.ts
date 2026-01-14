@@ -2,12 +2,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { initializeApp } from "firebase/app";
 import {
-  browserLocalPersistence,
-  connectAuthEmulator,
-  //@ts-ignore line
-  getReactNativePersistence,
-  indexedDBLocalPersistence,
-  initializeAuth,
+    browserLocalPersistence,
+    connectAuthEmulator,
+    //@ts-ignore line
+    getReactNativePersistence,
+    indexedDBLocalPersistence,
+    initializeAuth,
 } from "firebase/auth";
 import { connectDatabaseEmulator, getDatabase } from "firebase/database";
 // CAMBIO 1: Importamos initializeFirestore en lugar de getFirestore
@@ -47,16 +47,20 @@ const firestore = initializeFirestore(app, {
 });
 
 // Initialize other services
+// Initialize other services
 const database = getDatabase(app);
-// In development (emulator), don't specify region. In production, use 'europe-west1'
-const functions = __DEV__ ? getFunctions(app) : getFunctions(app, 'europe-west1');
+// Always use 'europe-west1' for functions as deployed
+const functions = getFunctions(app, 'europe-west1');
 const storage = getStorage(app);
 
 // Replace 'YOUR_LOCAL_IP' with the actual IP address of your machine
 const localIp = process.env.EXPO_PUBLIC_EMULATOR_IP || "10.0.2.2"; 
 
+// To use Firebase Cloud in development, set this to false
+const USE_EMULATOR = false;
+
 // Connect to emulators in development environment
-if (__DEV__) {
+if (USE_EMULATOR) {
   try {
     connectAuthEmulator(auth, `http://${localIp}:9099`, {
       disableWarnings: false,

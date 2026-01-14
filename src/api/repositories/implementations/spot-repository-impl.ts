@@ -1,5 +1,5 @@
 import { SportSpotRating, Spot, SpotDetails } from '@/src/entities/spot/model/spot';
-import { firestore, functions, storage } from '@/src/lib/firebase-config';
+import { auth, firestore, functions, storage } from '@/src/lib/firebase-config';
 import { ref as dbRef, getDatabase, push } from 'firebase/database';
 import { collection, doc, limit as firestoreLimit, getDoc, getDocs, increment, query, Timestamp, updateDoc, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -14,7 +14,7 @@ import { SpotMapper } from '../mappers/spot-mapper';
 export class SpotRepositoryImpl implements ISpotRepository {
   private readonly COLLECTION_NAME = 'spots';
   // CHANGED: sport_metrics is now a subcollection under spots
-  // Path: spots/{spotId}/sport_metrics/{sportId}
+  // Path: spots/{spotId}/sport_metrics/{spotId}
 
   /**
    * Crear un nuevo spot usando cloud function
@@ -52,6 +52,18 @@ export class SpotRepositoryImpl implements ISpotRepository {
           durationMs: uploadDuration,
           urls: galleryUrls,
         });
+      }
+
+      // Ensure valid auth token before calling function
+      if (auth.currentUser) {
+        try {
+          console.log('[SpotRepository:createSpot] Refreshing auth token...');
+          await auth.currentUser.getIdToken(true);
+        } catch (tokenError) {
+          console.warn('[SpotRepository:createSpot] Failed to refresh token, proceeding anyway:', tokenError);
+        }
+      } else {
+        console.warn('[SpotRepository:createSpot] No currentUser found in SDK, request may be unauthenticated.');
       }
 
       // Call cloud function
@@ -490,14 +502,15 @@ export class SpotRepositoryImpl implements ISpotRepository {
     const spotsCollection = collection(firestore, this.COLLECTION_NAME);
     
     // Construir query base
+    // Optimize: Use default indexes.
     let q = query(spotsCollection);
-
+    
     // Aplicar filtro de deportes si existe
     if (filters.sportIds && filters.sportIds.length > 0) {
       // Firebase permite 'array-contains' para un solo valor
-      // Para múltiples valores, necesitamos hacer queries separados
       q = query(q, where('availableSports', 'array-contains', filters.sportIds[0]));
     }
+    // "isActive" filter removed for now as per user request
 
     // Aplicar filtro de verificación
     if (filters.onlyVerified === true) {
@@ -568,6 +581,10 @@ export class SpotRepositoryImpl implements ISpotRepository {
         );
       });
     }
+
+    // Ensure we only return active spots (important if DB query didn't filter them)
+    // "isActive" filter removed for now as per user request
+    // filtered = filtered.filter(spot => spot.metadata.isActive !== false);
 
     if (filters.onlyVerified === true) {
       filtered = filtered.filter(spot => spot.metadata.isVerified === true);

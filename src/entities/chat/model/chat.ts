@@ -1,4 +1,4 @@
-export type ChatType = 'direct' | 'group' | 'meetup-group';
+export type ChatType = 'direct' | 'group' | 'meetup-group' | 'meetup';
 
 export type ChatMemberRole = 'owner' | 'admin' | 'member';
 

@@ -6,7 +6,8 @@ import { SignUpForm } from '@/src/features/auth/components/sign-up-form';
 import { useSignUp } from '@/src/features/auth/hooks/use-sign-up';
 
 import { useAppAlert } from '@/src/context/app-alert-context';
-import { useRouter } from 'expo-router';
+import { useUser } from '@/src/context/user-context';
+import { Redirect, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView } from 'react-native';
 
@@ -14,6 +15,7 @@ export default function SignUp() {
   const router = useRouter();
   const { signUp, isLoading, error } = useSignUp();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useUser();
 
   const { showError } = useAppAlert();
 
@@ -31,7 +33,7 @@ export default function SignUp() {
       await signUp(email, password, userName, photo, birthDate, fullName, bio);
       
       // User data is now loaded in UserContext, navigate to home
-      router.replace('/home-tabs/my-feed');
+      router.push('/home-tabs/my-feed');
     } catch (signUpError) {
       console.error('Error during sign up:', signUpError);
       showError(error || 'Ocurrió un error durante el registro. Por favor, intenta de nuevo.', 'Error de Registro');
@@ -39,6 +41,10 @@ export default function SignUp() {
       setIsSubmitting(false);
     }
   };
+
+  if (user) {
+    return <Redirect href="/home-tabs/my-feed" />;
+  }
 
   return (
     <KeyboardAvoidingView behavior="padding" enabled>

@@ -1,6 +1,6 @@
 import { meetupRepository } from '@/src/api/repositories';
 import { useUser } from '@/src/context/user-context';
-import { Meetup } from '@/src/entities/meetup';
+import { Meetup } from '@/src/entities/meetup/model';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 export const useUpdateMeetup = () => {

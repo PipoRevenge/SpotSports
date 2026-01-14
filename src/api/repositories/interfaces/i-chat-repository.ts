@@ -13,7 +13,7 @@ export interface IChatRepository {
   }): Promise<Chat>;
   getChatById(chatId: string): Promise<Chat>;
   listChatsForUser(userId: string, options?: { limit?: number; startAfter?: any }): Promise<{ items: Chat[]; lastVisible?: any }>;
-  subscribeToUserChats(userId: string, cb: (chats: Chat[]) => void): () => void;
+  subscribeToUserChats(userId: string, cb: (chats: Chat[]) => void, onError?: (error: Error) => void): () => void;
   subscribeToChat(chatId: string, cb: (chat: Chat) => void): () => void;
   subscribeToMessages(chatId: string, cb: (messages: Message[]) => void, options?: { limit?: number }): () => void;
   getMessages(chatId: string, options?: { limit?: number; since?: Date | number; startAfter?: any }): Promise<{ items: Message[]; lastVisible?: any }>;

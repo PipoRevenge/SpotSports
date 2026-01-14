@@ -137,8 +137,8 @@ export class AuthRepositoryImpl implements IAuthRepository {
 
     async waitForUserDocument(
         userId: string, 
-        maxAttempts: number = 5, 
-        delayMs: number = 500
+        maxAttempts: number = 10, 
+        delayMs: number = 1000
     ): Promise<boolean> {
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             try {

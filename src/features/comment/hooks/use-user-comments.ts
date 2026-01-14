@@ -127,6 +127,15 @@ export const useUserComments = (userId: string | undefined, autoFetch = true) =>
       const message = err instanceof Error ? err.message : 'Failed to fetch user comments';
       setError(message);
       console.error('[useUserComments] Error:', err);
+
+      // Gracefully handle Firestore Index requirement error
+      if (message.includes('requires an index') || message.includes('failed-precondition')) {
+         console.warn('[useUserComments] Index missing. This is normal for new queries. Please create the index using the link in the console.');
+         if (mountedRef.current) {
+            setComments([]);
+            setError(null);
+         }
+      }
     } finally {
       if (mountedRef.current) setLoading(false);
     }

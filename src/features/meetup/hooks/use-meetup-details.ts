@@ -1,5 +1,5 @@
 import { meetupRepository } from '@/src/api/repositories';
-import { Meetup } from '@/src/entities/meetup';
+import { Meetup } from '@/src/entities/meetup/model';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export const useMeetupDetails = (spotId?: string, meetupId?: string) => {

@@ -5,13 +5,15 @@ import { SignInForm } from '@/src/features/auth/components/sign-in-form';
 import { useSignIn } from '@/src/features/auth/hooks/use-sign-in';
 
 import { useAppAlert } from '@/src/context/app-alert-context';
-import { useRouter } from 'expo-router';
+import { useUser } from '@/src/context/user-context';
+import { Redirect, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 
 export default function SignIn() {
   const router = useRouter();
   const { signIn, isLoading, error } = useSignIn();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useUser();
 
   const { showError } = useAppAlert();
 
@@ -24,7 +26,7 @@ export default function SignIn() {
         showError(result.error || 'Email o contraseña incorrectos. Por favor, verifica tus credenciales.', 'Error de Inicio de Sesión');
       } else {
         // User data is now loaded in UserContext, navigate to home
-        router.replace('/home-tabs/my-feed');
+        router.push('/home-tabs/my-feed');
       }
     } catch (signInError) {
       console.error('Sign in error:', signInError);
@@ -37,6 +39,10 @@ export default function SignIn() {
   const handleSignUpPress = () => {
     router.push('/auth/sign-up');
   };
+
+  if (user) {
+    return <Redirect href="/home-tabs/my-feed" />;
+  }
 
   return (
     <VStack className='w-3/4 self-center justify-center flex-1'>

@@ -1,19 +1,19 @@
 import {
-    collection,
-    collectionGroup,
-    doc,
-    getDoc,
-    getDocs,
-    orderBy,
-    query,
-    serverTimestamp,
-    Timestamp,
-    updateDoc,
-    where
+  collection,
+  collectionGroup,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  Timestamp,
+  updateDoc,
+  where
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 
-import { Meetup, MeetupType, MeetupVisibility } from '@/src/entities/meetup';
+import { Meetup, MeetupType, MeetupVisibility } from '@/src/entities/meetup/model/meetup';
 import { firestore, functions } from '@/src/lib/firebase-config';
 import { MeetupFilters, MeetupSortOptions, shouldApplyCreatedByMe } from '@/src/types/filtering.types';
 import { ChatRepositoryImpl } from './chat-repository-impl';
@@ -39,7 +39,7 @@ export class MeetupRepositoryImpl implements IMeetupRepository {
     }
 
     // Default participantLimit to global default if not provided for meetups that can have it
-    const { DEFAULT_MEETUP_PARTICIPANT_LIMIT } = await import('@/src/entities/meetup');
+    const { DEFAULT_MEETUP_PARTICIPANT_LIMIT } = await import('@/src/entities/meetup/model/meetup');
     let participantLimit = (meetupData as any).participantLimit;
     if ((participantLimit === undefined || participantLimit === null) && (meetupData as any).type === MeetupType.CASUAL) {
       participantLimit = DEFAULT_MEETUP_PARTICIPANT_LIMIT;
@@ -62,7 +62,7 @@ export class MeetupRepositoryImpl implements IMeetupRepository {
 
   async updateMeetup(spotId: string, meetupId: string, data: Partial<Meetup>, requestingUserId?: string): Promise<void> {
     // Enforce max participant limit
-    const { DEFAULT_MEETUP_PARTICIPANT_LIMIT } = await import('@/src/entities/meetup');
+    const { DEFAULT_MEETUP_PARTICIPANT_LIMIT } = await import('@/src/entities/meetup/model/meetup');
     if ((data as any).participantLimit && (data as any).participantLimit > DEFAULT_MEETUP_PARTICIPANT_LIMIT) {
       throw new Error(`El límite máximo es ${DEFAULT_MEETUP_PARTICIPANT_LIMIT} participantes`);
     }

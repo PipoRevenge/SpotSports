@@ -200,7 +200,7 @@ export class ChatRepositoryImpl implements IChatRepository {
     return { items, lastVisible };
   }
 
-  subscribeToUserChats(userId: string, cb: (chats: Chat[]) => void): () => void {
+  subscribeToUserChats(userId: string, cb: (chats: Chat[]) => void, onError?: (error: Error) => void): () => void {
     const membersQuery = query(
       collectionGroup(firestore, 'members'),
       where('userId', '==', userId)
@@ -251,6 +251,9 @@ export class ChatRepositoryImpl implements IChatRepository {
                             chatsMap.delete(chatId);
                             notify();
                         }
+                    }, (error) => {
+                        console.error('Error in chat listener:', error);
+                        if (onError) onError(error);
                     });
                     chatListeners.set(chatId, unsubChat);
                 }
@@ -266,6 +269,14 @@ export class ChatRepositoryImpl implements IChatRepository {
                 notify();
             }
         }
+        
+        // If snapshot is empty, we still need to notify to clear loading state
+        if (snapshot.empty) {
+             notify();
+        }
+    }, (error) => {
+        console.error('Error in members listener:', error);
+        if (onError) onError(error);
     });
 
     return () => {
