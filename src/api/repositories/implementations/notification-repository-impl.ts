@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 
-import { AppNotification } from '@/src/entities/notification/model/notification';
+import { AppNotification } from '@/src/features/notification/types/notification';
 
 import { INotificationRepository, NotificationPage } from '../interfaces/i-notification-repository';
 
@@ -23,13 +23,13 @@ export class NotificationRepositoryImpl implements INotificationRepository {
   async getNotifications(
     userId: string,
     pageSize = 20,
-    lastDoc?: QueryDocumentSnapshot | null
+    lastDoc?: unknown | null
   ): Promise<NotificationPage> {
     const notificationsRef = collection(db, 'users', userId, 'notifications');
 
     const baseQuery = [orderBy('createdAt', 'desc'), limit(pageSize)];
     const composedQuery = lastDoc
-      ? query(notificationsRef, orderBy('createdAt', 'desc'), startAfter(lastDoc), limit(pageSize))
+      ? query(notificationsRef, orderBy('createdAt', 'desc'), startAfter(lastDoc as QueryDocumentSnapshot), limit(pageSize))
       : query(notificationsRef, ...baseQuery);
 
     const snapshot = await getDocs(composedQuery);
@@ -70,7 +70,7 @@ export class NotificationRepositoryImpl implements INotificationRepository {
       // Use callable function to register token
       const registerTokenFn = httpsCallable<{ token: string }, { success: boolean }>(
         functions, 
-        'notifications_registerToken'
+        'notification-registerToken'
       );
       await registerTokenFn({ token });
     } catch (error) {

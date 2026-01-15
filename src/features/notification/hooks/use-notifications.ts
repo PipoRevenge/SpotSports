@@ -1,9 +1,9 @@
+
 import { notificationRepository } from '@/src/api/repositories';
 import { NotificationPage } from '@/src/api/repositories/interfaces/i-notification-repository';
 import { useUser } from '@/src/context/user-context';
-import { AppNotification } from '@/src/entities/notification/model/notification';
+import { AppNotification } from '@/src/features/notification/types/notification';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { QueryDocumentSnapshot } from 'firebase/firestore';
 
 const EMPTY_NOTIFICATIONS: AppNotification[] = [];
 
@@ -25,7 +25,7 @@ export const useNotifications = () => {
     Error,
     AppNotification[],
     typeof queryKey,
-    QueryDocumentSnapshot | null
+    unknown | null
   >({
     queryKey,
     queryFn: ({ pageParam }) => {

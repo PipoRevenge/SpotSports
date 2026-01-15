@@ -1,15 +1,15 @@
 import {
-  collection,
-  collectionGroup,
-  doc,
-  getDoc,
-  getDocs,
-  orderBy,
-  query,
-  serverTimestamp,
-  Timestamp,
-  updateDoc,
-  where
+    collection,
+    collectionGroup,
+    doc,
+    getDoc,
+    getDocs,
+    orderBy,
+    query,
+    serverTimestamp,
+    Timestamp,
+    updateDoc,
+    where
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 
@@ -46,7 +46,7 @@ export class MeetupRepositoryImpl implements IMeetupRepository {
     }
 
     // Call cloud function
-    const createMeetupFn = httpsCallable(functions, 'meetups_create');
+    const createMeetupFn = httpsCallable(functions, 'meetups-create');
     const result = await createMeetupFn({
       spotId: meetupData.spotId,
       meetupData: {
@@ -68,7 +68,7 @@ export class MeetupRepositoryImpl implements IMeetupRepository {
     }
 
     // Call cloud function
-    const updateMeetupFn = httpsCallable(functions, 'meetups_update');
+    const updateMeetupFn = httpsCallable(functions, 'meetups-update');
     await updateMeetupFn({
       spotId,
       meetupId,
@@ -78,7 +78,7 @@ export class MeetupRepositoryImpl implements IMeetupRepository {
 
   async approveJoinRequest(spotId: string, meetupId: string, requesterId: string, approverId: string): Promise<void> {
     // Call cloud function
-    const approveRequestFn = httpsCallable(functions, 'meetups_approveRequest');
+    const approveRequestFn = httpsCallable(functions, 'meetups-approveRequest');
     await approveRequestFn({
       spotId,
       meetupId,
@@ -88,7 +88,7 @@ export class MeetupRepositoryImpl implements IMeetupRepository {
 
   async rejectJoinRequest(spotId: string, meetupId: string, requesterId: string, approverId: string): Promise<void> {
     // Call cloud function
-    const rejectRequestFn = httpsCallable(functions, 'meetups_rejectRequest');
+    const rejectRequestFn = httpsCallable(functions, 'meetups-rejectRequest');
     await rejectRequestFn({
       spotId,
       meetupId,
@@ -98,7 +98,7 @@ export class MeetupRepositoryImpl implements IMeetupRepository {
 
   async deleteMeetup(spotId: string, meetupId: string, requestingUserId: string): Promise<void> {
     // Call cloud function
-    const deleteMeetupFn = httpsCallable(functions, 'meetups_delete');
+    const deleteMeetupFn = httpsCallable(functions, 'meetups-delete');
     await deleteMeetupFn({
       spotId,
       meetupId,
@@ -516,7 +516,7 @@ export class MeetupRepositoryImpl implements IMeetupRepository {
 
   async joinMeetup(spotId: string, meetupId: string, userId: string): Promise<{ status: 'joined' | 'requested' }> {
     // Call cloud function
-    const joinMeetupFn = httpsCallable(functions, 'meetups_join');
+    const joinMeetupFn = httpsCallable(functions, 'meetups-join');
     const result = await joinMeetupFn({
       spotId,
       meetupId,
@@ -528,7 +528,7 @@ export class MeetupRepositoryImpl implements IMeetupRepository {
 
   async leaveMeetup(spotId: string, meetupId: string, userId: string): Promise<void> {
     // Call cloud function
-    const leaveMeetupFn = httpsCallable(functions, 'meetups_leave');
+    const leaveMeetupFn = httpsCallable(functions, 'meetups-leave');
     await leaveMeetupFn({
       spotId,
       meetupId,

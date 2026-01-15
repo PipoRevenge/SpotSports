@@ -68,7 +68,7 @@ export class SpotRepositoryImpl implements ISpotRepository {
 
       // Call cloud function
       console.log('[SpotRepository:createSpot] Calling cloud function spots_create');
-      const createSpotFn = httpsCallable(functions, 'spots_create');
+      const createSpotFn = httpsCallable(functions, 'spots-create');
       const functionCallData = {
         name: spotData.name,
         description: spotData.description,
@@ -162,7 +162,7 @@ export class SpotRepositoryImpl implements ISpotRepository {
         galleryUrls: cleaned.galleryUrls ? `${cleaned.galleryUrls.length} URLs` : undefined,
       });
 
-      const updateFn = httpsCallable(functions, 'spots_update');
+      const updateFn = httpsCallable(functions, 'spots-update');
       await updateFn(cleaned);
 
       console.log('[SpotRepository:updateSpot] Spot updated successfully', { spotId });
@@ -226,7 +226,7 @@ export class SpotRepositoryImpl implements ISpotRepository {
   /**
    * Obtener solo los contadores del spot (optimizado para actualizaciones rápidas)
    */
-  async getSpotCounters(id: string): Promise<{ favoritesCount: number; visitedCount: number; wantToVisitCount: number; reviewsCount: number; discussionsCount?: number; } | null> {
+  async getSpotCounters(id: string): Promise<{ activeMeetupsCount: number; reviewsCount: number; discussionsCount?: number; } | null> {
     try {
       if (!id || typeof id !== 'string' || id.trim().length === 0) {
         throw new Error('Valid spot ID is required');
@@ -241,9 +241,7 @@ export class SpotRepositoryImpl implements ISpotRepository {
 
       const data = docSnap.data();
       return {
-        favoritesCount: data.favoritesCount || 0,
-        visitedCount: data.visitedCount || 0,
-        wantToVisitCount: data.wantToVisitCount || 0,
+        activeMeetupsCount: data.activeMeetupsCount || 0,
         reviewsCount: data.reviewsCount || 0,
         discussionsCount: data.discussionsCount || 0,
       };
@@ -445,7 +443,7 @@ export class SpotRepositoryImpl implements ISpotRepository {
 
       // Use cloud function if location-based search is requested
       if (filters.location && filters.maxDistance) {
-        const searchSpotsFn = httpsCallable(functions, 'spots_search');
+        const searchSpotsFn = httpsCallable(functions, 'spots-search');
         const result = await searchSpotsFn({
           location: {
             lat: filters.location.latitude,
@@ -690,21 +688,15 @@ export class SpotRepositoryImpl implements ISpotRepository {
     return sorted;
   }
 
-  async incrementActivityCounters(spotId: string, counters: { reviewsDelta?: number; favoritesDelta?: number; visitedDelta?: number; wantToVisitDelta?: number; discussionsDelta?: number; }): Promise<void> {
+  async incrementActivityCounters(spotId: string, counters: { reviewsDelta?: number; activeMeetupsDelta?: number; discussionsDelta?: number; }): Promise<void> {
     try {
       const updates: Record<string, any> = { updatedAt: Timestamp.now() };
 
       if (counters.reviewsDelta && counters.reviewsDelta !== 0) {
         updates.reviewsCount = increment(counters.reviewsDelta);
       }
-      if (counters.favoritesDelta && counters.favoritesDelta !== 0) {
-        updates.favoritesCount = increment(counters.favoritesDelta);
-      }
-      if (counters.visitedDelta && counters.visitedDelta !== 0) {
-        updates.visitedCount = increment(counters.visitedDelta);
-      }
-      if (counters.wantToVisitDelta && counters.wantToVisitDelta !== 0) {
-        updates.wantToVisitCount = increment(counters.wantToVisitDelta);
+      if (counters.activeMeetupsDelta && counters.activeMeetupsDelta !== 0) {
+        updates.activeMeetupsCount = increment(counters.activeMeetupsDelta);
       }
       if (counters.discussionsDelta && counters.discussionsDelta !== 0) {
         updates.discussionsCount = increment(counters.discussionsDelta);

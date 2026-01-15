@@ -2,11 +2,18 @@ import { Icon } from "@/src/components/ui/icon";
 import { Pressable } from "@/src/components/ui/pressable";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
-import { useAppAlert } from '@/src/context/app-alert-context';
+import { useAppAlert } from "@/src/context/app-alert-context";
 import { SpotCategory } from "@/src/entities/user/model/spot-collection";
 import { Check } from "lucide-react-native";
 import React from "react";
-import { ActionSheetIOS, Modal, Platform, TouchableOpacity, View } from "react-native";
+import {
+  ActionSheetIOS,
+  Modal,
+  Platform,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SPOT_CATEGORIES } from "../constants/categories";
 
 interface SpotCollectionModalProps {
@@ -29,21 +36,29 @@ export const SpotCollectionModal: React.FC<SpotCollectionModalProps> = ({
   onClose,
 }) => {
   const { showSuccess } = useAppAlert();
+  const insets = useSafeAreaInsets();
 
   const handleToggle = async (category: SpotCategory) => {
     const wasInCategory = categories.includes(category);
     const success = await onToggleCategory(category);
-    
+
     if (success) {
       // El estado cambió: si estaba, ahora no está (y viceversa)
       const isNowInCategory = !wasInCategory;
-      const categoryLabel = SPOT_CATEGORIES.find(c => c.type === category)?.label;
-      showSuccess(`Spot ${isNowInCategory ? "añadido a" : "eliminado de"} ${categoryLabel}`, isNowInCategory ? 'Añadido' : 'Eliminado');
+      const categoryLabel = SPOT_CATEGORIES.find(
+        (c) => c.type === category
+      )?.label;
+      showSuccess(
+        `Spot ${
+          isNowInCategory ? "añadido a" : "eliminado de"
+        } ${categoryLabel}`,
+        isNowInCategory ? "Añadido" : "Eliminado"
+      );
     }
   };
 
   // Modal para Android
-  if (Platform.OS !== 'ios') {
+  if (Platform.OS !== "ios") {
     return (
       <Modal
         visible={visible}
@@ -56,9 +71,17 @@ export const SpotCollectionModal: React.FC<SpotCollectionModalProps> = ({
           onPress={onClose}
           className="flex-1 bg-black/50 justify-end"
         >
-          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-            <VStack className="bg-white rounded-t-3xl p-6">
-              <Text className="text-xl font-bold pb-2">Guardar en colección</Text>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <VStack
+              className="bg-white rounded-t-3xl p-6"
+              style={{ paddingBottom: Math.max(insets.bottom, 24) }}
+            >
+              <Text className="text-xl font-bold pb-2">
+                Guardar en colección
+              </Text>
               <Text className="text-gray-600 pb-6">
                 Selecciona donde quieres guardar este spot
               </Text>
@@ -66,7 +89,7 @@ export const SpotCollectionModal: React.FC<SpotCollectionModalProps> = ({
               <VStack className="gap-3">
                 {SPOT_CATEGORIES.map((category) => {
                   const isInCategory = categories.includes(category.type);
-                  
+
                   return (
                     <Pressable
                       key={category.type}
@@ -92,7 +115,7 @@ export const SpotCollectionModal: React.FC<SpotCollectionModalProps> = ({
                           {category.label}
                         </Text>
                       </View>
-                      
+
                       {isInCategory && (
                         <Icon as={Check} size={20} color={category.color} />
                       )}
@@ -124,20 +147,28 @@ export const showSpotCollectionActionSheet = async (
   categories: SpotCategory[],
   onToggleCategory: (category: SpotCategory) => Promise<boolean>,
   showSuccess?: (message: string, title?: string) => void,
-  showActionSheet?: (title: string | undefined, message: string | undefined, options: { key: string; label: string }[]) => Promise<string | null>
+  showActionSheet?: (
+    title: string | undefined,
+    message: string | undefined,
+    options: { key: string; label: string }[]
+  ) => Promise<string | null>
 ) => {
-  if (Platform.OS !== 'ios') return;
+  if (Platform.OS !== "ios") return;
 
   const options = [
-    ...SPOT_CATEGORIES.map(ct => {
+    ...SPOT_CATEGORIES.map((ct) => {
       const isInCategory = categories.includes(ct.type);
       return `${ct.label}${isInCategory ? " ✓" : ""}`;
     }),
-    "Cancelar"
+    "Cancelar",
   ];
 
   if (showActionSheet) {
-    const result = await showActionSheet('Guardar en colección', 'Selecciona donde quieres guardar este spot', SPOT_CATEGORIES.map(ct => ({ key: ct.type, label: ct.label })));
+    const result = await showActionSheet(
+      "Guardar en colección",
+      "Selecciona donde quieres guardar este spot",
+      SPOT_CATEGORIES.map((ct) => ({ key: ct.type, label: ct.label }))
+    );
     if (result) {
       const category = result as SpotCategory;
       const wasInCategory = categories.includes(category);
@@ -145,8 +176,15 @@ export const showSpotCollectionActionSheet = async (
       if (success) {
         // El estado cambió: si estaba, ahora no está (y viceversa)
         const isNowInCategory = !wasInCategory;
-        const categoryLabel = SPOT_CATEGORIES.find(c => c.type === category)?.label;
-        showSuccess?.(`Spot ${isNowInCategory ? "añadido a" : "eliminado de"} ${categoryLabel}`, isNowInCategory ? 'Añadido' : 'Eliminado');
+        const categoryLabel = SPOT_CATEGORIES.find(
+          (c) => c.type === category
+        )?.label;
+        showSuccess?.(
+          `Spot ${
+            isNowInCategory ? "añadido a" : "eliminado de"
+          } ${categoryLabel}`,
+          isNowInCategory ? "Añadido" : "Eliminado"
+        );
       }
     }
     return;
@@ -163,11 +201,16 @@ export const showSpotCollectionActionSheet = async (
       if (buttonIndex < SPOT_CATEGORIES.length) {
         const category = SPOT_CATEGORIES[buttonIndex].type;
         const success = await onToggleCategory(category);
-        
+
         if (success) {
           const isInCategory = categories.includes(category);
           const categoryLabel = SPOT_CATEGORIES[buttonIndex].label;
-          showSuccess?.(`Spot ${isInCategory ? "añadido a" : "eliminado de"} ${categoryLabel}`, isInCategory ? 'Añadido' : 'Eliminado');
+          showSuccess?.(
+            `Spot ${
+              isInCategory ? "añadido a" : "eliminado de"
+            } ${categoryLabel}`,
+            isInCategory ? "Añadido" : "Eliminado"
+          );
         }
       }
     }

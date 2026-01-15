@@ -425,8 +425,8 @@ export class UserRepositoryImpl implements IUserRepository {
      */
     async addSpotToCategories(userId: string, spotId: string, categories: SpotCategory[]): Promise<void> {
         try {
-            const saveSpotFn = httpsCallable(functions, 'users_saveSpot');
-            const unsaveSpotFn = httpsCallable(functions, 'users_unsaveSpot');
+            const saveSpotFn = httpsCallable(functions, 'users-saveSpot');
+            const unsaveSpotFn = httpsCallable(functions, 'users-unsaveSpot');
             
             // Procesar cada categoría individualmente con toggle behavior
             const results = await Promise.allSettled(
@@ -466,7 +466,7 @@ export class UserRepositoryImpl implements IUserRepository {
      */
     async removeSpotFromCategories(userId: string, spotId: string, categories: SpotCategory[]): Promise<void> {
         try {
-            const unsaveSpotFn = httpsCallable(functions, 'users_unsaveSpot');
+            const unsaveSpotFn = httpsCallable(functions, 'users-unsaveSpot');
             
             // La cloud function espera una categoría a la vez
             // Usamos Promise.allSettled para que si una categoría no existe, las otras se eliminen igual
@@ -660,7 +660,7 @@ export class UserRepositoryImpl implements IUserRepository {
 
     async followUser(userId: string, targetUserId: string): Promise<void> {
         try {
-            const followUserFn = httpsCallable(functions, 'users_follow');
+            const followUserFn = httpsCallable(functions, 'users-follow');
             await followUserFn({ targetUserId });
         } catch (error) {
             console.error('Error following user:', error);
@@ -670,7 +670,7 @@ export class UserRepositoryImpl implements IUserRepository {
 
     async unfollowUser(userId: string, targetUserId: string): Promise<void> {
         try {
-            const unfollowUserFn = httpsCallable(functions, 'users_unfollow');
+            const unfollowUserFn = httpsCallable(functions, 'users-unfollow');
             await unfollowUserFn({ targetUserId });
         } catch (error) {
             console.error('Error unfollowing user:', error);

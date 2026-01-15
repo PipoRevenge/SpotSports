@@ -1,15 +1,15 @@
 import { Sport, SportDetails } from '@/src/entities/sport/model/sport';
 import { firestore, functions } from '@/src/lib/firebase-config';
 import {
-  collection,
-  doc,
-  query as firestoreQuery,
-  getDoc,
-  getDocs,
-  orderBy,
-  Timestamp,
-  updateDoc,
-  where
+    collection,
+    doc,
+    query as firestoreQuery,
+    getDoc,
+    getDocs,
+    orderBy,
+    Timestamp,
+    updateDoc,
+    where
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { ISportRepository } from '../interfaces/i-sport-repository';
@@ -38,7 +38,7 @@ export class SportRepositoryImpl implements ISportRepository {
         throw new Error('La descripción del deporte es requerida');
       }
 
-      const createSportFn = httpsCallable(functions, 'sports_create');
+      const createSportFn = httpsCallable(functions, 'sports-create');
       const validData = {
         name: sportData.name.trim(),
         description: sportData.description.trim(),
@@ -115,7 +115,7 @@ export class SportRepositoryImpl implements ISportRepository {
    */
   async getAllSports(): Promise<Sport[]> {
     try {
-      const getSportsFn = httpsCallable(functions, 'sports_get');
+      const getSportsFn = httpsCallable(functions, 'sports-get');
       const result = await getSportsFn({});
       
       const { sports: sportsData } = result.data as { sports: any[] };
@@ -137,7 +137,7 @@ export class SportRepositoryImpl implements ISportRepository {
         return [];
       }
 
-      const searchSportsFn = httpsCallable(functions, 'sports_search');
+      const searchSportsFn = httpsCallable(functions, 'sports-search');
       const result = await searchSportsFn({ query: query.trim() });
       
       const { sports: sportsData } = result.data as { sports: any[] };
@@ -158,7 +158,7 @@ export class SportRepositoryImpl implements ISportRepository {
         return [];
       }
 
-      const searchSportsFn = httpsCallable(functions, 'sports_search');
+      const searchSportsFn = httpsCallable(functions, 'sports-search');
       const result = await searchSportsFn({ category: category.trim() });
       
       const { sports: sportsData } = result.data as { sports: any[] };
@@ -182,7 +182,7 @@ export class SportRepositoryImpl implements ISportRepository {
         return [];
       }
 
-      const searchSportsFn = httpsCallable(functions, 'sports_search');
+      const searchSportsFn = httpsCallable(functions, 'sports-search');
       const result = await searchSportsFn({ 
         query: query?.trim(),
         category: category?.trim()
@@ -206,7 +206,7 @@ export class SportRepositoryImpl implements ISportRepository {
         return [];
       }
 
-      const searchSportsFn = httpsCallable(functions, 'sports_search');
+      const searchSportsFn = httpsCallable(functions, 'sports-search');
       const result = await searchSportsFn({ category: category.trim() });
       
       const { sports: sportsData } = result.data as { sports: any[] };

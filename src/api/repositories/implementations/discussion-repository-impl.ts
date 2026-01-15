@@ -101,7 +101,7 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       }
 
       // Call cloud function
-      const createDiscussionFn = httpsCallable(functions, 'discussions_create');
+      const createDiscussionFn = httpsCallable(functions, 'discussions-create');
       const result = await createDiscussionFn({
         spotId,
         title: discussionData.title,
@@ -384,7 +384,7 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       }
 
       // Call cloud function
-      const updateDiscussionFn = httpsCallable(functions, 'discussions_update');
+      const updateDiscussionFn = httpsCallable(functions, 'discussions-update');
       const result = await updateDiscussionFn({
         spotId: resolvedSpotId,
         discussionId,
@@ -417,7 +417,7 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       }
 
       // Call cloud function
-      const deleteDiscussionFn = httpsCallable(functions, 'discussions_delete');
+      const deleteDiscussionFn = httpsCallable(functions, 'discussions-delete');
       await deleteDiscussionFn({
         spotId: resolvedSpotId,
         discussionId,

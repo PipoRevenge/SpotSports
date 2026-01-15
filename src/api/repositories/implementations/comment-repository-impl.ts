@@ -272,7 +272,7 @@ export class CommentRepositoryImpl implements ICommentRepository {
       }
 
       // Call cloud function
-      const createCommentFn = httpsCallable(functions, 'comments_create');
+      const createCommentFn = httpsCallable(functions, 'comments-create');
       const result = await createCommentFn({
         spotId: contextId,
         sourceType,
@@ -325,7 +325,7 @@ export class CommentRepositoryImpl implements ICommentRepository {
     commentId: string
   ): Promise<void> {
     try {
-      const deleteCommentFn = httpsCallable(functions, 'comments_delete');
+      const deleteCommentFn = httpsCallable(functions, 'comments-delete');
       await deleteCommentFn({
         spotId: contextId,
         sourceType,

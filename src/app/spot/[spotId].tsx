@@ -1,7 +1,18 @@
-import { userRepository } from '@/src/api/repositories';
+import { userRepository } from "@/src/api/repositories";
 import { MapMarker, MapView } from "@/src/components/commons/map";
 import { Button, ButtonIcon, ButtonText } from "@/src/components/ui/button";
-import { Select, SelectBackdrop, SelectContent, SelectDragIndicator, SelectDragIndicatorWrapper, SelectIcon, SelectInput, SelectItem, SelectPortal, SelectTrigger } from '@/src/components/ui/select';
+import {
+  Select,
+  SelectBackdrop,
+  SelectContent,
+  SelectDragIndicator,
+  SelectDragIndicatorWrapper,
+  SelectIcon,
+  SelectInput,
+  SelectItem,
+  SelectPortal,
+  SelectTrigger,
+} from "@/src/components/ui/select";
 import { useUser } from "@/src/context/user-context";
 import { Review } from "@/src/entities/review/model/review";
 import {
@@ -13,13 +24,19 @@ import {
 import {
   DiscussionCard,
   DiscussionListWithFilters,
-  type DiscussionListWithFiltersControls
+  type DiscussionListWithFiltersControls,
 } from "@/src/features/discussion";
-import { DEFAULT_DISCUSSION_SORT, DISCUSSION_SORT_OPTIONS } from '@/src/features/discussion/constants/sort-options';
+import {
+  DEFAULT_DISCUSSION_SORT,
+  DISCUSSION_SORT_OPTIONS,
+} from "@/src/features/discussion/constants/sort-options";
 import { MeetupList } from "@/src/features/meetup";
-import { DEFAULT_MEETUP_SORT, MEETUP_SORT_OPTIONS } from '@/src/features/meetup/constants/sort-options';
+import {
+  DEFAULT_MEETUP_SORT,
+  MEETUP_SORT_OPTIONS,
+} from "@/src/features/meetup/constants/sort-options";
 import { ReviewList, useReviewDelete } from "@/src/features/review";
-import type { ReviewSortValue } from '@/src/features/review/utils/review-constants';
+import type { ReviewSortValue } from "@/src/features/review/utils/review-constants";
 import { SpotSportsTable } from "@/src/features/sport";
 import { SpotDataDetails, useSelectedSpot } from "@/src/features/spot";
 import { SpotCollectionButton } from "@/src/features/spot-collection/components/spot-collection-button";
@@ -32,11 +49,9 @@ import { Text } from "@components/ui/text";
 import { VStack } from "@components/ui/vstack";
 import { router, useLocalSearchParams } from "expo-router";
 import {
-  CheckCircle,
   ChevronDown,
   ChevronUp,
   Filter,
-  Heart,
   MessageSquare,
   Target,
 } from "lucide-react-native";
@@ -59,14 +74,16 @@ export const SpotPage = () => {
   const targetParentCommentId = params.parentCommentId as string | undefined;
 
   const [isSportsTableVisible, setIsSportsTableVisible] = useState(true);
-  const [sortBy, setSortBy] = useState<ReviewSortValue>('newest');
+  const [sortBy, setSortBy] = useState<ReviewSortValue>("newest");
   const [sportFilter, setSportFilter] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"reviews" | "discussions" | "meetups">(
-    "reviews"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "reviews" | "discussions" | "meetups"
+  >("reviews");
   // Local state to reflect selected sort in the header controls
   const [meetupSortField, setMeetupSortField] = useState(DEFAULT_MEETUP_SORT);
-  const [discussionSortField, setDiscussionSortField] = useState(DEFAULT_DISCUSSION_SORT);
+  const [discussionSortField, setDiscussionSortField] = useState(
+    DEFAULT_DISCUSSION_SORT
+  );
 
   // Reply modal state for review comments
   const [replyModalVisible, setReplyModalVisible] = useState(false);
@@ -97,7 +114,11 @@ export const SpotPage = () => {
   // SIEMPRE con shouldLoadReviews: true para asegurar que las reviews se carguen
   useEffect(() => {
     if (spotId) {
-      console.log('[SpotPage] Mounting with spotId:', spotId, 'forcing review load');
+      console.log(
+        "[SpotPage] Mounting with spotId:",
+        spotId,
+        "forcing review load"
+      );
       // Siempre seleccionar con shouldLoadReviews: true para cargar reviews
       selectSpot(spotId, true);
     }
@@ -107,12 +128,16 @@ export const SpotPage = () => {
   const [meetupFiltersControls, setMeetupFiltersControls] = useState<{
     open: () => void;
     getActiveFilters: () => number;
-    setSort?: (s: { field: import('@/src/features/meetup/types/meetup-filter-types').MeetupSortField }) => void;
+    setSort?: (s: {
+      field: import("@/src/features/meetup/types/meetup-filter-types").MeetupSortField;
+    }) => void;
   } | null>(null);
 
   // Filters controls exposed by DiscussionListWithFilters
-  const [discussionFiltersControls, setDiscussionFiltersControls] = useState<DiscussionListWithFiltersControls | null>(null);
-  const discussionControlsRef = React.useRef<DiscussionListWithFiltersControls | null>(null);
+  const [discussionFiltersControls, setDiscussionFiltersControls] =
+    useState<DiscussionListWithFiltersControls | null>(null);
+  const discussionControlsRef =
+    React.useRef<DiscussionListWithFiltersControls | null>(null);
 
   // Update ref when controls change
   React.useEffect(() => {
@@ -128,7 +153,6 @@ export const SpotPage = () => {
     return reviews.filter((review) => reviewHasSport(review, sportFilter));
   }, [reviews, sportFilter]);
 
-
   // When deep-linking to a comment inside a review, attempt to scroll to its measured position
   React.useEffect(() => {
     if (!targetCommentId) return;
@@ -139,15 +163,16 @@ export const SpotPage = () => {
       if (y != null && scrollViewRef.current) {
         // Scroll to position with some offset for header
         // @ts-ignore
-        scrollViewRef.current.scrollTo({ y: Math.max(0, y - 80), animated: true });
+        scrollViewRef.current.scrollTo({
+          y: Math.max(0, y - 80),
+          animated: true,
+        });
       } else if (attempts < 8) {
         setTimeout(tryScroll, 300);
       }
     };
     setTimeout(tryScroll, 400);
   }, [targetCommentId]);
-
-  
 
   // Hook de eliminación
   const { deleteReview, isLoading: isDeleting } = useReviewDelete(async () => {
@@ -270,7 +295,7 @@ export const SpotPage = () => {
         const fetched = await userRepository.getUserById(creatorId);
         if (!canceled) setCreatorUser(fetched);
       } catch (err) {
-        console.warn('[SpotPage] Failed to fetch creator user:', err);
+        console.warn("[SpotPage] Failed to fetch creator user:", err);
         if (!canceled) setCreatorUser(null);
       } finally {
         if (!canceled) setIsLoadingCreator(false);
@@ -278,12 +303,14 @@ export const SpotPage = () => {
     };
 
     fetchCreator();
-    return () => { canceled = true; };
+    return () => {
+      canceled = true;
+    };
   }, [selectedSpot?.metadata?.createdBy, usersData]);
 
   // Comments hook for the selected review - only load when needed
   const { addComment, addReply } = useComments({
-    contextId: spotId || '',
+    contextId: spotId || "",
     sourceType: "review",
     sourceId: selectedReview?.id || "",
     autoLoad: false,
@@ -301,13 +328,18 @@ export const SpotPage = () => {
           if (tries < 3) setTimeout(() => attempt(tries + 1), 200);
           return;
         }
-        if (UIManager && typeof UIManager.measureLayout === 'function') {
+        if (UIManager && typeof UIManager.measureLayout === "function") {
           // @ts-ignore
-          UIManager.measureLayout(nodeHandle, containerHandle, () => {
-            if (tries < 3) setTimeout(() => attempt(tries + 1), 200);
-          }, (x: number, y: number) => {
-            layoutMapRef.current.set(id, y);
-          });
+          UIManager.measureLayout(
+            nodeHandle,
+            containerHandle,
+            () => {
+              if (tries < 3) setTimeout(() => attempt(tries + 1), 200);
+            },
+            (x: number, y: number) => {
+              layoutMapRef.current.set(id, y);
+            }
+          );
         }
       } catch {
         if (tries < 3) setTimeout(() => attempt(tries + 1), 200);
@@ -422,16 +454,30 @@ export const SpotPage = () => {
                 spot={selectedSpot}
                 // Creator slot: show username and link to profile
                 creatorSlot={
-                  <Pressable onPress={() => {
+                  <Pressable
+                    onPress={() => {
                       const cid = selectedSpot.metadata?.createdBy;
-                      if (!cid || (typeof cid === 'string' && cid.startsWith('[object'))) {
-                        console.warn('[SpotPage] Invalid creator id, aborting navigation', { cid });
+                      if (
+                        !cid ||
+                        (typeof cid === "string" && cid.startsWith("[object"))
+                      ) {
+                        console.warn(
+                          "[SpotPage] Invalid creator id, aborting navigation",
+                          { cid }
+                        );
                         return;
                       }
                       handleNavigateToProfile(cid as string);
-                    }}>
+                    }}
+                  >
                     <Text className="pt-2 text-sm text-gray-600">
-                      Creado por @{isLoadingCreator ? 'cargando...' : (creatorUser?.userDetails?.userName || usersData.get(selectedSpot.metadata?.createdBy)?.userDetails?.userName || 'usuario')}
+                      Creado por @
+                      {isLoadingCreator
+                        ? "cargando..."
+                        : creatorUser?.userDetails?.userName ||
+                          usersData.get(selectedSpot.metadata?.createdBy)
+                            ?.userDetails?.userName ||
+                          "usuario"}
                     </Text>
                   </Pressable>
                 }
@@ -521,7 +567,10 @@ export const SpotPage = () => {
                         <Button
                           onPress={() => {
                             if (!spotId) return;
-                            router.push({ pathname: `/spot/[spotId]/edit`, params: { spotId } });
+                            router.push({
+                              pathname: `/spot/[spotId]/edit`,
+                              params: { spotId },
+                            });
                           }}
                           variant="outline"
                         >
@@ -533,41 +582,13 @@ export const SpotPage = () => {
                     <View className="flex-row justify-around py-4 bg-gray-50 rounded-lg">
                       <View className="flex-1 items-center">
                         <View className="flex-row items-center pb-1">
-                          <Heart size={18} color="#FF6B6B" fill="#FF6B6B" />
+                          <Target size={18} color="#FF6B6B" fill="#FF6B6B" />
                           <Text className="pl-1 text-lg font-semibold text-gray-800">
-                            {selectedSpot.activity?.favoritesCount || 0}
+                            {selectedSpot.activity?.activeMeetupsCount || 0}
                           </Text>
                         </View>
                         <Text className="text-xs text-gray-600 text-center">
-                          Favorites
-                        </Text>
-                      </View>
-
-                      <View className="flex-1 items-center">
-                        <View className="flex-row items-center pb-1">
-                          <CheckCircle
-                            size={18}
-                            color="#4ECDC4"
-                            fill="#4ECDC4"
-                          />
-                          <Text className="pl-1 text-lg font-semibold text-gray-800">
-                            {selectedSpot.activity?.visitedCount || 0}
-                          </Text>
-                        </View>
-                        <Text className="text-xs text-gray-600 text-center">
-                          Visited
-                        </Text>
-                      </View>
-
-                      <View className="flex-1 items-center">
-                        <View className="flex-row items-center pb-1">
-                          <Target size={18} color="#45B7D1" fill="#45B7D1" />
-                          <Text className="pl-1 text-lg font-semibold text-gray-800">
-                            {selectedSpot.activity?.wantToVisitCount || 0}
-                          </Text>
-                        </View>
-                        <Text className="text-xs text-gray-600 text-center">
-                          Want to Visit
+                          Active Meetups
                         </Text>
                       </View>
 
@@ -649,9 +670,7 @@ export const SpotPage = () => {
             >
               <Text
                 className={`text-center font-semibold ${
-                  activeTab === "meetups"
-                    ? "text-blue-600"
-                    : "text-gray-600"
+                  activeTab === "meetups" ? "text-blue-600" : "text-gray-600"
                 }`}
               >
                 Meetups
@@ -686,6 +705,12 @@ export const SpotPage = () => {
               targetReviewId={targetReviewId}
               targetCommentId={targetCommentId}
               targetParentCommentId={targetParentCommentId}
+              onReply={(reviewId) => {
+                const review = reviews.find((r) => r.id === reviewId);
+                if (review) {
+                  handleOpenNewCommentModal(review);
+                }
+              }}
               registerLayout={registerLayout}
             />
           )}
@@ -703,11 +728,18 @@ export const SpotPage = () => {
                         size="sm"
                         className="rounded-full p-2 bg-gray-100"
                       >
-                        <ButtonIcon as={Filter} className="text-blue-600 h-5 w-5" />
+                        <ButtonIcon
+                          as={Filter}
+                          className="text-blue-600 h-5 w-5"
+                        />
                       </Button>
-                      {meetupFiltersControls && meetupFiltersControls.getActiveFilters && meetupFiltersControls.getActiveFilters() > 0 ? (
+                      {meetupFiltersControls &&
+                      meetupFiltersControls.getActiveFilters &&
+                      meetupFiltersControls.getActiveFilters() > 0 ? (
                         <View className="absolute -top-1 -right-1 bg-red-500 rounded-full h-4 w-4 items-center justify-center">
-                          <Text className="text-white text-[10px] font-bold">{meetupFiltersControls.getActiveFilters()}</Text>
+                          <Text className="text-white text-[10px] font-bold">
+                            {meetupFiltersControls.getActiveFilters()}
+                          </Text>
                         </View>
                       ) : null}
                     </View>
@@ -716,11 +748,20 @@ export const SpotPage = () => {
                       selectedValue={meetupSortField}
                       onValueChange={(value) => {
                         setMeetupSortField(value as any);
-                        meetupFiltersControls?.setSort?.({ field: value as any });
+                        meetupFiltersControls?.setSort?.({
+                          field: value as any,
+                        });
                       }}
                     >
-                      <SelectTrigger variant="outline" size="sm" className="flex-row items-center gap-2">
-                        <SelectInput placeholder="Sort by" className="text-sm" />
+                      <SelectTrigger
+                        variant="outline"
+                        size="sm"
+                        className="flex-row items-center gap-2"
+                      >
+                        <SelectInput
+                          placeholder="Sort by"
+                          className="text-sm"
+                        />
                         <SelectIcon as={ChevronDown} />
                       </SelectTrigger>
                       <SelectPortal>
@@ -730,7 +771,11 @@ export const SpotPage = () => {
                             <SelectDragIndicator />
                           </SelectDragIndicatorWrapper>
                           {MEETUP_SORT_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} label={option.label} value={option.value} />
+                            <SelectItem
+                              key={option.value}
+                              label={option.label}
+                              value={option.value}
+                            />
                           ))}
                         </SelectContent>
                       </SelectPortal>
@@ -739,7 +784,10 @@ export const SpotPage = () => {
                     <Button
                       onPress={() => {
                         if (!spotId) return;
-                        router.push({ pathname: `/spot/[spotId]/meetup/create`, params: { spotId } });
+                        router.push({
+                          pathname: `/spot/[spotId]/meetup/create`,
+                          params: { spotId },
+                        });
                       }}
                       variant="outline"
                     >
@@ -749,7 +797,11 @@ export const SpotPage = () => {
                 )}
               </HStack>
 
-              <MeetupList spotId={spotId || ""} onRegisterFiltersControls={setMeetupFiltersControls} headerSlot={null} />
+              <MeetupList
+                spotId={spotId || ""}
+                onRegisterFiltersControls={setMeetupFiltersControls}
+                headerSlot={null}
+              />
             </VStack>
           )}
           {activeTab === "discussions" && (
@@ -785,15 +837,21 @@ export const SpotPage = () => {
                     <HStack className="items-center gap-2">
                       <View className="relative">
                         <Button
-                          onPress={() => discussionFiltersControls?.openFilters()}
+                          onPress={() =>
+                            discussionFiltersControls?.openFilters()
+                          }
                           variant="solid"
                           action="default"
                           size="sm"
                           className="rounded-full p-2 bg-gray-100"
                         >
-                          <ButtonIcon as={Filter} className="text-blue-600 h-5 w-5" />
+                          <ButtonIcon
+                            as={Filter}
+                            className="text-blue-600 h-5 w-5"
+                          />
                         </Button>
-                        {(discussionFiltersControls?.getActiveFilters() ?? 0) > 0 ? (
+                        {(discussionFiltersControls?.getActiveFilters() ?? 0) >
+                        0 ? (
                           <View className="absolute -top-1 -right-1 bg-red-500 rounded-full h-4 w-4 items-center justify-center">
                             <Text className="text-white text-[10px] font-bold">
                               {discussionFiltersControls?.getActiveFilters()}
@@ -809,8 +867,15 @@ export const SpotPage = () => {
                           discussionFiltersControls?.setSortBy?.(value as any);
                         }}
                       >
-                        <SelectTrigger variant="outline" size="sm" className="flex-row items-center gap-2">
-                          <SelectInput placeholder="Sort by" className="text-sm" />
+                        <SelectTrigger
+                          variant="outline"
+                          size="sm"
+                          className="flex-row items-center gap-2"
+                        >
+                          <SelectInput
+                            placeholder="Sort by"
+                            className="text-sm"
+                          />
                           <SelectIcon as={ChevronDown} />
                         </SelectTrigger>
                         <SelectPortal>
@@ -820,7 +885,11 @@ export const SpotPage = () => {
                               <SelectDragIndicator />
                             </SelectDragIndicatorWrapper>
                             {DISCUSSION_SORT_OPTIONS.map((option) => (
-                              <SelectItem key={option.value} label={option.label} value={option.value} />
+                              <SelectItem
+                                key={option.value}
+                                label={option.label}
+                                value={option.value}
+                              />
                             ))}
                           </SelectContent>
                         </SelectPortal>
@@ -860,7 +929,9 @@ export const SpotPage = () => {
                           });
                         }}
                       >
-                        <ButtonText className="text-white">Create Discussion</ButtonText>
+                        <ButtonText className="text-white">
+                          Create Discussion
+                        </ButtonText>
                       </Button>
                     )}
                   </VStack>

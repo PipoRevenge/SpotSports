@@ -2,9 +2,7 @@ import { spotRepository } from '@/src/api/repositories';
 import { useMutation, useQuery, useQueryClient } from '@/src/lib/react-query';
 
 export interface SpotCounters {
-  favoritesCount: number;
-  visitedCount: number;
-  wantToVisitCount: number;
+  activeMeetupsCount: number;
   reviewsCount: number;
   discussionsCount?: number;
 }

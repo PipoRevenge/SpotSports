@@ -1,10 +1,18 @@
 import { MediaCarousel } from "@/src/components/commons/media-carousel";
 import { RatingStars } from "@/src/components/commons/rating/rating-stars";
-import Tag from '@/src/components/commons/tag';
+import Tag from "@/src/components/commons/tag";
 import { useMediaUrls } from "@/src/hooks";
 import { X } from "lucide-react-native";
 import React, { useState } from "react";
-import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HStack } from "../../../../components/ui/hstack";
 import { VStack } from "../../../../components/ui/vstack";
 import type { Spot } from "../../../../entities/spot/model/spot";
@@ -25,7 +33,7 @@ interface SpotCardModalProps {
 
 /**
  * Modal que muestra un card del spot seleccionado en la parte inferior
- * 
+ *
  * Responsabilidades:
  * - Renderiza información detallada del spot en un modal inferior
  * - Maneja el cierre del modal
@@ -41,21 +49,22 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
   collectionSlot,
 }) => {
   const [isNavigating, setIsNavigating] = useState(false);
-  
+  const insets = useSafeAreaInsets();
+
   // Resolver URLs de media solo si hay spot y tiene media
   const { urls: mediaUrls, loading: mediaLoading } = useMediaUrls(
-    spot?.details?.media && spot.details.media.length > 0 
-      ? spot.details.media 
+    spot?.details?.media && spot.details.media.length > 0
+      ? spot.details.media
       : null
   );
-  
+
   // Resetear estado cuando el modal se cierra
   React.useEffect(() => {
     if (!visible) {
       setIsNavigating(false);
     }
   }, [visible]);
-  
+
   // No renderizar nada si no está visible
   if (!visible) {
     return null;
@@ -71,9 +80,14 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
         onRequestClose={onClose}
       >
         <Pressable className="flex-1 justify-end bg-black/50" onPress={onClose}>
-          <View className="bg-white rounded-t-3xl shadow-2xl h-[500px] justify-center items-center">
+          <View
+            className="bg-white rounded-t-3xl shadow-2xl h-[500px] justify-center items-center"
+            style={{ paddingBottom: Math.max(insets.bottom, 24) }}
+          >
             <ActivityIndicator size="large" color="#3b82f6" />
-            <Text className="pt-4 text-gray-600">Cargando detalles del spot...</Text>
+            <Text className="pt-4 text-gray-600">
+              Cargando detalles del spot...
+            </Text>
           </View>
         </Pressable>
       </Modal>
@@ -94,7 +108,10 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
             e.stopPropagation();
           }}
         >
-          <View className="bg-white rounded-t-3xl shadow-2xl">
+          <View
+            className="bg-white rounded-t-3xl shadow-2xl"
+            style={{ paddingBottom: Math.max(insets.bottom, 24) }}
+          >
             {/* Header con botón de cerrar y colecciones */}
             <View className="p-4 border-b border-gray-200">
               <HStack className="justify-between items-center">
@@ -104,7 +121,7 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
                 <HStack className="gap-2 items-center">
                   {/* Selector de colecciones - slot injected from app layer */}
                   {collectionSlot}
-                  
+
                   {/* Botón cerrar */}
                   <Pressable
                     onPress={onClose}
@@ -146,11 +163,11 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
                     {/* Rating */}
                     {spot.details?.overallRating !== undefined && (
                       <HStack className="items-center gap-1">
-                        <RatingStars 
-                          rating={spot.details.overallRating} 
-                          size="sm" 
-                          showValue={true} 
-                          disabled 
+                        <RatingStars
+                          rating={spot.details.overallRating}
+                          size="sm"
+                          showValue={true}
+                          disabled
                         />
                         {spot.activity?.reviewsCount !== undefined && (
                           <Text className="text-typography-500 text-sm pl-1">
@@ -210,9 +227,17 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
                           Deportes disponibles
                         </Text>
                         <View className="flex-row flex-wrap gap-2">
-                          {spot.details.availableSports.map((sportId: string) => (
-                            <Tag key={sportId} label={getSportName ? getSportName(sportId) : sportId} color={'#E6F6FF'} />
-                          ))}
+                          {spot.details.availableSports.map(
+                            (sportId: string) => (
+                              <Tag
+                                key={sportId}
+                                label={
+                                  getSportName ? getSportName(sportId) : sportId
+                                }
+                                color={"#E6F6FF"}
+                              />
+                            )
+                          )}
                         </View>
                       </VStack>
                     )}
@@ -260,7 +285,7 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
                   }}
                   disabled={isNavigating}
                   className={`py-3 rounded-lg items-center ${
-                    isNavigating ? 'bg-blue-400' : 'bg-blue-600'
+                    isNavigating ? "bg-blue-400" : "bg-blue-600"
                   }`}
                 >
                   {isNavigating ? (

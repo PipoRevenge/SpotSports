@@ -3,7 +3,13 @@ import { RatingStars } from "@/src/components/commons/rating/rating-stars";
 import SingleStar from "@/src/components/commons/rating/single-star";
 import { HStack } from "@/src/components/ui/hstack";
 import { Icon } from "@/src/components/ui/icon";
-import { Popover, PopoverArrow, PopoverBody, PopoverContent, PopoverHeader } from "@/src/components/ui/popover";
+import {
+  Popover,
+  PopoverArrow,
+  PopoverBody,
+  PopoverContent,
+  PopoverHeader,
+} from "@/src/components/ui/popover";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { ChevronDown, ChevronUp, InfoIcon } from "lucide-react-native";
@@ -30,7 +36,7 @@ export interface SportsRatingTableProps {
    * Lista de deportes con sus ratings y dificultades
    */
   sports: SportRatingData[];
-  
+
   /**
    * Variante de visualización
    * @default "full" - tabla completa con todos los detalles
@@ -38,7 +44,7 @@ export interface SportsRatingTableProps {
    * "expandable" - con filas expandibles para comentarios/descripciones
    */
   variant?: "full" | "compact" | "expandable";
-  
+
   /**
    * Mostrar header de tabla
    * @default true
@@ -49,13 +55,13 @@ export interface SportsRatingTableProps {
    * @default true
    */
   showInfoIcon?: boolean;
-  
+
   /**
    * Tamaño de los componentes
    * @default "sm"
    */
   size?: "sm" | "md" | "lg";
-  
+
   /**
    * Texto personalizado para columnas
    */
@@ -64,7 +70,7 @@ export interface SportsRatingTableProps {
     difficulty?: string;
     rating?: string;
   };
-  
+
   /**
    * Mostrar descripción o comentario en fila expandible
    * @default "description" - muestra sportDescription
@@ -75,7 +81,7 @@ export interface SportsRatingTableProps {
 
 /**
  * Componente reutilizable para mostrar tabla de deportes con rating y dificultad
- * 
+ *
  * @example
  * ```tsx
  * <SportsRatingTable
@@ -103,7 +109,7 @@ export const SportsRatingTable: React.FC<SportsRatingTableProps> = ({
   };
 
   const toggleExpanded = (index: number) => {
-    setExpandedRows(prev => {
+    setExpandedRows((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(index)) {
         newSet.delete(index);
@@ -123,19 +129,28 @@ export const SportsRatingTable: React.FC<SportsRatingTableProps> = ({
   return (
     <View className="w-full">
       {/* Header */}
+      {/* Header */}
       {showHeader && (
-        <HStack className="bg-gray-50 px-3 py-2 border-b border-gray-200">
-          <View className="flex-1">
+        <HStack className="bg-gray-50 px-2 py-2 border-b border-gray-200">
+          <View className="flex-1 min-w-[80px]">
             <Text className="text-xs font-semibold text-gray-600">
               {sportLabel}
             </Text>
           </View>
-          <View className={`flex-shrink-0 ${variant === "compact" ? "w-20" : "w-32"}`}>
+          <View
+            className={`flex-shrink-0 ${
+              variant === "compact" ? "w-20" : "w-32"
+            }`}
+          >
             <Text className="text-xs font-semibold text-gray-600 text-center">
               {ratingLabel}
             </Text>
           </View>
-          <View className={`flex-shrink-0 ${variant === "compact" ? "w-20" : "w-32"}`}>
+          <View
+            className={`flex-shrink-0 ${
+              variant === "compact" ? "w-20" : "w-24"
+            }`}
+          >
             <Text className="text-xs font-semibold text-gray-600 text-center">
               {difficultyLabel}
             </Text>
@@ -146,24 +161,30 @@ export const SportsRatingTable: React.FC<SportsRatingTableProps> = ({
       {/* Filas de deportes */}
       {sports.map((sport, index) => {
         const isExpanded = expandedRows.has(index);
-        const hasExpandableContent = Boolean(expandableContent) && (
-          (expandableContent === "description" && sport.sportDescription) ||
-          (expandableContent === "comment" && sport.sportComment)
-        );
-        const contentToShow = expandableContent === "description" 
-          ? sport.sportDescription 
-          : sport.sportComment;
+        const hasExpandableContent =
+          Boolean(expandableContent) &&
+          ((expandableContent === "description" && sport.sportDescription) ||
+            (expandableContent === "comment" && sport.sportComment));
+        const contentToShow =
+          expandableContent === "description"
+            ? sport.sportDescription
+            : sport.sportComment;
 
         return (
           <VStack key={sport.sportId}>
             {/* Fila principal */}
             <HStack
-              className={`px-3 py-2.5 ${
-                !isExpanded && index < sports.length - 1 ? "border-b border-gray-300" : ""
+              className={`px-2 py-2.5 ${
+                !isExpanded && index < sports.length - 1
+                  ? "border-b border-gray-300"
+                  : ""
               }`}
             >
               {/* Columna de nombre del deporte */}
-              <HStack className="flex-1 items-center gap-2 pr-2" style={{ minWidth: 0 }}>
+              <HStack
+                className="flex-1 items-center gap-1 pr-1 min-w-[80px]"
+                style={{ minWidth: 0 }}
+              >
                 {/* Botón de expandir (solo en variant expandable) */}
                 {hasExpandableContent && (
                   <Pressable
@@ -177,60 +198,77 @@ export const SportsRatingTable: React.FC<SportsRatingTableProps> = ({
                   </Pressable>
                 )}
 
-                <Text className="text-sm text-gray-800 font-medium flex-shrink" numberOfLines={1}>
+                <Text
+                  className="text-sm text-gray-800 font-medium flex-shrink"
+                  numberOfLines={2}
+                >
                   {sport.sportName}
                 </Text>
-                
+
                 {/* Info button (solo en variant full sin expandable) */}
-                {variant === "full" && sport.sportDescription && showInfoIcon && (
-                  <Popover
-                    isOpen={openPopoverIndex === index}
-                    onClose={() => setOpenPopoverIndex(null)}
-                    trigger={(triggerProps) => (
-                      <Pressable
-                        {...triggerProps}
-                        onPress={() => togglePopover(index)}
-                        className="p-1 flex-shrink-0"
-                      >
-                        <Icon
-                          as={InfoIcon}
-                          className="text-blue-600 w-4 h-4"
-                        />
-                      </Pressable>
-                    )}
-                    placement="bottom"
-                  >
-                    <PopoverContent className="w-56">
-                      <PopoverArrow />
-                      <PopoverHeader>
-                        <Text className="text-base font-bold">{sport.sportName}</Text>
-                      </PopoverHeader>
-                      <PopoverBody>
-                        <Text className="text-gray-600">
-                          {sport.sportDescription || "No description available"}
-                        </Text>
-                      </PopoverBody>
-                    </PopoverContent>
-                  </Popover>
-                )}
+                {variant === "full" &&
+                  sport.sportDescription &&
+                  showInfoIcon && (
+                    <Popover
+                      isOpen={openPopoverIndex === index}
+                      onClose={() => setOpenPopoverIndex(null)}
+                      trigger={(triggerProps) => (
+                        <Pressable
+                          {...triggerProps}
+                          onPress={() => togglePopover(index)}
+                          className="p-1 flex-shrink-0"
+                        >
+                          <Icon
+                            as={InfoIcon}
+                            className="text-blue-600 w-4 h-4"
+                          />
+                        </Pressable>
+                      )}
+                      placement="bottom"
+                    >
+                      <PopoverContent className="w-56">
+                        <PopoverArrow />
+                        <PopoverHeader>
+                          <Text className="text-base font-bold">
+                            {sport.sportName}
+                          </Text>
+                        </PopoverHeader>
+                        <PopoverBody>
+                          <Text className="text-gray-600">
+                            {sport.sportDescription ||
+                              "No description available"}
+                          </Text>
+                        </PopoverBody>
+                      </PopoverContent>
+                    </Popover>
+                  )}
               </HStack>
 
               {/* Columna de rating */}
-              <View className={`${variant === "compact" ? "w-20" : "w-36"} items-center justify-center flex-shrink-0 `}>
+              <View
+                className={`${
+                  variant === "compact" ? "w-20" : "w-32"
+                } items-center justify-center flex-shrink-0`}
+              >
                 {sport.rating !== undefined ? (
                   variant === "compact" ? (
                     <HStack className="items-center justify-center">
                       <SingleStar
-                        fillLevel={Math.max(0, Math.min(1, (sport.rating ?? 0) / 5))}
-                        size={16}
+                        fillLevel={Math.max(
+                          0,
+                          Math.min(1, (sport.rating ?? 0) / 5)
+                        )}
+                        size={14}
                       />
-                      <Text className="text-sm text-gray-700 pl-2">{(sport.rating ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</Text>
+                      <Text className="text-xs text-gray-700 pl-1">
+                        {(sport.rating ?? 0).toFixed(1)}
+                      </Text>
                     </HStack>
                   ) : (
                     <RatingStars
                       rating={sport.rating}
                       maxStars={5}
-                      size={15}
+                      size={14}
                       showValue={true}
                       disabled={true}
                     />
@@ -241,7 +279,11 @@ export const SportsRatingTable: React.FC<SportsRatingTableProps> = ({
               </View>
 
               {/* Columna de dificultad */}
-              <View className={`${variant === "compact" ? "w-20" : "w-32"} items-center justify-center flex-shrink-0  `}>
+              <View
+                className={`${
+                  variant === "compact" ? "w-16" : "w-24"
+                } items-center justify-center flex-shrink-0`}
+              >
                 {variant === "compact" ? (
                   <RatingDifficulty
                     difficulty={sport.difficulty}
@@ -264,7 +306,7 @@ export const SportsRatingTable: React.FC<SportsRatingTableProps> = ({
 
             {/* Fila expandible con comentario/descripción */}
             {hasExpandableContent && isExpanded && (
-              <View 
+              <View
                 className={`px-3 py-3 bg-gray-50 ${
                   index < sports.length - 1 ? "border-b border-gray-300" : ""
                 }`}

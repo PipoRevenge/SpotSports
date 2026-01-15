@@ -38,10 +38,7 @@ export interface SpotMetadata {
 
 export interface SpotActivity {
   reviewsCount: number;
-  visitsCount: number;
-  favoritesCount?: number; // Contador de usuarios que tienen el spot en favoritos
-  visitedCount?: number; // Contador de usuarios que marcaron el spot como visitado
-  wantToVisitCount?: number; // Contador de usuarios que quieren visitar el spot
+  activeMeetupsCount: number; // Contador de meetups activos
   discussionsCount?: number; // Contador de discusiones asociadas al spot
 }
 

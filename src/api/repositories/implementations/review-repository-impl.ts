@@ -86,7 +86,7 @@ export class ReviewRepositoryImpl implements IReviewRepository {
       }
 
       // Call cloud function
-      const createReviewFn = httpsCallable(functions, 'reviews_create');
+      const createReviewFn = httpsCallable(functions, 'reviews-create');
       const result = await createReviewFn({
         spotId: reviewData.spotId,
         rating: reviewData.rating,
@@ -495,7 +495,7 @@ export class ReviewRepositoryImpl implements IReviewRepository {
       }
 
       // Call cloud function
-      const updateReviewFn = httpsCallable(functions, 'reviews_update');
+      const updateReviewFn = httpsCallable(functions, 'reviews-update');
       const result = await updateReviewFn({
         spotId,
         reviewId,
@@ -518,7 +518,7 @@ export class ReviewRepositoryImpl implements IReviewRepository {
   async deleteReview(reviewId: string, spotId: string): Promise<void> {
     try {
       // Call cloud function
-      const deleteReviewFn = httpsCallable(functions, 'reviews_delete');
+      const deleteReviewFn = httpsCallable(functions, 'reviews-delete');
       await deleteReviewFn({
         spotId,
         reviewId,

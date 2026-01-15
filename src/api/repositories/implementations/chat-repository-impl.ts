@@ -77,7 +77,7 @@ export class ChatRepositoryImpl implements IChatRepository {
     if (!currentUserId || !targetUserId) throw new Error('Se requieren los usuarios');
     if (currentUserId === targetUserId) throw new Error('No puedes chatear contigo mismo');
 
-    const createDirectChatFn = httpsCallable(functions, 'chats_createDirect');
+    const createDirectChatFn = httpsCallable(functions, 'chats-createDirect');
     const result = await createDirectChatFn({
       targetUserId,
     });
@@ -91,7 +91,7 @@ export class ChatRepositoryImpl implements IChatRepository {
     if (!ownerId || !name) throw new Error('Faltan datos para el grupo');
     
     // Use callable for group creation to ensure consistency
-    const createGroupChatFn = httpsCallable(functions, 'chats_createGroup');
+    const createGroupChatFn = httpsCallable(functions, 'chats-createGroup');
     const result = await createGroupChatFn({
         name,
         participantIds: memberIds
@@ -347,7 +347,7 @@ export class ChatRepositoryImpl implements IChatRepository {
     if (!chatId || !senderId) throw new Error('Faltan datos del mensaje');
     if (!text && !mediaUrl) throw new Error('Mensaje vacío');
 
-    const sendMessageFn = httpsCallable(functions, 'chats_sendMessage');
+    const sendMessageFn = httpsCallable(functions, 'chats-sendMessage');
     const result = await sendMessageFn({
       chatId,
       text,
@@ -378,12 +378,12 @@ export class ChatRepositoryImpl implements IChatRepository {
   }
 
   async deleteChat(chatId: string, userId: string): Promise<void> {
-    const deleteChatFn = httpsCallable(functions, 'chats_delete');
+    const deleteChatFn = httpsCallable(functions, 'chats-delete');
     await deleteChatFn({ chatId, userId });
   }
 
   async markAsRead(chatId: string, userId: string): Promise<void> {
-    const markAsReadFn = httpsCallable(functions, 'chats_markRead');
+    const markAsReadFn = httpsCallable(functions, 'chats-markRead');
     await markAsReadFn({ chatId, userId });
   }
 
@@ -463,7 +463,7 @@ export class ChatRepositoryImpl implements IChatRepository {
   }
 
   async removeGroupMember(chatId: string, adminId: string, targetUserId: string): Promise<void> {
-    const removeMemberFn = httpsCallable(functions, 'chats_removeMember');
+    const removeMemberFn = httpsCallable(functions, 'chats-removeMember');
     await removeMemberFn({ chatId, targetUserId });
   }
 

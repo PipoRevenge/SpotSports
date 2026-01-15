@@ -21,7 +21,7 @@ export class VoteRepositoryImpl implements IVoteRepository {
    */
   async vote(resourcePath: string, userId: string, isLike: boolean): Promise<void> {
     try {
-      const voteContentFn = httpsCallable(functions, 'votes_voteContent');
+      const voteContentFn = httpsCallable(functions, 'votes-voteContent');
       await voteContentFn({ resourcePath, isLike });
     } catch (error) {
       console.error('[VoteRepository] vote:', error);
@@ -34,7 +34,7 @@ export class VoteRepositoryImpl implements IVoteRepository {
    */
   async removeVote(resourcePath: string, userId: string): Promise<void> {
     try {
-      const removeVoteFn = httpsCallable(functions, 'votes_removeVote');
+      const removeVoteFn = httpsCallable(functions, 'votes-removeVote');
       await removeVoteFn({ resourcePath });
     } catch (error) {
       console.error('[VoteRepository] removeVote:', error);

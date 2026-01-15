@@ -1,14 +1,18 @@
-import { Avatar, AvatarFallbackText, AvatarImage } from '@/src/components/ui/avatar';
-import { Button, ButtonText } from '@/src/components/ui/button';
-import { HStack } from '@/src/components/ui/hstack';
-import { Pressable } from '@/src/components/ui/pressable';
-import { Text } from '@/src/components/ui/text';
-import { VStack } from '@/src/components/ui/vstack';
-import { Comment } from '@/src/entities/comment/model/comment';
-import { formatDate, getInitials } from '@/src/utils/date-utils';
-import * as ImagePicker from 'expo-image-picker';
-import { Image as ImageIcon, X } from 'lucide-react-native';
-import React, { memo, useCallback, useState } from 'react';
+import {
+  Avatar,
+  AvatarFallbackText,
+  AvatarImage,
+} from "@/src/components/ui/avatar";
+import { Button, ButtonText } from "@/src/components/ui/button";
+import { HStack } from "@/src/components/ui/hstack";
+import { Pressable } from "@/src/components/ui/pressable";
+import { Text } from "@/src/components/ui/text";
+import { VStack } from "@/src/components/ui/vstack";
+import { Comment } from "@/src/entities/comment/model/comment";
+import { formatDate, getInitials } from "@/src/utils/date-utils";
+import * as ImagePicker from "expo-image-picker";
+import { Image as ImageIcon, X } from "lucide-react-native";
+import React, { memo, useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -18,10 +22,13 @@ import {
   ScrollView,
   TextInput,
   View,
-} from 'react-native';
-// Safe area insets are not needed currently
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-export type CommentWithUser = Comment & { userName?: string; userProfileUrl?: string };
+export type CommentWithUser = Comment & {
+  userName?: string;
+  userProfileUrl?: string;
+};
 
 export interface ReplyModalProps {
   visible: boolean;
@@ -41,9 +48,11 @@ export interface ReplyModalProps {
 /**
  * Default header component showing the parent comment
  */
-const DefaultCommentHeader: React.FC<{ comment: CommentWithUser }> = ({ comment }) => {
-  const commentDate = comment.createdAt ? formatDate(comment.createdAt) : '';
-  
+const DefaultCommentHeader: React.FC<{ comment: CommentWithUser }> = ({
+  comment,
+}) => {
+  const commentDate = comment.createdAt ? formatDate(comment.createdAt) : "";
+
   return (
     <View className="px-4 py-3 bg-gray-50 border-b border-gray-100">
       <HStack className="items-start gap-3">
@@ -60,14 +69,12 @@ const DefaultCommentHeader: React.FC<{ comment: CommentWithUser }> = ({ comment 
         <VStack className="flex-1 gap-1">
           <HStack className="items-center gap-2">
             <Text className="text-sm font-semibold text-gray-900">
-              {comment.userName || 'Usuario'}
+              {comment.userName || "Usuario"}
             </Text>
-            <Text className="text-xs text-gray-400">
-              • {commentDate}
-            </Text>
+            <Text className="text-xs text-gray-400">• {commentDate}</Text>
           </HStack>
 
-          <Text 
+          <Text
             className="text-sm text-gray-600"
             numberOfLines={3}
             ellipsizeMode="tail"
@@ -79,9 +86,9 @@ const DefaultCommentHeader: React.FC<{ comment: CommentWithUser }> = ({ comment 
 
       <HStack className="items-center mt-2 pt-2 border-t border-gray-200">
         <Text className="text-xs text-gray-500">
-          Respondiendo a{' '}
+          Respondiendo a{" "}
           <Text className="font-semibold text-blue-600">
-            @{comment.userName || 'Usuario'}
+            @{comment.userName || "Usuario"}
           </Text>
         </Text>
       </HStack>
@@ -89,217 +96,222 @@ const DefaultCommentHeader: React.FC<{ comment: CommentWithUser }> = ({ comment 
   );
 };
 
-export const ReplyModal: React.FC<ReplyModalProps> = memo(({
-  visible,
-  onClose,
-  onSubmit,
-  parentComment,
-  headerSlot,
-  title = 'Responder',
-  placeholder = 'Escribe tu respuesta...',
-  isSubmitting = false,
-}) => {
-  // Safe area insets not required here
-  const [content, setContent] = useState('');
-  const [media, setMedia] = useState<string[]>([]);
-  const [localSubmitting, setLocalSubmitting] = useState(false);
+export const ReplyModal: React.FC<ReplyModalProps> = memo(
+  ({
+    visible,
+    onClose,
+    onSubmit,
+    parentComment,
+    headerSlot,
+    title = "Responder",
+    placeholder = "Escribe tu respuesta...",
+    isSubmitting = false,
+  }) => {
+    // Safe area insets handled by SafeAreaView
+    const [content, setContent] = useState("");
+    const [media, setMedia] = useState<string[]>([]);
+    const [localSubmitting, setLocalSubmitting] = useState(false);
 
-  const isSubmittingState = isSubmitting || localSubmitting;
-  const canSubmit = (content.trim().length > 0 || media.length > 0) && !isSubmittingState;
+    const isSubmittingState = isSubmitting || localSubmitting;
+    const canSubmit =
+      (content.trim().length > 0 || media.length > 0) && !isSubmittingState;
 
-  const handlePickMedia = useCallback(async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images', 'videos'],
-      allowsMultipleSelection: true,
-      quality: 0.8,
-    });
+    const handlePickMedia = useCallback(async () => {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images", "videos"],
+        allowsMultipleSelection: true,
+        quality: 0.8,
+      });
 
-    if (!result.canceled) {
-      const newUris = result.assets.map(asset => asset.uri);
-      setMedia(prev => [...prev, ...newUris].slice(0, 4));
-    }
-  }, []);
+      if (!result.canceled) {
+        const newUris = result.assets.map((asset) => asset.uri);
+        setMedia((prev) => [...prev, ...newUris].slice(0, 4));
+      }
+    }, []);
 
-  const handleRemoveMedia = useCallback((index: number) => {
-    setMedia(prev => prev.filter((_, i) => i !== index));
-  }, []);
+    const handleRemoveMedia = useCallback((index: number) => {
+      setMedia((prev) => prev.filter((_, i) => i !== index));
+    }, []);
 
-  const handleSubmit = useCallback(async () => {
-    if (!canSubmit) return;
+    const handleSubmit = useCallback(async () => {
+      if (!canSubmit) return;
 
-    setLocalSubmitting(true);
-    try {
-      await onSubmit(content.trim(), media.length > 0 ? media : undefined);
-      // Reset state on success
-      setContent('');
-      setMedia([]);
-      onClose();
-    } catch (error) {
-      console.error('Error submitting reply:', error);
-    } finally {
-      setLocalSubmitting(false);
-    }
-  }, [canSubmit, content, media, onSubmit, onClose]);
+      setLocalSubmitting(true);
+      try {
+        await onSubmit(content.trim(), media.length > 0 ? media : undefined);
+        // Reset state on success
+        setContent("");
+        setMedia([]);
+        onClose();
+      } catch (error) {
+        console.error("Error submitting reply:", error);
+      } finally {
+        setLocalSubmitting(false);
+      }
+    }, [canSubmit, content, media, onSubmit, onClose]);
 
-  const handleClose = useCallback(() => {
-    if (!isSubmittingState) {
-      setContent('');
-      setMedia([]);
-      onClose();
-    }
-  }, [isSubmittingState, onClose]);
+    const handleClose = useCallback(() => {
+      if (!isSubmittingState) {
+        setContent("");
+        setMedia([]);
+        onClose();
+      }
+    }, [isSubmittingState, onClose]);
 
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="fullScreen"
-      onRequestClose={handleClose}
-    >
-      <View 
-        style={{ 
-          flex: 1, 
-          backgroundColor: '#ffffff',
-          
-        }}
+    return (
+      <Modal
+        visible={visible}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={handleClose}
       >
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={0}
+        <SafeAreaView
+          style={{
+            flex: 1,
+            backgroundColor: "#ffffff",
+          }}
         >
-          {/* Header */}
-          <HStack 
-            className="items-center justify-between px-4 py-3 border-b border-gray-200"
-
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={0}
           >
-            {/* Close Button */}
-            <Pressable
-              onPress={handleClose}
-              disabled={isSubmittingState}
-              className="p-2  rounded-full active:bg-gray-100"
-            >
-              <X size={24} color={isSubmittingState ? '#d1d5db' : '#374151'} />
-            </Pressable>
-
-            {/* Title */}
-            <Text className="text-base font-semibold text-gray-900">
-              {title}
-            </Text>
-
-            {/* Submit Button */}
-            <Button
-              size="sm"
-              onPress={handleSubmit}
-              disabled={!canSubmit}
-              className={`px-4 ${canSubmit ? 'bg-blue-600' : 'bg-gray-300'}`}
-            >
-              {isSubmittingState ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <ButtonText className="text-white font-semibold">Publicar</ButtonText>
-              )}
-            </Button>
-          </HStack>
-
-          <ScrollView 
-            className="flex-1"
-            
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* Header Slot - either custom slot or default comment header */}
-            {(headerSlot || parentComment) && (
-              <View className="mb-3">
-                {headerSlot ? headerSlot : parentComment ? (
-                  <DefaultCommentHeader comment={parentComment} />
-                ) : null}
-              </View>
-            )}
-
-            {/* Media Section */}
-            <View className="py-3 border-b border-gray-100">
+            {/* Header */}
+            <HStack className="items-center justify-between px-4 py-3 border-b border-gray-200">
+              {/* Close Button */}
               <Pressable
-                onPress={handlePickMedia}
-                disabled={isSubmittingState || media.length >= 4}
-                className="flex-row items-center gap-3 px-4 py-2 bg-gray-50 rounded-xl active:bg-gray-100"
+                onPress={handleClose}
+                disabled={isSubmittingState}
+                className="p-2  rounded-full active:bg-gray-100"
               >
-                <ImageIcon 
-                  size={22} 
-                  color={media.length >= 4 ? '#d1d5db' : '#6b7280'} 
+                <X
+                  size={24}
+                  color={isSubmittingState ? "#d1d5db" : "#374151"}
                 />
-                <Text className={`text-sm ${media.length >= 4 ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {media.length >= 4 
-                    ? 'Límite de imágenes alcanzado' 
-                    : 'Añadir fotos o videos (máx. 4)'
-                  }
-                </Text>
               </Pressable>
 
-              {/* Media Preview Grid */}
-              {media.length > 0 && (
-                <HStack className="mt-2 gap-3 flex-wrap p-2">
-                  {media.map((uri, index) => (
-                    <View key={index} style={{ position: 'relative' }}>
-                      <Image
-                        source={{ uri }}
-                        style={{
-                          width: 80,
-                          height: 80,
-                          borderRadius: 12,
-                        }}
-                        resizeMode="cover"
-                      />
-                      <Pressable
-                        onPress={() => handleRemoveMedia(index)}
-                        disabled={isSubmittingState}
-                        style={{
-                          position: 'absolute',
-                          top: -8,
-                          right: -8,
-                          backgroundColor: '#ef4444',
-                          borderRadius: 14,
-                          padding: 4,
-                          shadowColor: '#000',
-                          shadowOffset: { width: 0, height: 1 },
-                          shadowOpacity: 0.2,
-                          shadowRadius: 2,
-                          elevation: 3,
-                        }}
-                      >
-                        <X size={14} color="#fff" />
-                      </Pressable>
-                    </View>
-                  ))}
-                </HStack>
+              {/* Title */}
+              <Text className="text-base font-semibold text-gray-900">
+                {title}
+              </Text>
+
+              {/* Submit Button */}
+              <Button
+                size="sm"
+                onPress={handleSubmit}
+                disabled={!canSubmit}
+                className={`px-4 ${canSubmit ? "bg-blue-600" : "bg-gray-300"}`}
+              >
+                {isSubmittingState ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <ButtonText className="text-white font-semibold">
+                    Publicar
+                  </ButtonText>
+                )}
+              </Button>
+            </HStack>
+
+            <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
+              {/* Header Slot - either custom slot or default comment header */}
+              {(headerSlot || parentComment) && (
+                <View className="mb-3">
+                  {headerSlot ? (
+                    headerSlot
+                  ) : parentComment ? (
+                    <DefaultCommentHeader comment={parentComment} />
+                  ) : null}
+                </View>
               )}
-            </View>
 
-            {/* Text Input Section */}
-            <View className="flex-1 px-4 py-4">
-              <TextInput
-                placeholder={placeholder}
-                placeholderTextColor="#9ca3af"
-                value={content}
-                onChangeText={setContent}
-                multiline
-                textAlignVertical="top"
-                editable={!isSubmittingState}
-                style={{
-                  flex: 1,
-                  minHeight: 150,
-                  fontSize: 16,
-                  lineHeight: 24,
-                  color: '#1f2937',
-                  padding: 0,
-                }}
-                autoFocus
-              />
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
-  );
-});
+              {/* Media Section */}
+              <View className="py-3 border-b border-gray-100">
+                <Pressable
+                  onPress={handlePickMedia}
+                  disabled={isSubmittingState || media.length >= 4}
+                  className="flex-row items-center gap-3 px-4 py-2 bg-gray-50 rounded-xl active:bg-gray-100"
+                >
+                  <ImageIcon
+                    size={22}
+                    color={media.length >= 4 ? "#d1d5db" : "#6b7280"}
+                  />
+                  <Text
+                    className={`text-sm ${
+                      media.length >= 4 ? "text-gray-400" : "text-gray-600"
+                    }`}
+                  >
+                    {media.length >= 4
+                      ? "Límite de imágenes alcanzado"
+                      : "Añadir fotos o videos (máx. 4)"}
+                  </Text>
+                </Pressable>
 
-ReplyModal.displayName = 'ReplyModal';
+                {/* Media Preview Grid */}
+                {media.length > 0 && (
+                  <HStack className="mt-2 gap-3 flex-wrap p-2">
+                    {media.map((uri, index) => (
+                      <View key={index} style={{ position: "relative" }}>
+                        <Image
+                          source={{ uri }}
+                          style={{
+                            width: 80,
+                            height: 80,
+                            borderRadius: 12,
+                          }}
+                          resizeMode="cover"
+                        />
+                        <Pressable
+                          onPress={() => handleRemoveMedia(index)}
+                          disabled={isSubmittingState}
+                          style={{
+                            position: "absolute",
+                            top: -8,
+                            right: -8,
+                            backgroundColor: "#ef4444",
+                            borderRadius: 14,
+                            padding: 4,
+                            shadowColor: "#000",
+                            shadowOffset: { width: 0, height: 1 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 2,
+                            elevation: 3,
+                          }}
+                        >
+                          <X size={14} color="#fff" />
+                        </Pressable>
+                      </View>
+                    ))}
+                  </HStack>
+                )}
+              </View>
+
+              {/* Text Input Section */}
+              <View className="flex-1 px-4 py-4">
+                <TextInput
+                  placeholder={placeholder}
+                  placeholderTextColor="#9ca3af"
+                  value={content}
+                  onChangeText={setContent}
+                  multiline
+                  textAlignVertical="top"
+                  editable={!isSubmittingState}
+                  style={{
+                    flex: 1,
+                    minHeight: 150,
+                    fontSize: 16,
+                    lineHeight: 24,
+                    color: "#1f2937",
+                    padding: 0,
+                  }}
+                  autoFocus
+                />
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
+    );
+  }
+);
+
+ReplyModal.displayName = "ReplyModal";
