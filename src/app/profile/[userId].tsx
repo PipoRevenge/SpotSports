@@ -1,3 +1,4 @@
+import { SafeAreaView } from '@/src/components/ui/safe-area-view';
 import { Text } from '@/src/components/ui/text';
 import { View } from '@/src/components/ui/view';
 import { VStack } from '@/src/components/ui/vstack';
@@ -86,127 +87,135 @@ export default function UserProfile() {
 
     if (isLoading) {
         return (
-            <View className="flex-1 justify-center items-center">
-                <ActivityIndicator size="large" />
-                <Text className="pt-2">Cargando perfil...</Text>
-            </View>
+            <SafeAreaView className="flex-1 bg-white">
+                <View className="flex-1 justify-center items-center">
+                    <ActivityIndicator size="large" />
+                    <Text className="pt-2">Cargando perfil...</Text>
+                </View>
+            </SafeAreaView>
         );
     }
 
     if (error) {
         return (
-            <View className="flex-1 justify-center items-center px-4">
-                <Text className="text-red-500 text-center pb-4">{error}</Text>
-                <Text 
-                    className="text-blue-500" 
-                    onPress={handleRefresh}
-                >
-                    Intentar de nuevo
-                </Text>
-            </View>
+            <SafeAreaView className="flex-1 bg-white">
+                <View className="flex-1 justify-center items-center px-4">
+                    <Text className="text-red-500 text-center pb-4">{error}</Text>
+                    <Text 
+                        className="text-blue-500" 
+                        onPress={handleRefresh}
+                    >
+                        Intentar de nuevo
+                    </Text>
+                </View>
+            </SafeAreaView>
         );
     }
 
     if (!user) {
         return (
-            <View className="flex-1 justify-center items-center">
-                <Text>No se pudo cargar la información del usuario</Text>
-            </View>
+            <SafeAreaView className="flex-1 bg-white">
+                <View className="flex-1 justify-center items-center">
+                    <Text>No se pudo cargar la información del usuario</Text>
+                </View>
+            </SafeAreaView>
         );
     }
 
     return (
-        <ScrollView
-            className="flex-1"
-            refreshControl={
-                <RefreshControl
-                    refreshing={isLoading}
-                    onRefresh={handleRefresh}
-                />
-            }
-        >
-            <VStack className="p-4" space="lg">
-                <ProfileHeader
-                    user={displayedUser as any}
-                    actionType={ProfileActionType.VIEW_OTHER}
-                    onFollowPress={handleFollowPress}
-                    isOwn={false}
-                    followStatus={isFollowing ? FollowStatus.FOLLOWING : FollowStatus.NOT_FOLLOWING}
-                    onFollowersPress={handleFollowersPress}
-                    onFollowingPress={handleFollowingPress}
-                    displayFollowersCount={localFollowersCount ?? user.activity.followersCount}
-                />
+        <SafeAreaView className="flex-1 bg-white">
+            <ScrollView
+                className="flex-1"
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isLoading}
+                        onRefresh={handleRefresh}
+                    />
+                }
+            >
+                <VStack className="p-4" space="lg">
+                    <ProfileHeader
+                        user={displayedUser as any}
+                        actionType={ProfileActionType.VIEW_OTHER}
+                        onFollowPress={handleFollowPress}
+                        isOwn={false}
+                        followStatus={isFollowing ? FollowStatus.FOLLOWING : FollowStatus.NOT_FOLLOWING}
+                        onFollowersPress={handleFollowersPress}
+                        onFollowingPress={handleFollowingPress}
+                        displayFollowersCount={localFollowersCount ?? user.activity.followersCount}
+                    />
 
-                {/* Activity tabs */}
-                <ProfileActivityTabs
-                    user={user}
-                    userId={user?.id}
-                    reviewsSlot={(
-                        <ProfileReviewList
-                            userId={user?.id}
-                            profileUser={user}
-                            getSportName={getSportName}
-                            onNavigateToReview={(reviewId, spotId) => router.push({ pathname: `/spot/[spotId]`, params: { spotId, reviewId } })}
-                            onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
-                        />
+                    {/* Activity tabs */}
+                    <ProfileActivityTabs
+                        user={user}
+                        userId={user?.id}
+                        reviewsSlot={(
+                            <ProfileReviewList
+                                userId={user?.id}
+                                profileUser={user}
+                                getSportName={getSportName}
+                                onNavigateToReview={(reviewId, spotId) => router.push({ pathname: `/spot/[spotId]`, params: { spotId, reviewId } })}
+                                onNavigateToSpot={(spotId) => { if (spotId) router.push(`/spot/${spotId}`); }}
+                            />
+                        )}
+                        discussionsSlot={(
+                            <ProfileDiscussionList
+                                userId={user?.id}
+                                profileUser={user}
+                                onNavigateToDiscussion={(discussionId: string, spotId?: string) => {
+                                    if (spotId) {
+                                        router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: { spotId, discussionId } as any });
+                                    } else {
+                                        router.push('/');
+                                    }
+                                }}
+                                onNavigateToSpot={(spotId?: string) => { if (spotId) router.push(`/spot/${spotId}`); }} 
+                            />
+                        )}
+                        commentsSlot={(
+                            <UserCommentList
+                                userId={user?.id}
+                                getSportName={getSportName}
+                                onNavigateToReview={(reviewId: string, spotId: string, commentId?: string, parentCommentId?: string) => {
+                                    const params: any = { spotId, reviewId };
+                                    if (commentId) params.commentId = commentId;
+                                    if (parentCommentId) params.parentCommentId = parentCommentId;
+                                    router.push({ pathname: `/spot/[spotId]`, params: params as any });
+                                }}
+                                onNavigateToDiscussion={(discussionId: string, spotId?: string, commentId?: string, parentCommentId?: string) => {
+                                    if (!spotId) {
+                                        router.push('/');
+                                        return;
+                                    }
+                                    const params: any = { spotId, discussionId };
+                                    if (commentId) params.commentId = commentId;
+                                    if (parentCommentId) params.parentCommentId = parentCommentId;
+                                    router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: params as any });
+                                }}
+                                onNavigateToSpot={(spotId?: string) => { if (spotId) router.push(`/spot/${spotId}`); }} 
+                            />
+                        )}
+                        meetupsSlot={(
+                            <ProfileMeetupsList userId={user?.id} />
+                        )}
+                    />
+
+                    {/* Sección de spots favoritos */}
+                    {user.activity.favoriteSpotsCount > 0 && (
+                        <View>
+                            <Text className="text-lg font-bold pb-2">Spots favoritos</Text>
+                            <Text className="text-gray-500">
+                                {user.activity.favoriteSpotsCount} spots guardados
+                            </Text>
+                            {/* TODO: Mostrar lista de spots favoritos */}
+                            {/* Aquí puedes integrar componentes de la feature de spots */}
+                        </View>
                     )}
-                    discussionsSlot={(
-                        <ProfileDiscussionList
-                            userId={user?.id}
-                            profileUser={user}
-                            onNavigateToDiscussion={(discussionId: string, spotId?: string) => {
-                                if (spotId) {
-                                    router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: { spotId, discussionId } as any });
-                                } else {
-                                    router.push('/');
-                                }
-                            }}
-                            onNavigateToSpot={(spotId?: string) => { if (spotId) router.push(`/spot/${spotId}`); }} 
-                        />
-                    )}
-                    commentsSlot={(
-                        <UserCommentList
-                            userId={user?.id}
-                            getSportName={getSportName}
-                            onNavigateToReview={(reviewId: string, spotId: string, commentId?: string, parentCommentId?: string) => {
-                                const params: any = { spotId, reviewId };
-                                if (commentId) params.commentId = commentId;
-                                if (parentCommentId) params.parentCommentId = parentCommentId;
-                                router.push({ pathname: `/spot/[spotId]`, params: params as any });
-                            }}
-                            onNavigateToDiscussion={(discussionId: string, spotId?: string, commentId?: string, parentCommentId?: string) => {
-                                if (!spotId) {
-                                    router.push('/');
-                                    return;
-                                }
-                                const params: any = { spotId, discussionId };
-                                if (commentId) params.commentId = commentId;
-                                if (parentCommentId) params.parentCommentId = parentCommentId;
-                                router.push({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: params as any });
-                            }}
-                            onNavigateToSpot={(spotId?: string) => { if (spotId) router.push(`/spot/${spotId}`); }} 
-                        />
-                    )}
-                    meetupsSlot={(
-                        <ProfileMeetupsList userId={user?.id} />
-                    )}
-                />
-
-                {/* Sección de spots favoritos */}
-                {user.activity.favoriteSpotsCount > 0 && (
-                    <View>
-                        <Text className="text-lg font-bold pb-2">Spots favoritos</Text>
-                        <Text className="text-gray-500">
-                            {user.activity.favoriteSpotsCount} spots guardados
-                        </Text>
-                        {/* TODO: Mostrar lista de spots favoritos */}
-                        {/* Aquí puedes integrar componentes de la feature de spots */}
-                    </View>
-                )}
 
 
 
-            </VStack>
-        </ScrollView>
+                </VStack>
+            </ScrollView>
+        </SafeAreaView>
     );
 }

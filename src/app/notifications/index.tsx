@@ -1,11 +1,12 @@
 import { Box } from '@/src/components/ui/box';
 import { Button, ButtonText } from '@/src/components/ui/button';
 import { Icon } from '@/src/components/ui/icon';
+import { SafeAreaView } from '@/src/components/ui/safe-area-view';
 import { Text } from '@/src/components/ui/text';
 import { NotificationItem, useNotifications } from '@/src/features/notification';
 import { Stack } from 'expo-router';
 import { Check } from 'lucide-react-native';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ActivityIndicator, FlatList } from 'react-native';
 
 export default function NotificationsScreen() {
@@ -20,13 +21,18 @@ export default function NotificationsScreen() {
     isRefetching
   } = useNotifications();
 
+  const filteredNotifications = useMemo(
+    () => notifications.filter((n) => n.type !== 'CHAT_MESSAGE'),
+    [notifications]
+  );
+
   return (
-    <Box className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-white">
       <Stack.Screen 
         options={{
             title: 'Notificaciones',
             headerRight: () => (
-                <Button variant="link" onPress={() => markAllAsRead()} size="sm" isDisabled={notifications.length === 0}>
+                <Button variant="link" onPress={() => markAllAsRead()} size="sm" isDisabled={filteredNotifications.length === 0}>
                    <Icon as={Check} className="text-primary-500 mr-1" />
                    <ButtonText>Leer todas</ButtonText>
                 </Button>
@@ -40,7 +46,7 @@ export default function NotificationsScreen() {
         </Box>
       ) : (
         <FlatList
-            data={notifications}
+            data={filteredNotifications}
             keyExtractor={item => item.id}
             renderItem={({ item }) => (
                 <NotificationItem 
@@ -63,6 +69,6 @@ export default function NotificationsScreen() {
             }
         />
       )}
-    </Box>
+    </SafeAreaView>
   );
 }

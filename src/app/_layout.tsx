@@ -2,12 +2,13 @@ import '@/global.css';
 import { GluestackUIProvider } from '@components/ui/gluestack-ui-provider';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Stack } from "expo-router";
+import { StatusBar } from 'expo-status-bar';
 import { AppAlertProvider } from '../context/app-alert-context';
 import { MapSearchProvider } from '../context/map-search-context';
 import { UserProvider } from '../context/user-context';
 import { useSessionMonitor } from '../features/auth';
-import { useRegisterPushToken } from '../features/notification/hooks/use-register-push-token';
 import { useNotificationListener } from '../features/notification/hooks/use-notification-listener';
+import { useRegisterPushToken } from '../features/notification/hooks/use-register-push-token';
 import { SelectedSpotProvider } from '../features/spot';
 import { persistOptions, queryClient } from '../lib/react-query';
 
@@ -33,6 +34,7 @@ export default function RootLayout() {
             <NotificationMonitor />
             <MapSearchProvider>
               <SelectedSpotProvider>
+                <StatusBar style="dark" backgroundColor="#ffffff" />
                 <Stack screenOptions={{ headerShown: false }} />
               </SelectedSpotProvider>
             </MapSearchProvider>

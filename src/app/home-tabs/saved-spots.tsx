@@ -9,6 +9,7 @@ import { SpotCategory } from "@/src/entities/user/model/spot-collection";
 import { SpotListCard, useSpotsByIds } from '@/src/features/spot';
 
 import { SPOT_CATEGORIES, useSpotCollection } from "@/src/features/spot-collection";
+import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, View } from "react-native";
@@ -16,7 +17,7 @@ import { ActivityIndicator, FlatList, RefreshControl, View } from "react-native"
 export default function SavedSpotsScreen() {
   const { user } = useUser();
   const { savedSpots, loadSavedSpots, isLoading: isCollectionLoading } = useSpotCollection();
-  const [selectedTab, setSelectedTab] = useState<SpotCategory>('Favorites');
+  const [selectedTab, setSelectedTab] = useState<SpotCategory>(SPOT_CATEGORIES[0].type);
   // Derived from the useSpotsByIds hook
   // Remove local loading state - use collection loading and hook loading instead
   const [refreshing, setRefreshing] = useState(false);
@@ -96,6 +97,17 @@ export default function SavedSpotsScreen() {
   };
 
   const isLoading = isCollectionLoading || spotsLoading;
+
+  // Asegurar recarga al volver a la pestaña
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) return;
+      loadSavedSpots(selectedTab).catch(err => {
+        console.error("Error loading spots on focus:", err);
+        setError("Error al cargar spots");
+      });
+    }, [user?.id, selectedTab, loadSavedSpots])
+  );
 
   // We display a loading indicator inline in the tabs area instead of blocking full page
 

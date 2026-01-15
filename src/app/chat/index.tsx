@@ -11,8 +11,10 @@ import { UserSearchModal } from '@/src/features/chat/components/user-search-moda
 import { useChatListView } from '@/src/features/chat/hooks/use-chat-list-view';
 import { useChatUserSearch } from '@/src/features/chat/hooks/use-chat-user-search';
 import { useCreateChat } from '@/src/features/chat/hooks/use-create-chat';
+import { useNotifications } from '@/src/features/notification';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Modal } from 'react-native';
 
 export default function ChatHome() {
@@ -22,6 +24,7 @@ export default function ChatHome() {
   const { createDirectChat, createGroupChat, isLoading: isCreating } = useCreateChat();
   const { results, isLoading: isSearching, search } = useChatUserSearch();
   const { results: groupResults, isLoading: isSearchingGroup, search: searchGroup } = useChatUserSearch();
+  const { notifications, markAsRead } = useNotifications();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [term, setTerm] = useState('');
@@ -39,6 +42,15 @@ export default function ChatHome() {
   useEffect(() => {
     searchGroup(groupTerm);
   }, [groupTerm, searchGroup]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const unreadChatNotifications = notifications.filter(
+        (n) => n.type === 'CHAT_MESSAGE' && !n.isRead
+      );
+      unreadChatNotifications.forEach((n) => markAsRead(n.id));
+    }, [notifications, markAsRead])
+  );
 
   const handleOpenChat = (chatId: string) => {
     router.push(`/chat/${chatId}`);
