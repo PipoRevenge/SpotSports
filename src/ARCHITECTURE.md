@@ -13,10 +13,10 @@
 - **Routing**: Expo Router 6.0 (file-based routing)
 - **UI Library**: GluestackUI 3.0 + NativeWind 4.2 (Tailwind CSS)
 - **Backend**: Firebase 12.2 (Firestore, Auth, Storage)
-- **State Management**: React Context + Custom Hooks
-- **Maps**: React Native Maps 1.20
+- **State Management**: React Context + Custom Hooks, plus server-state via React Query (@tanstack/react-query)
+- **Maps**: React Native Maps (present in `devDependencies`; move to `dependencies` if required at runtime)
 - **Animations**: React Native Reanimated 4.1 + Legendapp Motion
-- **Forms**: React Hook Form + Zod validation
+- **Forms/Validation**: Zod validation (note: `react-hook-form` is not present in package.json)
 - **Icons**: Lucide React Native
 
 ## 🏗️ Core Architecture Principles
@@ -117,7 +117,7 @@ The `src/entities/` folder contains business models (types/interfaces) used acro
 - ✅ Entities CAN be imported by features, API, and app
 
 ```typescript
-// src/entities/spot/spot.entity.ts
+// src/entities/spot/model/spot.ts
 export interface Spot {
   id: string;
   name: string;
@@ -160,7 +160,12 @@ src/
 │   ├── spot/
 │   ├── user/
 │   ├── review/
-│   └── sport/
+│   ├── sport/
+│   ├── chat/
+│   ├── comment/
+│   ├── discussion/
+│   ├── meetup/
+│   └── vote/
 ├── features/             # Feature modules (MUST be independent)
 │   ├── auth/
 │   ├── spot/
@@ -474,7 +479,7 @@ import { Button, ButtonText } from '@/components/ui/button';
 ### Files
 - **Components**: `kebab-case.tsx` (e.g., `spot-card.tsx`)
 - **Hooks**: `use-kebab-case.ts` (e.g., `use-spot-details.ts`)
-- **Types**: `kebab-case-types.ts` or `entity-name.entity.ts`
+- **Types**: `kebab-case-types.ts` or `entity-name.types.ts` (use `model/` for entity models)
 - **Utils**: `kebab-case.ts` (e.g., `date-utils.ts`)
 - **Pages**: `kebab-case.tsx` or `[param].tsx` for dynamic routes
 

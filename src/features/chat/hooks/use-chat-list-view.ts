@@ -88,12 +88,17 @@ export const useChatListView = (filter: ChatFilter = 'all') => {
           return null;
         })();
         const cachedMessages = await getCachedMessages(chat.id);
+        const serverUnread = chat.unreadCounts?.[user.id];
         const localUnread = (() => {
           const threshold = baseDate ?? new Date(0);
           const count = cachedMessages.filter(m => m.createdAt > threshold && m.senderId !== user?.id).length;
           if (count > 0) return count;
-          if (chat.lastMessage && chat.lastMessage.createdAt > threshold && chat.lastMessage.senderId !== user?.id) {
-            return 1;
+          
+          // Only check timestamps locally if server doesn't provide unread count
+          if (typeof serverUnread !== 'number') {
+            if (chat.lastMessage && chat.lastMessage.createdAt > threshold && chat.lastMessage.senderId !== user?.id) {
+              return 1;
+            }
           }
           return 0;
         })();
@@ -140,7 +145,7 @@ export const useChatListView = (filter: ChatFilter = 'all') => {
               continue;
             }
           }
-          const serverUnread = chat.unreadCounts?.[user.id];
+          // const serverUnread = chat.unreadCounts?.[user.id]; // Moved up
           const unreadCount = Math.max(typeof serverUnread === 'number' ? serverUnread : 0, localUnread);
           const unreadAfterClear = clearAt && chat.lastMessage?.createdAt && chat.lastMessage.createdAt <= clearAt ? 0 : unreadCount;
 
@@ -157,7 +162,7 @@ export const useChatListView = (filter: ChatFilter = 'all') => {
             lastMessageSenderName: lastSenderName,
           });
         } else {
-          const serverUnread = chat.unreadCounts?.[user.id];
+          // const serverUnread = chat.unreadCounts?.[user.id]; // Moved up
           const unreadCount = Math.max(typeof serverUnread === 'number' ? serverUnread : 0, localUnread);
           const unreadAfterClear = clearAt && chat.lastMessage?.createdAt && chat.lastMessage.createdAt <= clearAt ? 0 : unreadCount;
           views.push({

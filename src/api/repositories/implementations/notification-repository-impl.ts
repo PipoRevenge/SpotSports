@@ -1,18 +1,20 @@
 import { AppNotification } from '@/src/features/notification/types/notification';
 import { firestore as db, functions } from '@/src/lib/firebase-config';
 import {
-    arrayRemove,
-    collection,
-    doc,
-    getDocs,
-    limit,
-    orderBy,
-    query,
-    QueryDocumentSnapshot,
-    startAfter,
-    updateDoc,
-    where,
-    writeBatch
+  addDoc,
+  arrayRemove,
+  collection,
+  doc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  QueryDocumentSnapshot,
+  serverTimestamp,
+  startAfter,
+  updateDoc,
+  where,
+  writeBatch
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { logRepositoryError, parseFirebaseError } from '../utils/firebase-parsers';
@@ -100,5 +102,28 @@ export class NotificationRepositoryImpl implements INotificationRepository {
     await updateDoc(userRef, {
       pushTokens: arrayRemove(token),
     });
+  }
+
+  /**
+   * Create a notification document in Firestore
+   * Used for local notifications that should also appear in the notification list
+   */
+  async createNotification(
+    userId: string,
+    notification: Omit<AppNotification, 'id' | 'createdAt' | 'isRead'>
+  ): Promise<string> {
+    try {
+      const notificationsRef = collection(db, 'users', userId, 'notifications');
+      const docRef = await addDoc(notificationsRef, {
+        ...notification,
+        isRead: false,
+        createdAt: serverTimestamp(),
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Failed to create notification:', error);
+      logRepositoryError('notification.createNotification', { userId }, error);
+      throw error;
+    }
   }
 }

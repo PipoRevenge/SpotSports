@@ -24,16 +24,18 @@ features/
 │   ├── hooks/             # Hooks personalizados
 │   ├── types/             # Definiciones de tipos
 │   └── utils/             # Utilidades y validaciones
-├── reviews/               # ⭐ Sistema de reseñas
+├── chat/                  # 💬 Chat en tiempo real
+├── comment/               # 💬 Comentarios en reseñas/discusiones
+├── discussion/            # 🗣️ Discusiones públicas
+├── map-search/            # 🗺️ Búsqueda y filtros en el mapa
+├── meetup/                # 📅 Eventos / Meetups
+├── notification/          # 🔔 Notificaciones
+├── relationships/         # 🤝 Seguidores / Siguiendo
+├── review/                # ⭐ Sistema de reseñas
 ├── sport/                 # 🏃 Gestión de deportes
 ├── spot/                  # 📍 Gestión de spots deportivos
-└── user-profile/          # 👤 Perfiles de usuario
-    ├── index.ts
-    ├── README.md          # Documentación específica
-    ├── components/
-    ├── hooks/
-    ├── types/
-    └── utils/
+├── spot-collection/       # 📚 Colecciones de spots
+└── user/                  # 👤 Perfiles de usuario
 ```
 
 ## 🏗️ Proceso de Creación de una Feature

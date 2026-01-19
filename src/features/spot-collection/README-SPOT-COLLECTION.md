@@ -1,5 +1,9 @@
 # Spot Collection Feature
 
+## 📦 Status
+
+**Status:** Implemented. Hooks y componentes básicos disponibles.
+
 Feature independiente para gestionar las colecciones de spots guardados por el usuario.
 
 ## Estructura

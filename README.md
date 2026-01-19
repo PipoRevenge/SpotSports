@@ -154,7 +154,7 @@ Cada entidad define:
 - Estructuras de datos puras sin lógica de negocio
 - Contratos que todos usan (API ↔ Features ↔ App)
 
-Ejemplo: `src/entities/spot/spot.entity.ts` define la interface `Spot` usada en toda la app.
+Ejemplo: `src/entities/spot/model/spot.ts` define la interface `Spot` usada en toda la app.
 
 #### 1.7 **features/** 🔧
 Organización modular por características. **Las features son completamente independientes entre sí**.

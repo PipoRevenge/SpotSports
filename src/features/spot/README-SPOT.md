@@ -179,6 +179,8 @@ La feature incluye una lista predefinida de deportes:
 - **Coordenadas GeoPoint** para compatibilidad con Firebase
 - **Validación de ubicación** requerida
 
+**Nota:** `react-native-maps` es usado en runtime para el selector de puntos y la vista de mapa. Si lo tienes en `devDependencies`, muévelo a `dependencies` en `package.json` para asegurar que esté disponible en el bundle de producción.
+
 ### 🔄 Estados del Formulario
 
 ```tsx

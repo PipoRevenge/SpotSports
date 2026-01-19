@@ -22,17 +22,20 @@ app/
 │   ├── authentication.tsx  # Selector de tipo de autenticación
 │   ├── sign-in.tsx        # Pantalla de inicio de sesión
 │   └── sign-up.tsx        # Pantalla de registro
+├── chat/                   # Chat en tiempo real
 ├── home-tabs/             # Navegación principal con tabs
 │   ├── _layout.tsx        # Layout de tabs
 │   ├── my-favorite-spots.tsx  # Spots favoritos del usuario
 │   ├── my-feed.tsx        # Feed personalizado
 │   ├── my-profile.tsx     # Perfil del usuario
 │   └── search-spots.tsx   # Búsqueda de spots deportivos
+├── notifications/         # Centro de notificaciones
 ├── profile/               # Gestión de perfiles
 │   ├── [userId].tsx       # Perfil dinámico por ID
 │   └── profile-edit.tsx   # Edición de perfil
 ├── spot/                  # Detalles de spots
 │   └── [spotId].tsx      # Página individual de spot (dinámica)
+├── users/                 # Lista y búsqueda de usuarios
 └── test/                  # Componentes de testing
     └── test-component.tsx # Componente de prueba
 ```

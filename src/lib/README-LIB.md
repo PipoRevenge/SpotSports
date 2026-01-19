@@ -141,13 +141,30 @@ const saveSpot = async (spotId: string, data: any) => {
 import { storage } from '@/src/lib/firebase-config';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-// Upload imagen
+// Upload image helper (single file)
 const uploadImage = async (uri: string, path: string) => {
   const blob = await fetch(uri).then(r => r.blob());
   const storageRef = ref(storage, path);
   await uploadBytes(storageRef, blob);
   return await getDownloadURL(storageRef);
 };
+
+// Upload helper (recommended helper for features)
+// File: src/lib/upload.ts
+// Exports: uploadMedia(files: string[], pathPrefix?: string): Promise<string[]>
+// - Accepts an array of local URIs (camera/gallery)
+// - Uploads each to Firebase Storage under pathPrefix/<timestamp>_filename
+// - Returns an array of public download URLs
+
+/** Example usage in features/review **/
+import { uploadMedia } from '@/src/lib/upload';
+
+const mediaUrls = await uploadMedia(['file://...1', 'file://...2'], 'reviews/media');
+
+// Notes:
+// - Centralizing uploading logic allows easier testing (mockable) and consistent error handling
+// - Keep uploads idempotent when possible and provide retry logic at the caller (ex: useMutation retries)
+
 ```
 
 #### **Cloud Functions**

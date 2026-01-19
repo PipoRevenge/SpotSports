@@ -5,6 +5,7 @@ import {
   getSession,
   getSessionTimeRemaining,
 } from "@/src/features/auth/storage/token-storage";
+import { resyncAllMeetupNotifications } from "@/src/features/notification/hooks/use-local-meetup-notifications";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 interface UserContextType {
@@ -107,6 +108,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           try {
             const userData = await userRepository.getUserById(userId);
             setUser(userData);
+
+            // Resync local meetup notifications on app startup
+            resyncAllMeetupNotifications(userId).catch((e) =>
+              console.debug("[UserContext] Failed to resync meetup notifications", e)
+            );
           } catch (userError) {
             console.error("Failed loading userData", userError);
             // Don't clear session immediately - might be temporary network issue

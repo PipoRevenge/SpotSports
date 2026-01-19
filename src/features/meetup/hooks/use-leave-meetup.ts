@@ -1,7 +1,8 @@
 import { meetupRepository } from '@/src/api/repositories';
-import { Meetup } from '@/src/entities/meetup/model';
+import { Meetup } from '@/src/entities/meetup/model/meetup';
+import { cancelMeetupLocalNotifications } from '@/src/features/notification/hooks/use-local-meetup-notifications';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { removeUserMeetup } from '../storage/user-meetups-storage';
+import { getUserMeetups, removeUserMeetup } from '../storage/user-meetups-storage';
 
 export const useLeaveMeetup = () => {
   const queryClient = useQueryClient();
@@ -63,6 +64,13 @@ export const useLeaveMeetup = () => {
       queryClient.invalidateQueries({ queryKey: ['meetup', variables.spotId, variables.meetupId] });
       
       try {
+        // Cancel scheduled local notifications before removing from storage
+        const storedMeetups = await getUserMeetups(variables.userId);
+        const meetupToCancel = storedMeetups.find(m => m.id === variables.meetupId);
+        if (meetupToCancel) {
+          await cancelMeetupLocalNotifications(meetupToCancel, variables.userId);
+        }
+
         await removeUserMeetup(variables.userId, variables.meetupId);
         console.debug('[useLeaveMeetup] removed meetup from local storage', variables.meetupId);
       } catch (e) {

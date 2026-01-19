@@ -1,5 +1,9 @@
 # Profile Feature ✅
 
+## 📦 Status
+
+**Status:** Mostly implemented — edición de perfil y actualización via API completadas; seguimiento (follow/unfollow) pendiente.
+
 Esta feature implementa la funcionalidad de perfiles de usuario siguiendo los principios de **bullet-proof-react** para crear componentes reutilizables y mantenibles.
 
 **🚀 Estado actual:** Funcionalidad de **editar perfil completamente integrada** con API real y Firebase.

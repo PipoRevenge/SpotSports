@@ -1,5 +1,9 @@
 # Review Feature
 
+## 📦 Status
+
+**Status:** Partial — UI y validaciones implementadas; API/Repository e integración con Storage pendientes (ver checklist abajo).
+
 Feature completa para la gestión de reseñas de spots deportivos.
 
 ## 🎯 Estado de Desarrollo
@@ -191,23 +195,45 @@ Para conectar con Firebase u otro backend:
 1. Implementar `IReviewRepository` en `src/api/repositories/implementations/`
 2. Actualizar el hook `useReviewCreate` para usar el repositorio
 3. Implementar subida de archivos multimedia a Storage
+4. Añadir integración con React Query para mutaciones y cache invalidation (useMutation, invalidateQueries)
+5. Añadir tests unitarios para `useReviewCreate` y pruebas de integración para el repositorio
 
+#### Checklist sugerida
+- [ ] Crear `i-review-repository.ts` (contrato) si no existe
+- [ ] Implementar `review-repository-impl.ts` en `src/api/repositories/implementations/`
+- [ ] Implementar `uploadMedia(files: string[]): Promise<string[]>` en `src/lib` o `src/api` (usa Firebase Storage)
+- [ ] Migrar `useReviewCreate` para usar `useMutation` de React Query y llamar al `reviewRepository`
+- [ ] Invalidar queries relevantes (`['reviews','spot', spotId]`, `['user','reviews', userId]`) en `onSuccess`
+- [ ] Agregar tests: repo tests + hook tests (mock storage and firebase)
+
+#### Ejemplo (useReviewCreate con React Query)
 ```typescript
-// En use-review-create.ts
-import { getReviewRepository } from '@/src/api/repositories';
+// src/features/review/hooks/use-review-create.ts
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { reviewRepository } from '@/src/api';
+import { uploadMedia } from '@/src/lib/upload';
 
-const createReview = async (reviewData: CreateReviewData) => {
-  // Subir archivos multimedia
-  const mediaUrls = await uploadMedia(reviewData.media);
-  
-  // Crear review
-  const repository = getReviewRepository();
-  await repository.createReview({
-    ...reviewData,
-    media: mediaUrls,
+export const useReviewCreate = (spotId: string) => {
+  const qc = useQueryClient();
+
+  return useMutation(async (data: CreateReviewData) => {
+    const mediaUrls = data.media && data.media.length > 0
+      ? await uploadMedia(data.media)
+      : [];
+
+    return await reviewRepository.createReview({ ...data, media: mediaUrls });
+  }, {
+    onSuccess: () => {
+      qc.invalidateQueries(['reviews','spot', spotId]);
+      qc.invalidateQueries(['user','reviews']);
+    }
   });
 };
 ```
+
+**Notas:**
+- Usa `@tanstack/react-query` para manejar la mutación y el comportamiento optimista si procede.
+- Centraliza la subida de archivos en `src/lib/upload` para reutilización y testabilidad.
 
 ## 📌 Nuevas utilidades agregadas
 

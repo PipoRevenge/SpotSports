@@ -13,11 +13,11 @@ Files
 - `features/meetup/utils/validation.ts` - Zod schemas
 - `features/meetup/components/card/*` - Cards per meetup type + renderer
 - `features/meetup/components/meetup-list/meetup-list.tsx` - List component used on `Spot` page
-- `features/meetup/components/forms/create-meetup-form.tsx` - Form to create meetups (uses React Hook Form + Zod)
+- `features/meetup/components/forms/create-meetup-form.tsx` - Form to create meetups (uses Zod validation; optional integration with react-hook-form via `@hookform/resolvers`)
 - `api/repositories/implementations/meetup-repository-impl.ts` - Firestore implementation (join/leave/create/get)
 
 Next steps
 - Add `src/app/meetup/[meetupId].tsx` page to show meetup details and chat link.
 - Implement tests for `meetupRepository` (transactional `joinMeetup`).
 - Improve error handling and notifications in UI.
-- Ensure `react-hook-form` and `@hookform/resolvers` are installed in the project.
+- If you plan to use `react-hook-form` install `react-hook-form` and `@hookform/resolvers`; otherwise the feature works with Zod-based validation without an external form library.

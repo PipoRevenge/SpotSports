@@ -51,7 +51,8 @@ export const CreateMeetupForm: React.FC<CreateMeetupFormProps> = ({
   const [title, setTitle] = useState<string>("");
   const [sport, setSport] = useState<string>("");
   const [description, setDescription] = useState<string>("");
-  const [date, setDate] = useState<Date>(new Date(Date.now() + 86400000)); // editable below via ISO input
+  // Default to +5 minutes to allow quick testing of immediate meetups
+  const [date, setDate] = useState<Date>(new Date(Date.now() + 5 * 60 * 1000)); // editable below via ISO input
   const [minParticipants, setMinParticipants] = useState<number>(2);
   const [participantLimit, setParticipantLimit] = useState<number | undefined>(
     undefined

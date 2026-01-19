@@ -2,7 +2,7 @@ import { chatRepository } from '@/src/api/repositories';
 import { useUser } from '@/src/context/user-context';
 import { Message } from '@/src/entities/chat';
 import { useQuery, useQueryClient } from '@/src/lib/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { getClearThreshold } from '../storage/clear-threshold-storage';
 import { setLastSeen } from '../storage/last-seen-storage';
 import { appendCachedMessages, getCachedMessages } from '../storage/messages-storage';
@@ -10,6 +10,8 @@ import { appendCachedMessages, getCachedMessages } from '../storage/messages-sto
 export const useMessages = (chatId?: string) => {
   const { user } = useUser();
   const queryClient = useQueryClient();
+  const hasMarkedAsReadRef = useRef(false);
+  const lastMessagesRef = useRef<Message[]>([]);
 
   const messagesQuery = useQuery<Message[]>({
     queryKey: ['chat', chatId, 'messages'],
@@ -42,13 +44,50 @@ export const useMessages = (chatId?: string) => {
     return () => unsubscribe();
   }, [chatId, queryClient, user]);
 
+  // Mark as read when messages change
   useEffect(() => {
     const messages = messagesQuery.data;
     if (!chatId || !user || !messages || !messages.length) return;
+    
     const lastMessage = messages[messages.length - 1];
+    lastMessagesRef.current = messages;
+    
+    // Update last seen and mark as read
     setLastSeen(chatId, user.id, lastMessage).catch(() => {});
-    chatRepository.markAsRead(chatId, user.id).catch(() => {});
-  }, [chatId, user, messagesQuery.data]);
+    
+    chatRepository.markAsRead(chatId, user.id)
+      .then(() => {
+        hasMarkedAsReadRef.current = true;
+        // Invalidate notifications to update the UI
+        queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+        // Invalidate chats list to update unread counts
+        queryClient.invalidateQueries({ queryKey: ['chats', user.id] });
+      })
+      .catch(() => {});
+  }, [chatId, user, messagesQuery.data, queryClient]);
+
+  // Mark as read when unmounting (user leaves the chat)
+  useEffect(() => {
+    return () => {
+      if (!chatId || !user || !hasMarkedAsReadRef.current) return;
+      
+      // Get the last message from the ref
+      const messages = lastMessagesRef.current;
+      if (!messages || !messages.length) return;
+      
+      const lastMessage = messages[messages.length - 1];
+      
+      // Final mark as read when leaving
+      setLastSeen(chatId, user.id, lastMessage).catch(() => {});
+      chatRepository.markAsRead(chatId, user.id)
+        .then(() => {
+          // Force immediate invalidation
+          queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+          queryClient.invalidateQueries({ queryKey: ['chats', user.id] });
+        })
+        .catch(() => {});
+    };
+  }, [chatId, user, queryClient]);
 
   return { messages: messagesQuery.data ?? [], isLoading: messagesQuery.isLoading || messagesQuery.isFetching };
 };

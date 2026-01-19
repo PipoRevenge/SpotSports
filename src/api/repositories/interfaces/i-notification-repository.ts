@@ -12,4 +12,5 @@ export interface INotificationRepository {
   markAllAsRead(userId: string): Promise<void>;
   registerPushToken(userId: string, token: string): Promise<void>;
   removePushToken(userId: string, token: string): Promise<void>;
+  createNotification(userId: string, notification: Omit<AppNotification, 'id' | 'createdAt' | 'isRead'>): Promise<string>;
 }

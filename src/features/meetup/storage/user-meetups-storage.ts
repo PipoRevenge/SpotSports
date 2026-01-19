@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const STORAGE_VERSION = 1;
+const STORAGE_VERSION = 2; // Bumped for scheduledNotificationIds
 const USER_MEETUPS_KEY_PREFIX = 'sp:user:meetups:';
 
 const buildKey = (userId: string) => `${USER_MEETUPS_KEY_PREFIX}${userId}`;
@@ -15,6 +15,11 @@ export interface StoredUserMeetup {
   sport?: string | null; // id or name
   organizerId?: string | null;
   updatedAt?: number | null;
+  // Local notification IDs for offline reminders
+  scheduledNotificationIds?: {
+    hour24?: string;
+    hour1?: string;
+  };
 }
 
 interface Payload {
@@ -44,6 +49,19 @@ export const saveUserMeetup = async (userId: string, meetup: StoredUserMeetup): 
     await AsyncStorage.setItem(buildKey(userId), JSON.stringify(payload));
   } catch (e) {
     console.debug('[user-meetups-storage] save error', e);
+  }
+};
+
+/**
+ * Replaces the entire list of user meetups.
+ * Use this for full synchronization with the backend.
+ */
+export const replaceAllUserMeetups = async (userId: string, meetups: StoredUserMeetup[]): Promise<void> => {
+  try {
+    const payload: Payload = { version: STORAGE_VERSION, items: meetups };
+    await AsyncStorage.setItem(buildKey(userId), JSON.stringify(payload));
+  } catch (e) {
+    console.debug('[user-meetups-storage] replaceAll error', e);
   }
 };
 

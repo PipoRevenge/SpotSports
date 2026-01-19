@@ -192,11 +192,25 @@ export class [Entity]RepositoryImpl implements I[Entity]Repository {
 #### Paso 3: Registrar en index.ts
 ```typescript
 // index.ts
-import { [Entity]RepositoryImpl } from "./repositories/implementations/[entity]-repository-impl";
-import { I[Entity]Repository } from "./repositories/interfaces/i-[entity]-repository";
+// Example for a concrete entity (Review):
+import { ReviewRepositoryImpl } from "./repositories/implementations/review-repository-impl";
+import { IReviewRepository } from "./repositories/interfaces/i-review-repository";
 
-export const [entity]Repository: I[Entity]Repository = new [Entity]RepositoryImpl();
+// Register a single instance for use across the app
+export const reviewRepository: IReviewRepository = new ReviewRepositoryImpl();
+
+// You can export multiple repositories from a single file for convenience
+export { reviewRepository };
 ```
+
+**Uso (en hooks/features):**
+```typescript
+import { reviewRepository } from '@/src/api';
+
+const reviews = await reviewRepository.getReviewsBySpot(spotId);
+```
+
+**Testing tip:** Export a factory for creating mock repositories in your tests and use dependency injection or module mocking to replace the implementation during testing. E.g. create `createMockReviewRepository()` that implements `IReviewRepository` and returns predictable fixtures.
 
 ### 2. Convenciones de Nomenclatura
 

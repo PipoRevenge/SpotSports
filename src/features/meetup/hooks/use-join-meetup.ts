@@ -1,6 +1,7 @@
 import { meetupRepository } from '@/src/api/repositories';
+import { scheduleMeetupLocalNotification } from '@/src/features/notification/hooks/use-local-meetup-notifications';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { saveUserMeetup } from '../storage/user-meetups-storage';
+import { saveUserMeetup, StoredUserMeetup } from '../storage/user-meetups-storage';
 
 export const useJoinMeetup = () => {
   const queryClient = useQueryClient();
@@ -18,7 +19,7 @@ export const useJoinMeetup = () => {
         if (data && (data as any).status === 'joined') {
           const m = await meetupRepository.getMeetupById(variables.spotId, variables.meetupId);
           if (m) {
-            const stored = {
+            const stored: StoredUserMeetup = {
               id: m.id,
               spotId: m.spotId,
               title: m.title,
@@ -28,9 +29,12 @@ export const useJoinMeetup = () => {
               organizerId: m.organizerId ?? null,
               updatedAt: Date.now(),
             };
-            // userId is variables.userId
-            await saveUserMeetup(variables.userId, stored as any);
+            // Save to local storage
+            await saveUserMeetup(variables.userId, stored);
             console.debug('[useJoinMeetup] saved meetup to local storage', stored);
+
+            // Schedule local notification for 1h before meetup
+            await scheduleMeetupLocalNotification(stored, variables.userId);
           }
         }
       } catch (e) {

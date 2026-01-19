@@ -5,7 +5,8 @@ import { z } from 'zod';
 const baseMeetupSchema = z.object({
   title: z.string().min(5, 'El título debe tener al menos 5 caracteres').max(50, 'El título es muy largo'),
   description: z.string().max(500, 'La descripción es muy larga').optional(),
-  date: z.date().refine((date) => date > new Date(), {
+  // Allow scheduling a meetup at any moment >= now (small clock skews allowed)
+  date: z.date().refine((date) => date.getTime() >= Date.now(), {
     message: 'La fecha debe ser en el futuro',
   }),
   spotId: z.string().min(1, 'El Spot es obligatorio'),

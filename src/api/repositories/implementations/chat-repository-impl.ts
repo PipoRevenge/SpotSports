@@ -16,7 +16,8 @@ import {
     startAfter,
     Timestamp,
     updateDoc,
-    where
+    where,
+    writeBatch
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { firestore, functions } from '../../../lib/firebase-config';
@@ -394,6 +395,26 @@ export class ChatRepositoryImpl implements IChatRepository {
   async markAsRead(chatId: string, userId: string): Promise<void> {
     const markAsReadFn = httpsCallable(functions, 'chats-markRead');
     await markAsReadFn({ chatId, userId });
+
+    // Also delete chat notifications for this user
+    try {
+      const notificationsRef = collection(firestore, 'users', userId, 'notifications');
+      const q = query(
+        notificationsRef,
+        where('type', '==', 'CHAT_MESSAGE'),
+        where('data.chatId', '==', chatId)
+      );
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        const batch = writeBatch(firestore);
+        snapshot.docs.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+      }
+    } catch (error) {
+      console.warn('Failed to delete chat notifications:', error);
+      // Don't throw - marking as read is more important
+    }
   }
 
   async addGroupMembers(params: { chatId: string; adminId: string; newMemberIds: string[] }): Promise<Chat> {

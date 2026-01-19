@@ -1,6 +1,6 @@
 import { meetupRepository } from '@/src/api/repositories';
 import { useUser } from '@/src/context/user-context';
-import { Meetup } from '@/src/entities/meetup/model';
+import { Meetup } from '@/src/entities/meetup/model/meetup';
 import { MeetupFilters, MeetupSortOptions } from '@/src/features/meetup/types/meetup-filter-types';
 import { useQuery } from '@tanstack/react-query';
 import React from 'react';

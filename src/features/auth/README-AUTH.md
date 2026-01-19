@@ -1,5 +1,9 @@
 # Authentication Feature
 
+## 📦 Status
+
+**Status:** Implemented and production-ready — session management, secure storage and token refresh implemented.
+
 Secure authentication system with session management, token refresh, and automatic session restoration.
 
 ## 🎯 Overview

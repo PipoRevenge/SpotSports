@@ -28,7 +28,8 @@ src/utils/date-utils.ts  // Función reutilizable en toda la app
 
 ```
 utils/
-└── date-utils.ts    # Utilidades para manejo de fechas
+├── date-utils.ts    # Utilidades para manejo de fechas
+└── color-utils.ts   # Utilidades para colores y paletas
 ```
 
 ## 🛠️ Utilidades Disponibles

@@ -1,5 +1,9 @@
 # Map Search Feature
 
+## 📦 Status
+
+**Status:** Implemented, production-ready. Componentes y hooks genéricos disponibles y en uso en la app.
+
 Feature genérica y reutilizable para búsqueda de entidades en mapa.
 
 ## 📋 Descripción

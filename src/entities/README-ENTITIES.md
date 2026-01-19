@@ -53,15 +53,23 @@ interface SpotCardProps {
 ```
 entities/
 ├── spot/              # Entidad de Spot deportivo
-│   └── spot.entity.ts
+│   └── model/spot.ts
 ├── user/              # Entidad de Usuario
-│   ├── user.entity.ts
-│   └── user-stats.entity.ts
+│   └── model/user.ts
 ├── review/            # Entidad de Reseña
-│   ├── review.entity.ts
-│   └── review-summary.entity.ts
-└── sport/             # Entidad de Deporte
-    └── sport.entity.ts
+│   └── model/review.ts
+├── sport/             # Entidad de Deporte
+│   └── model/sport.ts
+├── chat/              # Entidad de Chat
+│   └── model/chat.ts
+├── comment/           # Entidad de Comentario
+│   └── model/comment.ts
+├── discussion/        # Entidad de Discusión
+│   └── model/discussion.ts
+├── meetup/            # Entidad de Meetup/Evento
+│   └── model/meetup.ts
+└── vote/              # Entidad de Voto
+    └── model/vote.ts
 ```
 
 ## 🎯 Entidades Actuales
@@ -321,8 +329,8 @@ interface SpotCardProps {
 ## 📝 Convenciones
 
 ### Nomenclatura de Archivos
-- Usar sufijo `.entity.ts` para archivos de entidades
-- Ejemplo: `user.entity.ts`, `spot.entity.ts`
+- Usar carpeta `model/` con archivos `*.ts` para entidades
+- Ejemplo: `user/model/user.ts`, `spot/model/spot.ts`
 
 ### Nomenclatura de Interfaces
 - Usar `PascalCase` 
@@ -332,7 +340,7 @@ interface SpotCardProps {
 ### Organización
 - Una entidad principal por carpeta
 - SubEntidades relacionadas en la misma carpeta
-- Ejemplo: `user/user.entity.ts` y `user/user-stats.entity.ts`
+- Ejemplo: `user/model/user.ts` y `user/model/user-stats.ts`
 
 ## ✅ Mejores Prácticas
 

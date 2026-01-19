@@ -1,5 +1,9 @@
 # Relationships feature
 
+## 📦 Status
+
+**Status:** Implemented (hooks and UI components present). Repositories should be verified against Firestore schema.
+
 Feature to manage user followers and followings.
 
 Exports:
