@@ -17,10 +17,10 @@ interface ConfirmModalProps {
 
 export const AppAlertConfirmDialog: React.FC<ConfirmModalProps> = ({
   visible,
-  title = 'Confirmar',
+  title = 'Confirm',
   message,
-  confirmText = 'Confirmar',
-  cancelText = 'Cancelar',
+  confirmText = 'Confirm',
+  cancelText = 'Cancel',
   onConfirm,
   onCancel,
 }) => {

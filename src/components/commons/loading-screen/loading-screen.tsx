@@ -46,7 +46,7 @@ export interface LoadingScreenProps {
 
 export const LoadingScreen: React.FC<LoadingScreenProps> = ({
   visible,
-  message = 'Cargando...',
+  message = 'Loading...',
   subMessage,
   spinnerSize = 'large',
 }) => {

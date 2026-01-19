@@ -42,7 +42,7 @@ export const useSignUp = (): UseSignUpReturn => {
       // Step 1: Check if username is available
       const isUserNameTaken = await userRepository.checkUserNameExists(userName);
       if (isUserNameTaken) {
-        throw new Error('El nombre de usuario ya está en uso. Por favor, elige otro diferente.');
+        throw new Error('Username is already in use. Please choose another one.');
       }
 
       // Step 2: Register user with Firebase Auth
@@ -104,7 +104,7 @@ export const useSignUp = (): UseSignUpReturn => {
       }
       
       if (!userCreated) {
-        throw new Error('No se pudo crear el perfil de usuario');
+        throw new Error('Could not create the user profile');
       }
 
       // Step 6: Wait for user document to be available
@@ -113,7 +113,7 @@ export const useSignUp = (): UseSignUpReturn => {
       const documentExists = await authRepository.waitForUserDocument(userId, 10, 1000);
       
       if (!documentExists) {
-        throw new Error('El perfil de usuario no está disponible. Por favor, intenta iniciar sesión.');
+        throw new Error('User profile is not available. Please try signing in.');
       }
 
       // Step 7: Load user data immediately and save to context
@@ -139,8 +139,8 @@ export const useSignUp = (): UseSignUpReturn => {
       
     } catch (err: any) {
       // Los errores ya vienen con mensajes apropiados desde los repositorios
-      const errorMessage = err?.message || 'Error al crear la cuenta. Por favor, intenta nuevamente.';
-      const errorTitle = 'Error al crear cuenta';
+      const errorMessage = err?.message || 'Error creating account. Please try again.';
+      const errorTitle = 'Account creation error';
       
       setError(errorMessage);
       showError(errorMessage, errorTitle);

@@ -13,27 +13,27 @@ export const useLeaveChat = () => {
 
   const leaveChat = async (chat: Chat) => {
     if (!user) {
-      throw new Error('Usuario no autenticado');
+      throw new Error('User not authenticated');
     }
 
     // If it's a meetup-group chat, confirm with special message
     if (chat.type === 'meetup-group' && chat.meetupId && chat.meetupSpotId) {
       const confirmed = await showConfirm(
-        'Abandonar grupo de meetup',
-        '⚠️ Este es un grupo asociado a un meetup. Al abandonar este chat, también abandonarás el meetup. ¿Estás seguro?',
-        'Abandonar',
-        'Cancelar'
+        'Leave meetup group',
+        '⚠️ This group is associated with a meetup. Leaving this chat will also remove you from the meetup. Are you sure?',
+        'Leave',
+        'Cancel'
       );
 
       if (!confirmed) {
-        throw new Error('Cancelado por el usuario');
+        throw new Error('Cancelled by user');
       }
 
       try {
         setIsLeaving(true);
         
         const meetup = await meetupRepository.getMeetupById(chat.meetupSpotId, chat.meetupId);
-        if (!meetup) throw new Error('Meetup no encontrado');
+        if (!meetup) throw new Error('Meetup not found');
 
         const isOrganizer = meetup.organizerId === user.id;
 
@@ -58,12 +58,12 @@ export const useLeaveChat = () => {
 
     // For regular chats, just leave the chat
     const confirmed = await showConfirm(
-      chat.type === 'group' ? 'Abandonar grupo' : 'Eliminar chat',
+      chat.type === 'group' ? 'Leave group' : 'Delete chat',
       chat.type === 'group' 
-        ? '¿Estás seguro de que quieres abandonar este grupo?' 
-        : '¿Estás seguro de que quieres eliminar este chat?',
-      chat.type === 'group' ? 'Abandonar' : 'Eliminar',
-      'Cancelar'
+        ? 'Are you sure you want to leave this group?' 
+        : 'Are you sure you want to delete this chat?',
+      chat.type === 'group' ? 'Leave' : 'Delete',
+      'Cancel'
     );
 
     if (!confirmed) {

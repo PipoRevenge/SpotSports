@@ -1,7 +1,14 @@
 import { useChatListView } from "@/src/features/chat";
 import { useNotifications } from "@/src/features/notification";
 import { Tabs } from "expo-router";
-import { Bell, Heart, Map, MessageCircle, Newspaper, User } from "lucide-react-native";
+import {
+  Bell,
+  Heart,
+  Map,
+  MessageCircle,
+  Newspaper,
+  User,
+} from "lucide-react-native";
 import type { ComponentType } from "react";
 import { useMemo } from "react";
 import { View } from "react-native";
@@ -88,7 +95,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="notifications"
         options={{
-          title: "Notificaciones",
+          title: "Notifications",
           tabBarIcon: ({ color, size }) =>
             renderIconWithBadge(Bell, color, size, hasUnreadNotifications),
         }}

@@ -19,6 +19,7 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 import { IDiscussionRepository } from '../interfaces/i-discussion-repository';
+import { logRepositoryError, parseFirebaseError } from '../utils/firebase-parsers';
 import { voteRepository } from './vote-repository-impl';
 
 /**
@@ -124,7 +125,9 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
         console.log('[DiscussionRepository] Rolling back media uploads for tempId:', tempDiscussionId);
         await this.deleteDiscussionMediaFolder(spotId, tempDiscussionId);
       }
-      throw error;
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('discussion.createDiscussion', { spotId, tempDiscussionId }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -151,7 +154,9 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       return result?.discussion || null;
     } catch (error) {
       console.error('[DiscussionRepository] getDiscussionById:', error);
-      throw error;
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('discussion.getDiscussionById', { discussionId, spotId }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -240,7 +245,9 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       return { discussions: pageDiscussions, total };
     } catch (error) {
       console.error('[DiscussionRepository] getDiscussions:', error);
-      throw error;
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('discussion.getDiscussions', { options }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -305,7 +312,9 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       return all;
     } catch (error) {
       console.error('[DiscussionRepository] getDiscussionsByUser:', error);
-      throw error;
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('discussion.getDiscussionsByUser', { userId, limit, offset }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -403,7 +412,9 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       );
     } catch (error) {
       console.error('[DiscussionRepository] updateDiscussion:', error);
-      throw error;
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('discussion.updateDiscussion', { discussionId, updates, spotId }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -424,7 +435,9 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       });
     } catch (error) {
       console.error('[DiscussionRepository] deleteDiscussion:', error);
-      throw error;
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('discussion.deleteDiscussion', { discussionId, spotId }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -499,7 +512,9 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       return downloadUrls;
     } catch (error) {
       console.error('[DiscussionRepository] uploadDiscussionMedia:', error);
-      throw error;
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('discussion.uploadDiscussionMedia', { spotId, discussionId }, error);
+      throw new Error(parsed.message);
     }
   }
 

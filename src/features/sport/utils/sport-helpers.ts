@@ -118,15 +118,15 @@ export const addAndSelectSport = (sportOptions: SportOption[], newSport: SportSi
  * Formatea el texto de conteo de deportes seleccionados
  */
 export const formatSelectedCount = (count: number): string => {
-  if (count === 0) return 'Añadir deportes';
-  return `${count} deporte${count !== 1 ? 's' : ''} seleccionado${count !== 1 ? 's' : ''}`;
+  if (count === 0) return 'Add sports';
+  return `${count} sport${count !== 1 ? 's' : ''} selected`;
 };
 
 /**
  * Formatea el texto de resultados encontrados
  */
 export const formatResultsCount = (count: number): string => {
-  return `${count} deporte${count !== 1 ? 's' : ''} encontrado${count !== 1 ? 's' : ''}`;
+  return `${count} sport${count !== 1 ? 's' : ''} found`;
 };
 
 /**

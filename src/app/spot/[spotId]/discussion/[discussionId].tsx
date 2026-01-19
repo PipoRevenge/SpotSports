@@ -92,7 +92,7 @@ const CommentInput = React.memo(function CommentInput({
     <Card className="mt-4 mx-3 p-4 bg-white rounded-xl border border-gray-100 shadow-sm">
       <VStack className="gap-3">
         <Text className="text-sm font-semibold text-gray-700">
-          Añadir comentario
+          Add comment
         </Text>
         <Input variant="outline" size="md" className="bg-gray-50 rounded-lg">
           <InputField
@@ -136,7 +136,7 @@ const CommentInput = React.memo(function CommentInput({
             className="flex-row items-center gap-2 px-3 py-2 rounded-lg active:bg-gray-100"
           >
             <ImageIcon size={22} color="#6b7280" />
-            <Text className="text-sm text-gray-600">Añadir imagen</Text>
+            <Text className="text-sm text-gray-600">Add image</Text>
           </Pressable>
           <Button
             size="sm"
@@ -151,7 +151,7 @@ const CommentInput = React.memo(function CommentInput({
             ) : (
               <HStack className="items-center gap-2">
                 <Send size={16} color="#fff" />
-                <Text className="text-white font-medium">Enviar</Text>
+                <Text className="text-white font-medium">Send</Text>
               </HStack>
             )}
           </Button>

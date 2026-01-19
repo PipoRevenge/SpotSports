@@ -24,8 +24,16 @@ export const useSportsMapByIds = (ids: string[] = []): UseSportsMapResult => {
     }
     if (typeof value === 'object') {
       const m = new Map<string, SimpleSport>();
-      Object.entries(value as Record<string, any>).forEach(([id, s]) => {
-        if (id) m.set(id, { id, name: s?.details?.name ?? s?.name, description: s?.details?.description ?? s?.description, category: s?.details?.category ?? s?.category });
+      Object.entries(value as Record<string, any>).forEach(([key, s]) => {
+        // Prefer the id inside the value, otherwise use the object key (handles arrays rehydrated as objects)
+        const id = s?.id ?? key;
+        if (!id) return;
+        m.set(id, {
+          id,
+          name: s?.details?.name ?? s?.name ?? id,
+          description: s?.details?.description ?? s?.description,
+          category: s?.details?.category ?? s?.category,
+        });
       });
       return m;
     }
@@ -74,8 +82,16 @@ export const useAllSportsMap = (): UseSportsMapResult => {
     }
     if (typeof value === 'object') {
       const m = new Map<string, SimpleSport>();
-      Object.entries(value as Record<string, any>).forEach(([id, s]) => {
-        if (id) m.set(id, { id, name: s?.details?.name ?? s?.name, description: s?.details?.description ?? s?.description, category: s?.details?.category ?? s?.category });
+      Object.entries(value as Record<string, any>).forEach(([key, s]) => {
+        // Prefer the id inside the value, otherwise use the object key (handles arrays rehydrated as objects)
+        const id = s?.id ?? key;
+        if (!id) return;
+        m.set(id, {
+          id,
+          name: s?.details?.name ?? s?.name ?? id,
+          description: s?.details?.description ?? s?.description,
+          category: s?.details?.category ?? s?.category,
+        });
       });
       return m;
     }

@@ -33,7 +33,7 @@ export const useUserLocation = (autoRequest: boolean = false): UseUserLocationRe
       
       if (status !== 'granted') {
         if (__DEV__) console.log('[useUserLocation] Permission denied');
-        setError('Permiso de ubicación denegado');
+        setError('Location permission denied');
         setIsLoading(false);
         return;
       }
@@ -76,21 +76,21 @@ export const useUserLocation = (autoRequest: boolean = false): UseUserLocationRe
             });
           } else {
             // No last known position available: set user-friendly error and return
-            setError('No se pudo obtener la ubicación. Asegúrate de que los servicios de ubicación estén activos en tu dispositivo.');
+            setError('Could not obtain location. Ensure location services are enabled on your device.');
             setIsLoading(false);
             return;
           }
         } catch (fallbackError) {
           if (__DEV__) console.error('[useUserLocation] Last known location also failed:', fallbackError);
           // Provide a user-friendly error and stop without throwing to avoid noisy stack traces
-          setError('No se pudo obtener la ubicación. Si estás usando un emulador, configura una ubicación GPS simulada.');
+          setError('Could not obtain location. If you\'re using an emulator, set a simulated GPS location.');
           setIsLoading(false);
           return;
         }
       }
     } catch (err) {
       if (__DEV__) console.error('[useUserLocation] Error getting user location:', err);
-      setError(err instanceof Error ? err.message : 'Error al obtener ubicación');
+      setError(err instanceof Error ? err.message : 'Error getting location');
     } finally {
       setIsLoading(false);
     }

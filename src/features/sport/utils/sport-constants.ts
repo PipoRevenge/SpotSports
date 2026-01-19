@@ -33,7 +33,7 @@ export const SPORT_ERROR_MESSAGES = {
   SPORT_EXISTS: 'A sport with this name already exists',
   CREATE_ERROR: 'Error creating sport',
   LOAD_ERROR: 'Error loading sports',
-  SEARCH_ERROR: 'Error al buscar deportes',
+  SEARCH_ERROR: 'Error searching sports',
   SELECTION_REQUIRED: 'Debe seleccionar al menos un deporte',
 } as const;
 

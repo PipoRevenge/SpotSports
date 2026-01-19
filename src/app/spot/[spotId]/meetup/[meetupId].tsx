@@ -1,8 +1,8 @@
 import { userRepository } from "@/src/api/repositories";
 import {
-  Avatar,
-  AvatarFallbackText,
-  AvatarImage,
+    Avatar,
+    AvatarFallbackText,
+    AvatarImage,
 } from "@/src/components/ui/avatar";
 import { Badge, BadgeText } from "@/src/components/ui/badge";
 import { Button, ButtonText } from "@/src/components/ui/button";
@@ -16,8 +16,8 @@ import { useAppAlert } from "@/src/context/app-alert-context";
 import { useUser } from "@/src/context/user-context";
 import { useChatParticipants } from "@/src/features/chat/hooks/use-chat-participants";
 import {
-  useApproveRequest,
-  useRejectRequest,
+    useApproveRequest,
+    useRejectRequest,
 } from "@/src/features/meetup/hooks/use-approve-reject";
 import { useDeleteMeetup } from "@/src/features/meetup/hooks/use-delete-meetup";
 import { useJoinMeetup } from "@/src/features/meetup/hooks/use-join-meetup";
@@ -28,11 +28,11 @@ import { useSpotDetails } from "@/src/features/spot/hooks/use-spot-details";
 import { useProfile } from "@/src/features/user/hooks/use-profile";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
-  ArrowLeftIcon,
-  Calendar,
-  Clock,
-  MapPin,
-  MessageCircleIcon,
+    ArrowLeftIcon,
+    Calendar,
+    Clock,
+    MapPin,
+    MessageCircleIcon,
 } from "lucide-react-native";
 import React, { useMemo } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
@@ -88,7 +88,7 @@ export default function MeetupDetails() {
   const { data: sports, isLoading: sportsLoading } = useSpotSports(spotId);
   const sportName = useMemo(() => {
     if (!meetup) return "Deporte";
-    if (!sports || sportsLoading) return "Cargando...";
+    if (!sports || sportsLoading) return "Loading...";
 
     const sportId = (meetup as any)?.sport;
     if (!sportId) return "Deporte";
@@ -130,7 +130,7 @@ export default function MeetupDetails() {
         router.push(`/chat/${meetup.chatId}`);
       if (status === "requested") showSuccess("Solicitud enviada");
     } catch (err) {
-      showError((err as Error).message || "No se pudo unir");
+      showError((err as Error).message || "Could not join");
     }
   };
 
@@ -145,7 +145,7 @@ export default function MeetupDetails() {
       });
       await fetchMeetupById(spotId, meetupId);
     } catch (err) {
-      showError((err as Error).message || "No se pudo salir");
+      showError((err as Error).message || "Could not leave");
     }
   };
 
@@ -185,7 +185,7 @@ export default function MeetupDetails() {
       await fetchMeetupById(spotId, meetupId);
       showSuccess("Usuario añadido al meetup");
     } catch (err) {
-      showError((err as Error).message || "No se pudo aprobar");
+      showError((err as Error).message || "Could not approve");
     }
   };
 
@@ -196,17 +196,17 @@ export default function MeetupDetails() {
       await fetchMeetupById(spotId, meetupId);
       showSuccess("Solicitud rechazada");
     } catch (err) {
-      showError((err as Error).message || "No se pudo rechazar");
+      showError((err as Error).message || "Could not reject");
     }
   };
 
   const handleDelete = async () => {
     if (!meetupId || !user || !spotId) return;
     const confirmed = await showConfirm(
-      "Eliminar meetup",
-      "¿Seguro que deseas eliminar este meetup?",
-      "Eliminar",
-      "Cancelar"
+      "Delete meetup",
+      "Are you sure you want to delete this meetup?",
+      "Delete",
+      "Cancel"
     );
     if (!confirmed) return;
     try {
@@ -214,14 +214,14 @@ export default function MeetupDetails() {
       showSuccess("Meetup eliminado");
       router.back();
     } catch (err) {
-      showError((err as Error).message || "No se pudo eliminar");
+      showError((err as Error).message || "Could not delete");
     }
   };
 
   if (isLoading) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-white">
-        <Text className="text-slate-500">Cargando meetup...</Text>
+        <Text className="text-slate-500">Loading meetup...</Text>
       </SafeAreaView>
     );
   }
@@ -321,7 +321,7 @@ export default function MeetupDetails() {
                   >
                     <Text className="text-primary-600 font-medium underline">
                       {spotLoading
-                        ? "Cargando spot..."
+                        ? "Loading spot..."
                         : spot?.details?.name ?? "Ver spot"}
                     </Text>
                   </TouchableOpacity>
@@ -439,7 +439,7 @@ export default function MeetupDetails() {
 
             {isParticipantsLoading ? (
               <Text className="text-slate-500 text-center py-4">
-                Cargando participantes...
+                Loading participants...
               </Text>
             ) : (
               <VStack space="sm">
@@ -488,7 +488,7 @@ export default function MeetupDetails() {
                   </Text>
                   {loadingRequests ? (
                     <Text className="text-slate-500">
-                      Cargando solicitudes...
+                      Loading requests...
                     </Text>
                   ) : (
                     <VStack space="md">
@@ -551,7 +551,7 @@ export default function MeetupDetails() {
                 onPress={() => router.push("/auth/sign-in")}
                 className="w-full"
               >
-                <ButtonText>Iniciar sesión para unirme</ButtonText>
+                <ButtonText>Sign in to join</ButtonText>
               </Button>
             ) : isOrganizer ? (
               <VStack space="md">
@@ -577,7 +577,7 @@ export default function MeetupDetails() {
                   className="w-full"
                 >
                   <ButtonText>
-                    {isDeleting ? "Eliminando..." : "Eliminar Meetup"}
+                    {isDeleting ? "Deleting..." : "Delete Meetup"}
                   </ButtonText>
                 </Button>
               </VStack>

@@ -38,7 +38,7 @@ export const useChatUserSearch = (options?: { limit?: number }) => {
       setBaseUsers(allUsersRes.items);
       setHasLoaded(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error cargando usuarios');
+      setError(err instanceof Error ? err.message : 'Error loading users');
     } finally {
       setIsLoading(false);
     }

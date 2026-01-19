@@ -28,7 +28,7 @@ export const useSessionMonitor = () => {
       
       // Only show alert if explicitly requested (when session actually expired)
       if (showAlert) {
-        showError('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'Sesión Expirada');
+        showError('Your session has expired. Please sign in again.', 'Session Expired');
       }
     } catch (error) {
       console.error('Error handling invalid session:', error);

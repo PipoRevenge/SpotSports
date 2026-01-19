@@ -21,6 +21,7 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { firestore, functions } from '../../../lib/firebase-config';
 import { IChatRepository } from '../interfaces/i-chat-repository';
+import { logRepositoryError, parseFirebaseError } from '../utils/firebase-parsers';
 
 export class ChatRepositoryImpl implements IChatRepository {
   private readonly CHATS_COLLECTION = 'chats';
@@ -74,31 +75,38 @@ export class ChatRepositoryImpl implements IChatRepository {
   };
 
   async createDirectChat(currentUserId: string, targetUserId: string): Promise<Chat> {
-    if (!currentUserId || !targetUserId) throw new Error('Se requieren los usuarios');
-    if (currentUserId === targetUserId) throw new Error('No puedes chatear contigo mismo');
+    if (!currentUserId || !targetUserId) throw new Error('Current and target user IDs are required');
+    if (currentUserId === targetUserId) throw new Error('You cannot chat with yourself');
 
-    const createDirectChatFn = httpsCallable(functions, 'chats-createDirect');
-    const result = await createDirectChatFn({
-      targetUserId,
-    });
-
-    const { chatId } = result.data as { chatId: string };
-    return this.getChatById(chatId);
+    try {
+      const createDirectChatFn = httpsCallable(functions, 'chats-createDirect');
+      const result = await createDirectChatFn({ targetUserId });
+      const { chatId } = result.data as { chatId: string };
+      return this.getChatById(chatId);
+    } catch (error) {
+      console.error('Error creating direct chat:', error);
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('chat.createDirectChat', { currentUserId, targetUserId }, error);
+      throw new Error(parsed.message);
+    }
   }
 
   async createGroupChat(params: { ownerId: string; name: string; memberIds: string[]; photoURL?: string; description?: string; meetupId?: string; meetupSpotId?: string }): Promise<Chat> {
     const { ownerId, name, memberIds, photoURL, description, meetupId, meetupSpotId } = params;
-    if (!ownerId || !name) throw new Error('Faltan datos para el grupo');
-    
-    // Use callable for group creation to ensure consistency
-    const createGroupChatFn = httpsCallable(functions, 'chats-createGroup');
-    const result = await createGroupChatFn({
-        name,
-        participantIds: memberIds
-    });
-    
-    const { chatId } = result.data as { chatId: string };
-    return this.getChatById(chatId);
+    if (!ownerId || !name) throw new Error('Missing data to create group');
+
+    try {
+      // Use callable for group creation to ensure consistency
+      const createGroupChatFn = httpsCallable(functions, 'chats-createGroup');
+      const result = await createGroupChatFn({ name, participantIds: memberIds });
+      const { chatId } = result.data as { chatId: string };
+      return this.getChatById(chatId);
+    } catch (error) {
+      console.error('Error creating group chat:', error);
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('chat.createGroupChat', { ownerId, name }, error);
+      throw new Error(parsed.message);
+    }
   }
 
   async getChatMembers(chatId: string): Promise<any[]> {
@@ -110,7 +118,7 @@ export class ChatRepositoryImpl implements IChatRepository {
   async getChatById(chatId: string): Promise<Chat> {
     const chatRef = doc(firestore, this.CHATS_COLLECTION, chatId);
     const chatSnap = await getDoc(chatRef);
-    if (!chatSnap.exists()) throw new Error('Chat no encontrado');
+    if (!chatSnap.exists()) throw new Error('Chat not found');
     
     const chat = this.toChat(chatSnap);
     
@@ -344,37 +352,38 @@ export class ChatRepositoryImpl implements IChatRepository {
 
   async sendMessage(params: { chatId: string; senderId: string; text?: string; mediaUrl?: string; mediaType?: 'image' | 'video' }): Promise<Message> {
     const { chatId, senderId, text, mediaUrl, mediaType } = params;
-    if (!chatId || !senderId) throw new Error('Faltan datos del mensaje');
-    if (!text && !mediaUrl) throw new Error('Mensaje vacío');
+    if (!chatId || !senderId) throw new Error('Message chatId and senderId are required');
+    if (!text && !mediaUrl) throw new Error('Message is empty');
 
-    const sendMessageFn = httpsCallable(functions, 'chats-sendMessage');
-    const result = await sendMessageFn({
-      chatId,
-      text,
-      mediaUrl,
-      mediaType,
-    });
+    try {
+      const sendMessageFn = httpsCallable(functions, 'chats-sendMessage');
+      const result = await sendMessageFn({ chatId, text, mediaUrl, mediaType });
+      const { messageId } = result.data as { messageId: string };
 
-    const { messageId } = result.data as { messageId: string };
-    
-    // Fetch the created message to return it
-    const messageRef = doc(firestore, this.CHATS_COLLECTION, chatId, this.MESSAGES_SUBCOLLECTION, messageId);
-    const messageSnap = await getDoc(messageRef);
-    
-    if (!messageSnap.exists()) {
-        // Fallback if read fails immediately (though it shouldn't)
-        return {
-            id: messageId,
-            chatId,
-            senderId,
-            text: text || '',
-            mediaUrl: mediaUrl || undefined,
-            mediaType: mediaType || undefined,
-            createdAt: new Date(),
-        };
+      // Fetch the created message to return it
+      const messageRef = doc(firestore, this.CHATS_COLLECTION, chatId, this.MESSAGES_SUBCOLLECTION, messageId);
+      const messageSnap = await getDoc(messageRef);
+
+      if (!messageSnap.exists()) {
+          // Fallback if read fails immediately (though it shouldn't)
+          return {
+              id: messageId,
+              chatId,
+              senderId,
+              text: text || '',
+              mediaUrl: mediaUrl || undefined,
+              mediaType: mediaType || undefined,
+              createdAt: new Date(),
+          };
+      }
+
+      return this.toMessage(messageSnap);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('chat.sendMessage', { chatId, senderId }, error);
+      throw new Error(parsed.message);
     }
-    
-    return this.toMessage(messageSnap);
   }
 
   async deleteChat(chatId: string, userId: string): Promise<void> {
@@ -389,20 +398,20 @@ export class ChatRepositoryImpl implements IChatRepository {
 
   async addGroupMembers(params: { chatId: string; adminId: string; newMemberIds: string[] }): Promise<Chat> {
     const { chatId, adminId, newMemberIds } = params;
-    if (!chatId || !adminId || !newMemberIds?.length) throw new Error('Faltan datos');
+    if (!chatId || !adminId || !newMemberIds?.length) throw new Error('Missing data to add members');
 
     const chatRef = doc(firestore, this.CHATS_COLLECTION, chatId);
     const snap = await getDoc(chatRef);
-    if (!snap.exists()) throw new Error('Chat no encontrado');
+    if (!snap.exists()) throw new Error('Chat not found');
     const chat = this.toChat(snap);
-    if (chat.type !== 'group' && chat.type !== 'meetup-group') throw new Error('Solo grupos permiten añadir miembros');
+    if (chat.type !== 'group' && chat.type !== 'meetup-group') throw new Error('Only groups allow adding members');
     
     // Check if adminId has permission (check in members subcollection)
     const adminMemberRef = doc(collection(chatRef, 'members'), adminId);
     const adminSnap = await getDoc(adminMemberRef);
-    if (!adminSnap.exists()) throw new Error('No perteneces al grupo');
+    if (!adminSnap.exists()) throw new Error('You are not a member of the group');
     const adminData = adminSnap.data();
-    if (adminData.role !== 'admin' && adminData.role !== 'owner') throw new Error('No tienes permisos');
+    if (adminData.role !== 'admin' && adminData.role !== 'owner') throw new Error('You do not have permission');
 
     const now = Timestamp.now();
     const currentIds = new Set(chat.memberIds);
@@ -434,21 +443,21 @@ export class ChatRepositoryImpl implements IChatRepository {
     const { chatId, adminId, targetUserId } = params;
     const chatRef = doc(firestore, this.CHATS_COLLECTION, chatId);
     const snap = await getDoc(chatRef);
-    if (!snap.exists()) throw new Error('Chat no encontrado');
+    if (!snap.exists()) throw new Error('Chat not found');
     const chat = this.toChat(snap);
-    if (chat.type !== 'group' && chat.type !== 'meetup-group') throw new Error('Solo grupos permiten roles');
+    if (chat.type !== 'group' && chat.type !== 'meetup-group') throw new Error('Only groups allow roles');
     
     // Check admin permissions
     const adminMemberRef = doc(collection(chatRef, 'members'), adminId);
     const adminSnap = await getDoc(adminMemberRef);
-    if (!adminSnap.exists()) throw new Error('No perteneces al grupo');
+    if (!adminSnap.exists()) throw new Error('You are not a member of the group');
     const adminData = adminSnap.data();
-    if (adminData.role !== 'admin' && adminData.role !== 'owner') throw new Error('No tienes permisos');
+    if (adminData.role !== 'admin' && adminData.role !== 'owner') throw new Error('You do not have permission');
     
     // Check target member
     const targetMemberRef = doc(collection(chatRef, 'members'), targetUserId);
     const targetSnap = await getDoc(targetMemberRef);
-    if (!targetSnap.exists()) throw new Error('Usuario no está en el grupo');
+    if (!targetSnap.exists()) throw new Error('User is not in the group');
     const targetData = targetSnap.data();
     if (targetData.role === 'admin' || targetData.role === 'owner') return chat;
     
@@ -470,9 +479,9 @@ export class ChatRepositoryImpl implements IChatRepository {
   async leaveGroup(chatId: string, userId: string): Promise<void> {
     const chatRef = doc(firestore, this.CHATS_COLLECTION, chatId);
     const snap = await getDoc(chatRef);
-    if (!snap.exists()) throw new Error('Chat no encontrado');
+    if (!snap.exists()) throw new Error('Chat not found');
     const chat = this.toChat(snap);
-    if (chat.type !== 'group' && chat.type !== 'meetup-group') throw new Error('Solo grupos permiten salir');
+    if (chat.type !== 'group' && chat.type !== 'meetup-group') throw new Error('Only groups allow leaving');
     
     // Remove from memberIds array
     await updateDoc(chatRef, {

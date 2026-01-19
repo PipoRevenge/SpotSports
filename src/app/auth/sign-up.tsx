@@ -36,7 +36,7 @@ export default function SignUp() {
       router.push('/home-tabs/my-feed');
     } catch (signUpError) {
       console.error('Error during sign up:', signUpError);
-      showError(error || 'Ocurrió un error durante el registro. Por favor, intenta de nuevo.', 'Error de Registro');
+      showError(error || 'An error occurred during registration. Please try again.', 'Registration Error');
     } finally {
       setIsSubmitting(false);
     }

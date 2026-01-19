@@ -23,14 +23,14 @@ export default function SignIn() {
       const result = await signIn(email, password);
       
       if (!result.success) {
-        showError(result.error || 'Email o contraseña incorrectos. Por favor, verifica tus credenciales.', 'Error de Inicio de Sesión');
+        showError(result.error || 'Email or password incorrect. Please check your credentials.', 'Sign In Error');
       } else {
         // User data is now loaded in UserContext, navigate to home
         router.push('/home-tabs/my-feed');
       }
     } catch (signInError) {
       console.error('Sign in error:', signInError);
-      showError(error || 'Ocurrió un error inesperado. Por favor, intenta de nuevo.', 'Error');
+      showError(error || 'An unexpected error occurred. Please try again.', 'Error');
     } finally {
       setIsSubmitting(false);
     }

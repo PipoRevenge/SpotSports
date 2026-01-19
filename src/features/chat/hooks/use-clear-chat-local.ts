@@ -23,7 +23,7 @@ export const useClearChatLocal = (chatId?: string, userId?: string) => {
         chatRepository.markAsRead(chatId, userId),
       ]);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'No se pudo limpiar el chat localmente';
+      const message = err instanceof Error ? err.message : 'Could not clear the chat locally';
       setError(message);
       throw err;
     } finally {

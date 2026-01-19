@@ -1,14 +1,18 @@
-import { SportsRatingTable } from '@/src/components/commons/sports-rating-table/sports-rating-table';
-import { Avatar, AvatarFallbackText, AvatarImage } from '@/src/components/ui/avatar';
-import { HStack } from '@/src/components/ui/hstack';
-import { Text } from '@/src/components/ui/text';
-import { VStack } from '@/src/components/ui/vstack';
-import { Review } from '@/src/entities/review/model/review';
-import { User } from '@/src/entities/user/model/user';
-import { formatDate, getInitials } from '@/src/utils/date-utils';
-import { Star } from 'lucide-react-native';
-import React from 'react';
-import { ScrollView, View } from 'react-native';
+import { SportsRatingTable } from "@/src/components/commons/sports-rating-table/sports-rating-table";
+import {
+  Avatar,
+  AvatarFallbackText,
+  AvatarImage,
+} from "@/src/components/ui/avatar";
+import { HStack } from "@/src/components/ui/hstack";
+import { Text } from "@/src/components/ui/text";
+import { VStack } from "@/src/components/ui/vstack";
+import { Review } from "@/src/entities/review/model/review";
+import { User } from "@/src/entities/user/model/user";
+import { formatDate, getInitials } from "@/src/utils/date-utils";
+import { Star } from "lucide-react-native";
+import React from "react";
+import { ScrollView, View } from "react-native";
 
 export interface ReviewHeaderForModalProps {
   review: Review;
@@ -26,17 +30,19 @@ export const ReviewHeaderForModal: React.FC<ReviewHeaderForModalProps> = ({
   reviewUser,
   getSportName,
 }) => {
-  const userName = reviewUser?.userDetails?.userName || reviewUser?.userDetails?.fullName || 'Usuario';
+  const userName =
+    reviewUser?.userDetails?.userName ||
+    reviewUser?.userDetails?.fullName ||
+    "User";
   const userPhoto = reviewUser?.userDetails?.photoURL;
-  const reviewDate = review.metadata.createdAt ? formatDate(review.metadata.createdAt) : '';
+  const reviewDate = review.metadata.createdAt
+    ? formatDate(review.metadata.createdAt)
+    : "";
   const rating = review.details.rating;
   const reviewSports = review.details.reviewSports;
 
   return (
-    <ScrollView 
-      className="max-h-80"
-      showsVerticalScrollIndicator={false}
-    >
+    <ScrollView className="max-h-80" showsVerticalScrollIndicator={false}>
       <View className="px-4 py-4 bg-amber-50 border-b border-amber-100">
         <HStack className="items-start gap-3">
           <Avatar size="md" className="bg-amber-100 border border-amber-200">
@@ -54,9 +60,7 @@ export const ReviewHeaderForModal: React.FC<ReviewHeaderForModalProps> = ({
               <Text className="text-sm font-semibold text-gray-900">
                 {userName}
               </Text>
-              <Text className="text-xs text-gray-400">
-                • {reviewDate}
-              </Text>
+              <Text className="text-xs text-gray-400">• {reviewDate}</Text>
             </HStack>
 
             {/* Rating stars */}
@@ -66,7 +70,7 @@ export const ReviewHeaderForModal: React.FC<ReviewHeaderForModalProps> = ({
                   key={i}
                   size={14}
                   color="#f59e0b"
-                  fill={i < Math.floor(rating) ? '#f59e0b' : 'none'}
+                  fill={i < Math.floor(rating) ? "#f59e0b" : "none"}
                 />
               ))}
               <Text className="text-xs text-amber-700 font-medium ml-1">
@@ -76,7 +80,7 @@ export const ReviewHeaderForModal: React.FC<ReviewHeaderForModalProps> = ({
 
             {/* Review content preview */}
             {review.details.content && (
-              <Text 
+              <Text
                 className="text-sm text-gray-600"
                 numberOfLines={3}
                 ellipsizeMode="tail"
@@ -91,13 +95,15 @@ export const ReviewHeaderForModal: React.FC<ReviewHeaderForModalProps> = ({
         {reviewSports && reviewSports.length > 0 && (
           <VStack className="mt-3 pt-3 border-t border-amber-200 gap-2">
             <Text className="text-xs font-semibold text-gray-700">
-              Deportes valorados:
+              Rated sports:
             </Text>
             <View className="border border-gray-200 rounded-lg overflow-hidden bg-white">
               <SportsRatingTable
-                sports={reviewSports.map(sport => ({
+                sports={reviewSports.map((sport) => ({
                   sportId: sport.sportId,
-                  sportName: getSportName ? getSportName(sport.sportId) : sport.sportId,
+                  sportName: getSportName
+                    ? getSportName(sport.sportId)
+                    : sport.sportId,
                   rating: sport.sportRating,
                   difficulty: sport.difficulty,
                   sportComment: sport.comment,
@@ -112,10 +118,8 @@ export const ReviewHeaderForModal: React.FC<ReviewHeaderForModalProps> = ({
 
         <HStack className="items-center mt-3 pt-3 border-t border-amber-200">
           <Text className="text-xs text-gray-500">
-            Comentando en la review de{' '}
-            <Text className="font-semibold text-amber-600">
-              @{userName}
-            </Text>
+            Commenting on the review by{" "}
+            <Text className="font-semibold text-amber-600">@{userName}</Text>
           </Text>
         </HStack>
       </View>

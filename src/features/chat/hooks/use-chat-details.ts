@@ -24,7 +24,7 @@ export const useChatDetails = (chatId?: string) => {
         setChat(fresh);
         saveCachedChatMeta(chatId, fresh).catch(() => {});
       } catch (err) {
-        if (isMounted && !cached) setError(err instanceof Error ? err.message : 'Error cargando chat');
+        if (isMounted && !cached) setError(err instanceof Error ? err.message : 'Error loading chat');
       } finally {
         if (isMounted) setIsLoading(false);
       }

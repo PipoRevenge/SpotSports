@@ -26,7 +26,7 @@ export const ProfileDiscussionList: React.FC<ProfileDiscussionListProps> = ({
     return (
       <VStack className="items-center justify-center p-8">
         <ActivityIndicator size="large" color="#3b82f6" />
-        <Text className="pt-4 text-gray-600">Cargando discusiones...</Text>
+        <Text className="pt-4 text-gray-600">Loading discussions...</Text>
       </VStack>
     );
   }
@@ -34,7 +34,7 @@ export const ProfileDiscussionList: React.FC<ProfileDiscussionListProps> = ({
   if (error) {
     return (
       <VStack className="items-center justify-center p-8">
-        <Text className="text-red-600">Error cargando discusiones</Text>
+        <Text className="text-red-600">Error loading discussions</Text>
       </VStack>
     );
   }

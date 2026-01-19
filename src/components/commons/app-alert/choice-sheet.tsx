@@ -39,7 +39,7 @@ export const AppAlertChoiceSheet: React.FC<ChoiceSheetProps> = ({ visible, title
           </VStack>
         </ModalBody>
         <ModalFooter>
-          <Button action="negative" onPress={onClose}><ButtonText>Cancelar</ButtonText></Button>
+          <Button action="negative" onPress={onClose}><ButtonText>Cancel</ButtonText></Button>
         </ModalFooter>
       </ModalContent>
     </Modal>

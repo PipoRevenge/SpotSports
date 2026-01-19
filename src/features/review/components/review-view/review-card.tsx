@@ -1,25 +1,35 @@
 import { MediaCarousel } from "@/src/components/commons/media-carousel";
 import { RatingStars } from "@/src/components/commons/rating/rating-stars";
 import { SportsRatingTable } from "@/src/components/commons/sports-rating-table/sports-rating-table";
-import { Avatar, AvatarFallbackText, AvatarImage } from "@/src/components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallbackText,
+  AvatarImage,
+} from "@/src/components/ui/avatar";
 import { Card } from "@/src/components/ui/card";
 import { HStack } from "@/src/components/ui/hstack";
 import { Pressable } from "@/src/components/ui/pressable";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
-import { useAppAlert } from '@/src/context/app-alert-context';
+import { useAppAlert } from "@/src/context/app-alert-context";
 import { useUser } from "@/src/context/user-context";
 import { Review } from "@/src/entities/review/model/review";
-import { Spot } from '@/src/entities/spot/model/spot';
+import { Spot } from "@/src/entities/spot/model/spot";
 import { User } from "@/src/entities/user/model/user";
 import { useMediaUrls } from "@/src/hooks";
 import { formatDate, getInitials } from "@/src/utils/date-utils";
-import { Image, View } from 'react-native';
+import { Image, View } from "react-native";
 // Import router is not allowed inside feature components; navigation must be handled by the app
-import { Edit, MessageCircle, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react-native";
+import {
+  Edit,
+  MessageCircle,
+  ThumbsDown,
+  ThumbsUp,
+  Trash2,
+} from "lucide-react-native";
 import React, { useState } from "react";
 
-import type { CommentWithUser } from '@/src/features/comment';
+import type { CommentWithUser } from "@/src/features/comment";
 import { useReviewVote } from "../../hooks/use-review-vote";
 import { ReviewComments } from "./review-comments";
 
@@ -56,7 +66,7 @@ export interface ReviewCardProps {
 
 /**
  * Componente ReviewCard
- * 
+ *
  * Muestra una tarjeta de review con:
  * - Avatar del usuario
  * - Nombre del usuario
@@ -65,7 +75,7 @@ export interface ReviewCardProps {
  * - Fecha de creación
  * - Botones de like/dislike
  * - Botón de responder
- * 
+ *
  * @example
  * ```tsx
  * <ReviewCard
@@ -96,18 +106,27 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   registerLayout,
 }) => {
   const { user: currentUser } = useUser();
-  const userName = user?.userDetails?.userName || user?.userDetails?.fullName || "Usuario Anónimo";
+  const userName =
+    user?.userDetails?.userName ||
+    user?.userDetails?.fullName ||
+    "Anonymous User";
   const userPhoto = user?.userDetails?.photoURL;
   const userId = user?.id || review.metadata.createdBy;
   const reviewDate = formatDate(review.metadata.createdAt);
   const isOwnReview = currentUser?.id === userId;
 
   // Resolver URLs de media
-  const { urls: mediaUrls, loading: mediaLoading } = useMediaUrls(review.details.media);
+  const { urls: mediaUrls, loading: mediaLoading } = useMediaUrls(
+    review.details.media
+  );
 
   // Estado local para contadores de votos
-  const [likesCount, setLikesCount] = useState(review.activity?.likesCount || 0);
-  const [dislikesCount, setDislikesCount] = useState(review.activity?.dislikesCount || 0);
+  const [likesCount, setLikesCount] = useState(
+    review.activity?.likesCount || 0
+  );
+  const [dislikesCount, setDislikesCount] = useState(
+    review.activity?.dislikesCount || 0
+  );
 
   // Sincronizar contadores cuando cambia la review (ej: después de recargar)
   React.useEffect(() => {
@@ -123,8 +142,8 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
 
   // Hook para manejar votos (likes/dislikes)
   const { voteState, handleLike, handleDislike } = useReviewVote(
-    spotId, 
-    review.id, 
+    spotId,
+    review.id,
     handleVoteChange
   );
 
@@ -146,11 +165,15 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   const { showConfirm } = useAppAlert();
 
   const handleDelete = () => {
-    showConfirm('Eliminar Review', '¿Estás seguro de que quieres eliminar esta review? Esta acción no se puede deshacer.', 'Eliminar', 'Cancelar')
-      .then((confirmed) => {
-        if (!confirmed) return;
-        if (onDelete) onDelete(review.id);
-      });
+    showConfirm(
+      "Delete Review",
+      "Are you sure you want to delete this review? This action cannot be undone.",
+      "Delete",
+      "Cancel"
+    ).then((confirmed) => {
+      if (!confirmed) return;
+      if (onDelete) onDelete(review.id);
+    });
   };
 
   return (
@@ -158,7 +181,9 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
       <VStack className="gap-3">
         {/* Optional spot header for context when reviews are shown in user's activity lists */}
         {spot && (
-          <Pressable onPress={() => onNavigateToSpot && onNavigateToSpot(spot.id)}>
+          <Pressable
+            onPress={() => onNavigateToSpot && onNavigateToSpot(spot.id)}
+          >
             <HStack className="items-center gap-3 py-2">
               {/* Optionally display a small thumbnail if spot has media */}
               {spot.details.media && spot.details.media.length > 0 ? (
@@ -177,40 +202,43 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
               )}
 
               <VStack className="flex-1">
-                <Text className="font-semibold text-gray-900">{spot.details.name}</Text>
-                <Text className="text-sm text-gray-500">{spot.details.location?.latitude ? `${spot.details.location.latitude.toFixed(3)}, ${spot.details.location.longitude.toFixed(3)}` : ''}</Text>
+                <Text className="font-semibold text-gray-900">
+                  {spot.details.name}
+                </Text>
+                <Text className="text-sm text-gray-500">
+                  {spot.details.location?.latitude
+                    ? `${spot.details.location.latitude.toFixed(
+                        3
+                      )}, ${spot.details.location.longitude.toFixed(3)}`
+                    : ""}
+                </Text>
               </VStack>
             </HStack>
           </Pressable>
         )}
         {/* Header: Avatar + Nombre + Rating */}
         <HStack className="justify-between items-start gap-2">
-          
-            <HStack className="gap-3 flex-1">
-              <Pressable onPress={handleNavigateToProfile}>
+          <HStack className="gap-3 flex-1">
+            <Pressable onPress={handleNavigateToProfile}>
               {/* Avatar */}
               <Avatar size="md" className="border-2 border-gray-200">
                 {userPhoto ? (
                   <AvatarImage source={{ uri: userPhoto }} />
                 ) : (
-                  <AvatarFallbackText>{getInitials(userName)}</AvatarFallbackText>
+                  <AvatarFallbackText>
+                    {getInitials(userName)}
+                  </AvatarFallbackText>
                 )}
               </Avatar>
-              </Pressable>
-              {/* Nombre y fecha */}
-              <VStack className="flex-1 gap-1 ">
-                <Text className="font-semibold text-gray-900 text-base">
-                  {userName}
-                </Text>
-                <Text className="text-sm text-gray-500">
-                  {reviewDate}
-                </Text>
-              </VStack>
-                </HStack>
-              
-          
-          
-            
+            </Pressable>
+            {/* Nombre y fecha */}
+            <VStack className="flex-1 gap-1 ">
+              <Text className="font-semibold text-gray-900 text-base">
+                {userName}
+              </Text>
+              <Text className="text-sm text-gray-500">{reviewDate}</Text>
+            </VStack>
+          </HStack>
 
           {/* Rating con estrellas */}
           <VStack className="items-end gap-1">
@@ -239,7 +267,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
           <View className="pt-3">
             <MediaCarousel
               media={mediaUrls}
-              altText={`Review de ${userName}`}
+              altText={`Review by ${userName}`}
               height={90}
               width={160}
               resizeMode="contain"
@@ -249,26 +277,31 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
         )}
 
         {/* Tabla de deportes calificados */}
-        {review.details.reviewSports && review.details.reviewSports.length > 0 && (
-          <VStack className="gap-2 w-full">
-            <Text className="text-sm font-semibold text-gray-700">Deportes calificados:</Text>
+        {review.details.reviewSports &&
+          review.details.reviewSports.length > 0 && (
+            <VStack className="gap-2 w-full">
+              <Text className="text-sm font-semibold text-gray-700">
+                Rated sports:
+              </Text>
               <View className="border border-gray-200 rounded-lg overflow-hidden w-full">
-              <SportsRatingTable
-                sports={review.details.reviewSports.map(sport => ({
-                  sportId: sport.sportId,
-                  sportName: getSportName ? getSportName(sport.sportId) : sport.sportId,
-                  rating: sport.sportRating,
-                  difficulty: sport.difficulty,
-                  sportComment: sport.comment, // Pasar el comentario del deporte
-                }))}
-                variant="compact"
-                expandableContent="comment"
-                showHeader={true}
-                size="sm"
-              />
-            </View>
-          </VStack>
-        )}
+                <SportsRatingTable
+                  sports={review.details.reviewSports.map((sport) => ({
+                    sportId: sport.sportId,
+                    sportName: getSportName
+                      ? getSportName(sport.sportId)
+                      : sport.sportId,
+                    rating: sport.sportRating,
+                    difficulty: sport.difficulty,
+                    sportComment: sport.comment, // Pasar el comentario del deporte
+                  }))}
+                  variant="compact"
+                  expandableContent="comment"
+                  showHeader={true}
+                  size="sm"
+                />
+              </View>
+            </VStack>
+          )}
 
         {/* Separador */}
         <View className="h-px bg-gray-200" />
@@ -288,7 +321,11 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
                 color={voteState.isLiked ? "#3b82f6" : "#6b7280"}
                 fill={voteState.isLiked ? "#3b82f6" : "none"}
               />
-              <Text className={`text-sm font-medium ${voteState.isLiked ? "text-blue-600" : "text-gray-600"}`}>
+              <Text
+                className={`text-sm font-medium ${
+                  voteState.isLiked ? "text-blue-600" : "text-gray-600"
+                }`}
+              >
                 {likesCount}
               </Text>
             </Pressable>
@@ -304,7 +341,11 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
                 color={voteState.isDisliked ? "#ef4444" : "#6b7280"}
                 fill={voteState.isDisliked ? "#ef4444" : "none"}
               />
-              <Text className={`text-sm font-medium ${voteState.isDisliked ? "text-red-600" : "text-gray-600"}`}>
+              <Text
+                className={`text-sm font-medium ${
+                  voteState.isDisliked ? "text-red-600" : "text-gray-600"
+                }`}
+              >
                 {dislikesCount}
               </Text>
             </Pressable>
@@ -319,12 +360,10 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
                 className="flex-row items-center gap-2 px-3 py-2 rounded-lg active:bg-gray-100"
               >
                 <Edit size={18} color="#6b7280" />
-                <Text className="text-sm font-medium text-gray-600">
-                  Editar
-                </Text>
+                <Text className="text-sm font-medium text-gray-600">Edit</Text>
               </Pressable>
             )}
-            
+
             {/* Botón Eliminar (solo si es la review del usuario) */}
             {isOwnReview && onDelete && (
               <Pressable
@@ -332,12 +371,10 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
                 className="flex-row items-center gap-2 px-3 py-2 rounded-lg active:bg-gray-100"
               >
                 <Trash2 size={18} color="#ef4444" />
-                <Text className="text-sm font-medium text-red-600">
-                  Eliminar
-                </Text>
+                <Text className="text-sm font-medium text-red-600">Delete</Text>
               </Pressable>
             )}
-            
+
             {/* Botón Responder */}
             {!isOwnReview && (
               <Pressable
@@ -345,9 +382,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
                 className="flex-row items-center gap-2 px-3 py-2 rounded-lg active:bg-gray-100"
               >
                 <MessageCircle size={18} color="#6b7280" />
-                <Text className="text-sm font-medium text-gray-600">
-                  Responder
-                </Text>
+                <Text className="text-sm font-medium text-gray-600">Reply</Text>
               </Pressable>
             )}
           </HStack>
@@ -360,12 +395,20 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
           initialCommentsCount={review.activity?.commentsCount || 0}
           onNavigateToProfile={onNavigateToProfile}
           replyModalSlot={commentModalSlot}
-          onOpenReplyModal={onOpenReplyModal ? (comment) => onOpenReplyModal(comment, review) : undefined}
-          onOpenNewCommentModal={onOpenNewCommentModal ? () => onOpenNewCommentModal(review) : undefined}
+          onOpenReplyModal={
+            onOpenReplyModal
+              ? (comment) => onOpenReplyModal(comment, review)
+              : undefined
+          }
+          onOpenNewCommentModal={
+            onOpenNewCommentModal
+              ? () => onOpenNewCommentModal(review)
+              : undefined
+          }
           highlightCommentId={highlightCommentId}
           autoExpand={autoExpandComments}
           parentCommentId={parentCommentId}
-            registerLayout={registerLayout}
+          registerLayout={registerLayout}
         />
       </VStack>
     </Card>

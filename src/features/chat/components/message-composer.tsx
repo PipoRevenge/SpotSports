@@ -49,7 +49,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, isSend
             disabled={isSending || !text.trim()}
             onPress={handleSend}
           >
-            <ButtonText>{isSending ? '...' : 'Enviar'}</ButtonText>
+            <ButtonText>{isSending ? '...' : 'Send'}</ButtonText>
           </Button>
         </View>
       </View>

@@ -1,39 +1,49 @@
-import { Button, ButtonText } from '@/src/components/ui/button';
-import { FlatList } from '@/src/components/ui/flat-list';
-import { Input, InputField } from '@/src/components/ui/input';
-import { Pressable } from '@/src/components/ui/pressable';
-import { SafeAreaView } from '@/src/components/ui/safe-area-view';
-import { Text } from '@/src/components/ui/text';
-import { View } from '@/src/components/ui/view';
-import type { ChatFilter, ChatListItemView } from '@/src/features/chat';
-import { ChatFilters, ChatList, ChatListItem } from '@/src/features/chat';
-import { UserSearchModal } from '@/src/features/chat/components/user-search-modal';
-import { useChatListView } from '@/src/features/chat/hooks/use-chat-list-view';
-import { useChatUserSearch } from '@/src/features/chat/hooks/use-chat-user-search';
-import { useCreateChat } from '@/src/features/chat/hooks/use-create-chat';
-import { useNotifications } from '@/src/features/notification';
-import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Modal } from 'react-native';
+import { Button, ButtonText } from "@/src/components/ui/button";
+import { FlatList } from "@/src/components/ui/flat-list";
+import { Input, InputField } from "@/src/components/ui/input";
+import { Pressable } from "@/src/components/ui/pressable";
+import { SafeAreaView } from "@/src/components/ui/safe-area-view";
+import { Text } from "@/src/components/ui/text";
+import { View } from "@/src/components/ui/view";
+import type { ChatFilter, ChatListItemView } from "@/src/features/chat";
+import { ChatFilters, ChatList, ChatListItem } from "@/src/features/chat";
+import { UserSearchModal } from "@/src/features/chat/components/user-search-modal";
+import { useChatListView } from "@/src/features/chat/hooks/use-chat-list-view";
+import { useChatUserSearch } from "@/src/features/chat/hooks/use-chat-user-search";
+import { useCreateChat } from "@/src/features/chat/hooks/use-create-chat";
+import { useNotifications } from "@/src/features/notification";
+import { useFocusEffect } from "@react-navigation/native";
+import { useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
+import { Modal } from "react-native";
 
 export default function ChatHome() {
   const router = useRouter();
-  const [filter, setFilter] = useState<ChatFilter>('all');
+  const [filter, setFilter] = useState<ChatFilter>("all");
   const { items, isLoading } = useChatListView(filter);
-  const { createDirectChat, createGroupChat, isLoading: isCreating } = useCreateChat();
+  const {
+    createDirectChat,
+    createGroupChat,
+    isLoading: isCreating,
+  } = useCreateChat();
   const { results, isLoading: isSearching, search } = useChatUserSearch();
-  const { results: groupResults, isLoading: isSearchingGroup, search: searchGroup } = useChatUserSearch();
+  const {
+    results: groupResults,
+    isLoading: isSearchingGroup,
+    search: searchGroup,
+  } = useChatUserSearch();
   const { notifications, markAsRead } = useNotifications();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [term, setTerm] = useState('');
+  const [term, setTerm] = useState("");
 
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
-  const [groupName, setGroupName] = useState('');
-  const [groupDescription, setGroupDescription] = useState('');
-  const [groupTerm, setGroupTerm] = useState('');
-  const [selectedMemberIds, setSelectedMemberIds] = useState<Set<string>>(new Set());
+  const [groupName, setGroupName] = useState("");
+  const [groupDescription, setGroupDescription] = useState("");
+  const [groupTerm, setGroupTerm] = useState("");
+  const [selectedMemberIds, setSelectedMemberIds] = useState<Set<string>>(
+    new Set()
+  );
 
   useEffect(() => {
     search(term);
@@ -46,7 +56,7 @@ export default function ChatHome() {
   useFocusEffect(
     useCallback(() => {
       const unreadChatNotifications = notifications.filter(
-        (n) => n.type === 'CHAT_MESSAGE' && !n.isRead
+        (n) => n.type === "CHAT_MESSAGE" && !n.isRead
       );
       unreadChatNotifications.forEach((n) => markAsRead(n.id));
     }, [notifications, markAsRead])
@@ -56,40 +66,46 @@ export default function ChatHome() {
     router.push(`/chat/${chatId}`);
   };
 
-  const handleAvatarPress = (chatId: string, type: any, participantId?: string) => {
-    if (type === 'group') {
+  const handleAvatarPress = (
+    chatId: string,
+    type: any,
+    participantId?: string
+  ) => {
+    if (type === "group") {
       router.push(`/chat/${chatId}/info`);
       return;
     }
-    if (type === 'direct' && participantId) {
+    if (type === "direct" && participantId) {
       router.push(`/profile/${participantId}`);
     }
   };
 
   const handleSelectUser = async (userId: string) => {
     // If we already have a direct chat with this user, open it
-    const existing = items.find(i => i.type === 'direct' && i.participantId === userId);
+    const existing = items.find(
+      (i) => i.type === "direct" && i.participantId === userId
+    );
     if (existing) {
       setIsModalOpen(false);
-      setTerm('');
+      setTerm("");
       handleOpenChat(existing.id);
       return;
     }
     // Otherwise create a new direct chat (repo already returns existing if it finds one)
     const chat = await createDirectChat(userId);
     setIsModalOpen(false);
-    setTerm('');
+    setTerm("");
     handleOpenChat(chat.id);
   };
 
   const handleSelectExistingChat = (chatId: string) => {
     setIsModalOpen(false);
-    setTerm('');
+    setTerm("");
     handleOpenChat(chatId);
   };
 
   const toggleMember = (userId: string) => {
-    setSelectedMemberIds(prev => {
+    setSelectedMemberIds((prev) => {
       const next = new Set(prev);
       if (next.has(userId)) {
         next.delete(userId);
@@ -103,16 +119,18 @@ export default function ChatHome() {
   const handleCreateGroup = async () => {
     if (!groupName.trim()) return;
     const memberIds = Array.from(selectedMemberIds);
-    const chat = await createGroupChat({ name: groupName.trim(), memberIds, description: groupDescription.trim() || undefined });
+    const chat = await createGroupChat({
+      name: groupName.trim(),
+      memberIds,
+      description: groupDescription.trim() || undefined,
+    });
     setIsGroupModalOpen(false);
-    setGroupName('');
-    setGroupDescription('');
-    setGroupTerm('');
+    setGroupName("");
+    setGroupDescription("");
+    setGroupTerm("");
     setSelectedMemberIds(new Set());
     handleOpenChat(chat.id);
   };
-
-
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -121,11 +139,21 @@ export default function ChatHome() {
           <View className="flex-row items-center justify-between">
             <Text className="text-xl font-semibold text-slate-900">Chats</Text>
             <View className="flex-row space-x-2">
-              <Button action="primary" variant="outline" size="md" onPress={() => setIsGroupModalOpen(true)}>
-                <ButtonText>Nuevo grupo</ButtonText>
+              <Button
+                action="primary"
+                variant="outline"
+                size="md"
+                onPress={() => setIsGroupModalOpen(true)}
+              >
+                <ButtonText>New group</ButtonText>
               </Button>
-              <Button action="primary" variant="solid" size="md" onPress={() => setIsModalOpen(true)}>
-                <ButtonText>Nuevo chat</ButtonText>
+              <Button
+                action="primary"
+                variant="solid"
+                size="md"
+                onPress={() => setIsModalOpen(true)}
+              >
+                <ButtonText>New chat</ButtonText>
               </Button>
             </View>
           </View>
@@ -135,14 +163,18 @@ export default function ChatHome() {
         </View>
         {isLoading ? (
           <View className="py-10 items-center">
-            <Text className="text-slate-500">Cargando chats...</Text>
+            <Text className="text-slate-500">Loading chats...</Text>
           </View>
         ) : (
           <ChatList
             items={items}
             onSelect={handleOpenChat}
             onAvatarPress={handleAvatarPress}
-            renderEmpty={<Text className="p-4 text-slate-500">No hay chats aún. Crea uno nuevo.</Text>}
+            renderEmpty={
+              <Text className="p-4 text-slate-500">
+                No chats yet. Create a new one.
+              </Text>
+            }
           />
         )}
       </View>
@@ -154,25 +186,36 @@ export default function ChatHome() {
         isLoading={isSearching || isCreating}
         onClose={() => setIsModalOpen(false)}
         onSelectUser={handleSelectUser}
-        directChats={items.filter(i => i.type === 'direct') as ChatListItemView[]}
+        directChats={
+          items.filter((i) => i.type === "direct") as ChatListItemView[]
+        }
         onSelectChat={handleSelectExistingChat}
         onAvatarPress={handleAvatarPress}
       />
 
-      <Modal visible={isGroupModalOpen} animationType="slide" onRequestClose={() => setIsGroupModalOpen(false)}>
+      <Modal
+        visible={isGroupModalOpen}
+        animationType="slide"
+        onRequestClose={() => setIsGroupModalOpen(false)}
+      >
         <SafeAreaView className="flex-1 bg-white">
           <View className="px-4 py-3 border-b border-slate-200 flex-row items-center justify-between">
-            <Text className="text-lg font-semibold text-slate-900">Nuevo grupo</Text>
-            <Pressable onPress={() => setIsGroupModalOpen(false)} className="px-3 py-1">
-              <Text className="text-cyan-600 font-semibold">Cerrar</Text>
+            <Text className="text-lg font-semibold text-slate-900">
+              New group
+            </Text>
+            <Pressable
+              onPress={() => setIsGroupModalOpen(false)}
+              className="px-3 py-1"
+            >
+              <Text className="text-cyan-600 font-semibold">Close</Text>
             </Pressable>
           </View>
           <View className="px-4 pt-4 space-y-3">
             <View>
-              <Text className="text-sm text-slate-700 mb-1">Nombre del grupo</Text>
+              <Text className="text-sm text-slate-700 mb-1">Group name</Text>
               <Input>
                 <InputField
-                  placeholder="Ej. Equipo de martes"
+                  placeholder="e.g. Tuesday team"
                   value={groupName}
                   onChangeText={setGroupName}
                   className="text-slate-900"
@@ -180,10 +223,12 @@ export default function ChatHome() {
               </Input>
             </View>
             <View>
-              <Text className="text-sm text-slate-700 mb-1">Descripción (opcional)</Text>
+              <Text className="text-sm text-slate-700 mb-1">
+                Description (optional)
+              </Text>
               <Input>
                 <InputField
-                  placeholder="Plan, horario o reglas"
+                  placeholder="Plan, schedule or rules"
                   value={groupDescription}
                   onChangeText={setGroupDescription}
                   className="text-slate-900"
@@ -191,11 +236,11 @@ export default function ChatHome() {
               </Input>
             </View>
             <View>
-              <Text className="text-sm text-slate-700 mb-1">Añade personas</Text>
+              <Text className="text-sm text-slate-700 mb-1">Add people</Text>
               <Input variant="rounded" size="lg" className="bg-slate-100">
                 <InputField
                   className="text-slate-900"
-                  placeholder="Busca por usuario o nombre"
+                  placeholder="Search by username or name"
                   value={groupTerm}
                   onChangeText={setGroupTerm}
                 />
@@ -204,12 +249,12 @@ export default function ChatHome() {
           </View>
           {isSearchingGroup ? (
             <View className="flex-1 items-center justify-center">
-              <Text className="text-slate-500">Buscando...</Text>
+              <Text className="text-slate-500">Searching...</Text>
             </View>
           ) : (
             <FlatList
               data={groupResults}
-              keyExtractor={item => item.id}
+              keyExtractor={(item) => item.id}
               renderItem={({ item }) => {
                 const selected = selectedMemberIds.has(item.id);
                 return (
@@ -218,9 +263,17 @@ export default function ChatHome() {
                     title={item.userDetails.userName}
                     subtitle={item.userDetails.fullName}
                     avatarUrl={item.userDetails.photoURL}
-                    type={'direct'}
+                    type={"direct"}
                     onPress={() => toggleMember(item.id)}
-                    actionSlot={<Text className={`text-sm font-semibold ${selected ? 'text-cyan-600' : 'text-slate-500'}`}>{selected ? 'Seleccionado' : 'Añadir'}</Text>}
+                    actionSlot={
+                      <Text
+                        className={`text-sm font-semibold ${
+                          selected ? "text-cyan-600" : "text-slate-500"
+                        }`}
+                      >
+                        {selected ? "Selected" : "Add"}
+                      </Text>
+                    }
                   />
                 );
               }}
@@ -234,7 +287,7 @@ export default function ChatHome() {
               isDisabled={!groupName.trim() || isCreating}
               onPress={handleCreateGroup}
             >
-              <ButtonText>Crear grupo</ButtonText>
+              <ButtonText>Create group</ButtonText>
             </Button>
           </View>
         </SafeAreaView>

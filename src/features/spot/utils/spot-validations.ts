@@ -66,11 +66,11 @@ export const spotCreateFormSchema = z.object({
  */
 export const validateSpotName = (name: string): string | null => {
   const result = z.string()
-    .min(3, 'El nombre del spot debe tener al menos 3 caracteres')
-    .max(100, 'El nombre del spot no puede tener más de 100 caracteres')
+    .min(3, 'Spot name must be at least 3 characters long')
+    .max(100, 'Spot name cannot exceed 100 characters')
     .safeParse(name?.trim());
   
-  return result.success ? null : result.error.issues[0]?.message ?? 'Nombre inválido';
+  return result.success ? null : result.error.issues[0]?.message ?? 'Invalid name';
 };
 
 /**
@@ -78,11 +78,11 @@ export const validateSpotName = (name: string): string | null => {
  */
 export const validateSpotDescription = (description: string): string | null => {
   const result = z.string()
-    .min(10, 'La descripción debe tener al menos 10 caracteres')
-    .max(500, 'La descripción no puede tener más de 500 caracteres')
+    .min(10, 'Description must be at least 10 characters long')
+    .max(500, 'Description cannot exceed 500 characters')
     .safeParse(description?.trim());
   
-  return result.success ? null : result.error.issues[0]?.message ?? 'Descripción inválida';
+  return result.success ? null : result.error.issues[0]?.message ?? 'Invalid description';
 };
 
 /**
@@ -90,10 +90,10 @@ export const validateSpotDescription = (description: string): string | null => {
  */
 export const validateAvailableSports = (sports: string[]): string | null => {
   const result = z.array(z.string())
-    .min(1, 'Debe seleccionar al menos un deporte')
+    .min(1, 'At least one sport must be selected')
     .safeParse(sports);
   
-  return result.success ? null : result.error.issues[0]?.message ?? 'Deporte inválido';
+  return result.success ? null : result.error.issues[0]?.message ?? 'Invalid sport';
 };
 
 /**
@@ -101,10 +101,10 @@ export const validateAvailableSports = (sports: string[]): string | null => {
  */
 export const validateMedia = (media: MediaItem[]): string | null => {
   const result = z.array(mediaItemSchema)
-    .min(1, 'Debe añadir al menos una foto o video del spot')
+    .min(1, 'At least one photo or video must be added')
     .safeParse(media);
   
-  return result.success ? null : result.error.issues[0]?.message ?? 'Media inválida';
+  return result.success ? null : result.error.issues[0]?.message ?? 'Invalid media';
 };
 
 /**
@@ -113,11 +113,11 @@ export const validateMedia = (media: MediaItem[]): string | null => {
 export const validateLocation = (location: GeoPoint | null): string | null => {
   const result = geoPointSchema.nullable()
     .refine((val) => val !== null, {
-      message: 'Debe seleccionar una ubicación en el mapa',
+      message: 'Location must be selected on the map',
     })
     .safeParse(location);
   
-  return result.success ? null : result.error.issues[0]?.message ?? 'Ubicación inválida';
+  return result.success ? null : result.error.issues[0]?.message ?? 'Invalid location';
 };
 
 /**
@@ -129,10 +129,10 @@ export const validateContactEmail = (email?: string): string | null => {
   }
   
   const result = z.string()
-    .regex(EMAIL_REGEX, 'El formato del email no es válido')
+    .regex(EMAIL_REGEX, 'Invalid email format')
     .safeParse(email.trim());
   
-  return result.success ? null : result.error.issues[0]?.message ?? 'Email inválido';
+  return result.success ? null : result.error.issues[0]?.message ?? 'Invalid email';
 };
 
 /**
@@ -144,10 +144,10 @@ export const validateContactWebsite = (website?: string): string | null => {
   }
   
   const result = z.string()
-    .regex(URL_REGEX, 'El formato de la URL no es válido')
+    .regex(URL_REGEX, 'Invalid URL format')
     .safeParse(website.trim());
   
-  return result.success ? null : result.error.issues[0]?.message ?? 'URL inválida';
+  return result.success ? null : result.error.issues[0]?.message ?? 'Invalid URL';
 };
 
 /**

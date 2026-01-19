@@ -1,16 +1,24 @@
-import { Avatar, AvatarFallbackText, AvatarImage } from '@/src/components/ui/avatar';
-import { Button, ButtonText } from '@/src/components/ui/button';
-import { HStack } from '@/src/components/ui/hstack';
-import { Icon } from '@/src/components/ui/icon';
-import { Menu, MenuItem, MenuItemLabel } from '@/src/components/ui/menu';
-import { Text } from '@/src/components/ui/text';
-import { View } from '@/src/components/ui/view';
-import { VStack } from '@/src/components/ui/vstack';
-import { Edit, LogOut, MoreVertical, Settings } from 'lucide-react-native';
-import React from 'react';
-import { Pressable, ScrollView } from 'react-native';
-import { FollowStatus, ProfileActionType, ProfileHeaderProps } from '../types/profile-types';
-import { formatProfileDate } from '../utils/profile-date-utils';
+import {
+  Avatar,
+  AvatarFallbackText,
+  AvatarImage,
+} from "@/src/components/ui/avatar";
+import { Button, ButtonText } from "@/src/components/ui/button";
+import { HStack } from "@/src/components/ui/hstack";
+import { Icon } from "@/src/components/ui/icon";
+import { Menu, MenuItem, MenuItemLabel } from "@/src/components/ui/menu";
+import { Text } from "@/src/components/ui/text";
+import { View } from "@/src/components/ui/view";
+import { VStack } from "@/src/components/ui/vstack";
+import { Edit, LogOut, MoreVertical, Settings } from "lucide-react-native";
+import React from "react";
+import { Pressable, ScrollView } from "react-native";
+import {
+  FollowStatus,
+  ProfileActionType,
+  ProfileHeaderProps,
+} from "../types/profile-types";
+import { formatProfileDate } from "../utils/profile-date-utils";
 
 export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   user,
@@ -19,8 +27,9 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   onFollowPress,
   followStatus = FollowStatus.NOT_FOLLOWING,
   isOwn = false,
-  menuOptions
-  ,onFollowersPress, onFollowingPress
+  menuOptions,
+  onFollowersPress,
+  onFollowingPress,
 }) => {
   if (!user) {
     return null;
@@ -42,9 +51,9 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             }}
           >
             {menuOptions.map((option) => (
-                <MenuItem 
-                key={option.key} 
-                textValue={option.label} 
+              <MenuItem
+                key={option.key}
+                textValue={option.label}
                 onPress={option.onPress}
                 disabled={option.disabled}
               >
@@ -68,17 +77,17 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             );
           }}
         >
-            <MenuItem key="edit" textValue="Editar perfil" onPress={onEditPress}>
+          <MenuItem key="edit" textValue="Edit Profile" onPress={onEditPress}>
             <Icon as={Edit} size="sm" className="pr-2" />
-            <MenuItemLabel size="sm">Editar perfil</MenuItemLabel>
+            <MenuItemLabel size="sm">Edit Profile</MenuItemLabel>
           </MenuItem>
-          <MenuItem key="settings" textValue="Configuración">
+          <MenuItem key="settings" textValue="Settings">
             <Icon as={Settings} size="sm" className="pr-2" />
-            <MenuItemLabel size="sm">Configuración</MenuItemLabel>
+            <MenuItemLabel size="sm">Settings</MenuItemLabel>
           </MenuItem>
-          <MenuItem key="logout" textValue="Cerrar sesión">
+          <MenuItem key="logout" textValue="Log Out">
             <Icon as={LogOut} size="sm" className="pr-2" />
-            <MenuItemLabel size="sm">Cerrar sesión</MenuItemLabel>
+            <MenuItemLabel size="sm">Log Out</MenuItemLabel>
           </MenuItem>
         </Menu>
       );
@@ -88,29 +97,29 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       const getFollowButtonText = () => {
         switch (followStatus) {
           case FollowStatus.FOLLOWING:
-            return 'Siguiendo';
+            return "Following";
           case FollowStatus.BLOCKED:
-            return 'Bloqueado';
+            return "Blocked";
           default:
-            return 'Seguir';
+            return "Follow";
         }
       };
 
       const getFollowButtonVariant = () => {
         switch (followStatus) {
           case FollowStatus.FOLLOWING:
-            return 'solid';
+            return "solid";
           case FollowStatus.BLOCKED:
-            return 'outline';
+            return "outline";
           default:
-            return 'solid';
+            return "solid";
         }
       };
 
       return (
-        <Button 
-          variant={getFollowButtonVariant()} 
-          size="sm" 
+        <Button
+          variant={getFollowButtonVariant()}
+          size="sm"
           onPress={onFollowPress}
           disabled={followStatus === FollowStatus.BLOCKED}
         >
@@ -124,66 +133,72 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 
   return (
     <ScrollView className="">
-      
       <View className="justify-end items-end pb-2  top-0 right-0">
         {renderActionButtons()}
       </View>
       {/* Foto de perfil y información básica */}
       <View className="flex-row items-center pb-4">
-            <Avatar size="xl" >
+        <Avatar size="xl">
           {user.userDetails.photoURL ? (
             <AvatarImage source={{ uri: user.userDetails.photoURL }} />
           ) : (
             <AvatarFallbackText>
-              {user.userDetails.fullName || user.userDetails.userName || "Usuario"}
+              {user.userDetails.fullName || user.userDetails.userName || "User"}
             </AvatarFallbackText>
           )}
         </Avatar>
-        
+
         <View className="flex-1">
           <VStack space="xs">
             <HStack space="md" className="items-center p-4">
               <VStack space="xs" className="flex-1">
                 <Text size="lg" className="font-bold">
-                  {user.userDetails.fullName || "Nombre no disponible"}
+                  {user.userDetails.fullName || "Name not available"}
                 </Text>
                 <Text className="text-gray-500">
                   @{user.userDetails.userName || "userName"}
                 </Text>
                 {!isOwn && (
-                  <Text className="text-gray-500">{user.userDetails.email}</Text>
+                  <Text className="text-gray-500">
+                    {user.userDetails.email}
+                  </Text>
                 )}
               </VStack>
               <HStack space="lg">
-              <Pressable onPress={() => onFollowersPress && onFollowersPress()}>
-                <VStack className="items-center">
-                  <Text className="font-bold text-lg">{user.activity.followersCount}</Text>
-                  <Text className="text-gray-500 text-sm">Seguidores</Text>
-                </VStack>
-              </Pressable>
-              <Pressable onPress={() => onFollowingPress && onFollowingPress()}>
-                <VStack className="items-center">
-                  <Text className="font-bold text-lg">{user.activity.followingCount}</Text>
-                  <Text className="text-gray-500 text-sm">Siguiendo</Text>
-                </VStack>
-              </Pressable>
+                <Pressable
+                  onPress={() => onFollowersPress && onFollowersPress()}
+                >
+                  <VStack className="items-center">
+                    <Text className="font-bold text-lg">
+                      {user.activity.followersCount}
+                    </Text>
+                    <Text className="text-gray-500 text-sm">Followers</Text>
+                  </VStack>
+                </Pressable>
+                <Pressable
+                  onPress={() => onFollowingPress && onFollowingPress()}
+                >
+                  <VStack className="items-center">
+                    <Text className="font-bold text-lg">
+                      {user.activity.followingCount}
+                    </Text>
+                    <Text className="text-gray-500 text-sm">Following</Text>
+                  </VStack>
+                </Pressable>
               </HStack>
-              
             </HStack>
           </VStack>
         </View>
-        
       </View>
 
-      
       {/* Biografía */}
       <View className="pb-4">
-        <Text className="text-gray-800 font-medium pb-1">Biografía</Text>
+        <Text className="text-gray-800 font-medium pb-1">Bio</Text>
         {user.userDetails.bio ? (
           <Text className="text-gray-700">{user.userDetails.bio}</Text>
         ) : (
           <Text className="text-gray-500 italic">
-            {isOwn ? 'Agrega una biografía para contarle a otros sobre ti' : 'Sin biografía'}
+            {isOwn ? "Add a bio to tell others about yourself" : "No bio"}
           </Text>
         )}
       </View>
@@ -191,7 +206,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       {/* Información adicional */}
       {isOwn && user.userDetails.phoneNumber && (
         <View className="pb-3">
-          <Text className="text-gray-800 font-medium pb-1">Teléfono</Text>
+          <Text className="text-gray-800 font-medium pb-1">Phone</Text>
           <Text className="text-gray-700">{user.userDetails.phoneNumber}</Text>
         </View>
       )}
@@ -199,25 +214,24 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       {user.userDetails.birthDate && (
         <View className="pb-3">
           <Text className="text-gray-800 font-medium pb-1">
-            {isOwn ? 'Fecha de nacimiento' : 'Edad'}
+            {isOwn ? "Date of birth" : "Age"}
           </Text>
           <Text className="text-gray-700">
-            {isOwn 
+            {isOwn
               ? formatProfileDate(user.userDetails.birthDate)
-              : `${new Date().getFullYear() - user.userDetails.birthDate.getFullYear()} años`
-            }
+              : `${
+                  new Date().getFullYear() -
+                  user.userDetails.birthDate.getFullYear()
+                } years`}
           </Text>
         </View>
       )}
 
       {user.metadata.isVerified && (
         <View className="pt-2">
-          <Text className="text-blue-600 text-sm">✓ Usuario verificado</Text>
+          <Text className="text-blue-600 text-sm">✓ Verified User</Text>
         </View>
       )}
     </ScrollView>
   );
 };
-
-
-

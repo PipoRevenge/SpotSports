@@ -68,9 +68,7 @@ const DefaultCommentHeader: React.FC<{ comment: CommentWithUser }> = ({
 
         <VStack className="flex-1 gap-1">
           <HStack className="items-center gap-2">
-            <Text className="text-sm font-semibold text-gray-900">
-              {comment.userName || "Usuario"}
-            </Text>
+            {comment.userName || "User"}
             <Text className="text-xs text-gray-400">• {commentDate}</Text>
           </HStack>
 
@@ -86,9 +84,9 @@ const DefaultCommentHeader: React.FC<{ comment: CommentWithUser }> = ({
 
       <HStack className="items-center mt-2 pt-2 border-t border-gray-200">
         <Text className="text-xs text-gray-500">
-          Respondiendo a{" "}
+          Replying to{" "}
           <Text className="font-semibold text-blue-600">
-            @{comment.userName || "Usuario"}
+            @{comment.userName || "User"}
           </Text>
         </Text>
       </HStack>
@@ -103,8 +101,8 @@ export const ReplyModal: React.FC<ReplyModalProps> = memo(
     onSubmit,
     parentComment,
     headerSlot,
-    title = "Responder",
-    placeholder = "Escribe tu respuesta...",
+    title = "Reply",
+    placeholder = "Write your reply...",
     isSubmitting = false,
   }) => {
     // Safe area insets handled by SafeAreaView
@@ -206,7 +204,7 @@ export const ReplyModal: React.FC<ReplyModalProps> = memo(
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <ButtonText className="text-white font-semibold">
-                    Publicar
+                    Post
                   </ButtonText>
                 )}
               </Button>
@@ -241,8 +239,8 @@ export const ReplyModal: React.FC<ReplyModalProps> = memo(
                     }`}
                   >
                     {media.length >= 4
-                      ? "Límite de imágenes alcanzado"
-                      : "Añadir fotos o videos (máx. 4)"}
+                      ? "Image limit reached"
+                      : "Add photos or videos (max. 4)"}
                   </Text>
                 </Pressable>
 

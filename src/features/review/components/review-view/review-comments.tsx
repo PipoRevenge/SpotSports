@@ -2,10 +2,19 @@ import { Button, ButtonText } from "@/src/components/ui/button";
 import { HStack } from "@/src/components/ui/hstack";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
-import { useAppAlert } from '@/src/context/app-alert-context';
+import { useAppAlert } from "@/src/context/app-alert-context";
 import { useUser } from "@/src/context/user-context";
-import { CommentCard, CommentWithUser, useComments } from '@/src/features/comment';
-import { ChevronDown, ChevronUp, MessageCircle, Plus } from "lucide-react-native";
+import {
+  CommentCard,
+  CommentWithUser,
+  useComments,
+} from "@/src/features/comment";
+import {
+  ChevronDown,
+  ChevronUp,
+  MessageCircle,
+  Plus,
+} from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 
@@ -27,7 +36,7 @@ export interface ReviewCommentsProps {
   /** Optional parent id of the highlighted comment (used to ensure chain loading) */
   parentCommentId?: string;
   /** Optional layout registration for deep-link precise scrolling */
-  registerLayout?: (id: string, node: any) => void; 
+  registerLayout?: (id: string, node: any) => void;
 }
 
 /**
@@ -59,39 +68,42 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   const { showError, showConfirm } = useAppAlert();
 
   // Use the shared comments hook
-  const { 
-    comments, 
+  const {
+    comments,
     total: totalComments,
-    loading, 
-    error, 
-    hasMore, 
-    loadMore, 
+    loading,
+    error,
+    hasMore,
+    loadMore,
     addReply,
     deleteComment,
     loadReplies,
     repliesMap,
-  } = useComments({ 
+  } = useComments({
     contextId: spotId,
-    sourceType: 'review',
-    sourceId: reviewId, 
+    sourceType: "review",
+    sourceId: reviewId,
     pageSize: 10,
-    autoLoad: true 
+    autoLoad: true,
   });
 
   // Expand and fetch the thread containing the highlighted comment
-  const repliesContainTarget = useCallback((rootId: string) => {
-    if (!highlightCommentId) return false;
-    const traverse = (list: CommentWithUser[]): boolean => {
-      for (const reply of list) {
-        if (reply.id === highlightCommentId) return true;
-        const nested = repliesMap[reply.id]?.comments || [];
-        if (nested.length > 0 && traverse(nested)) return true;
-      }
-      return false;
-    };
-    const firstLevel = repliesMap[rootId]?.comments || [];
-    return traverse(firstLevel);
-  }, [highlightCommentId, repliesMap]);
+  const repliesContainTarget = useCallback(
+    (rootId: string) => {
+      if (!highlightCommentId) return false;
+      const traverse = (list: CommentWithUser[]): boolean => {
+        for (const reply of list) {
+          if (reply.id === highlightCommentId) return true;
+          const nested = repliesMap[reply.id]?.comments || [];
+          if (nested.length > 0 && traverse(nested)) return true;
+        }
+        return false;
+      };
+      const firstLevel = repliesMap[rootId]?.comments || [];
+      return traverse(firstLevel);
+    },
+    [highlightCommentId, repliesMap]
+  );
 
   useEffect(() => {
     if (!highlightCommentId) return;
@@ -103,8 +115,11 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
         setExpandedRoots((prev) => new Set(prev).add(topLevel.id));
         // If the target has children, load them so they're visible
         try {
-          if (topLevel.commentsCount && topLevel.commentsCount > 0) await loadReplies(topLevel.id);
-        } catch (e) {}
+          if (topLevel.commentsCount && topLevel.commentsCount > 0)
+            await loadReplies(topLevel.id);
+        } catch (err) {
+          console.error("Error loading top level replies:", err);
+        }
         return;
       }
 
@@ -123,7 +138,9 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
             if (parentCommentId) await loadReplies(parentCommentId);
             // If highlighted comment itself has children, load them as well
             if (highlightCommentId) {
-              const target = (repliesMap[parentCommentId ?? c.id]?.comments || []).find(r => r.id === highlightCommentId);
+              const target = (
+                repliesMap[parentCommentId ?? c.id]?.comments || []
+              ).find((r) => r.id === highlightCommentId);
               if (!target) {
                 // The highlighted comment might be directly inside c's replies or deeper; just attempt to load its replies
                 await loadReplies(highlightCommentId);
@@ -131,8 +148,8 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                 await loadReplies(highlightCommentId);
               }
             }
-          } catch (e) {
-            // ignore
+          } catch (err) {
+            console.error("Error in focusThread:", err);
           }
           break;
         }
@@ -140,41 +157,66 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
     };
 
     focusThread();
-  }, [highlightCommentId, comments, loadReplies, repliesContainTarget]);
+  }, [
+    highlightCommentId,
+    comments,
+    loadReplies,
+    repliesContainTarget,
+    parentCommentId,
+    repliesMap,
+  ]);
 
   /**
    * Manejar eliminación de comentario
    */
-  const handleDelete = useCallback((commentId: string) => {
-    showConfirm('Eliminar Comentario', '¿Estás seguro de que quieres eliminar este comentario?', 'Eliminar', 'Cancelar')
-      .then(async (confirmed) => {
+  const handleDelete = useCallback(
+    (commentId: string) => {
+      showConfirm(
+        "Delete Comment",
+        "Are you sure you want to delete this comment?",
+        "Delete",
+        "Cancel"
+      ).then(async (confirmed) => {
         if (!confirmed) return;
         try {
           await deleteComment(commentId);
         } catch (err) {
           console.error("Error deleting comment:", err);
-          showError('No se pudo eliminar el comentario', 'Error');
+          showError("Could not delete comment", "Error");
         }
       });
-  }, [deleteComment, showConfirm, showError]);
+    },
+    [deleteComment, showConfirm, showError]
+  );
 
-  const handleReply = useCallback(async (commentId: string, content: string, media?: string[], level?: number) => {
-    try {
-      await addReply(commentId, content, media, level);
-    } catch (error) {
-      console.error('Error adding reply:', error);
-      throw error;
-    }
-  }, [addReply]);
+  const handleReply = useCallback(
+    async (
+      commentId: string,
+      content: string,
+      media?: string[],
+      level?: number
+    ) => {
+      try {
+        await addReply(commentId, content, media, level);
+      } catch (error) {
+        console.error("Error adding reply:", error);
+        throw error;
+      }
+    },
+    [addReply]
+  );
 
-  const handleLoadReplies = useCallback(async (commentId: string) => {
-    try {
-      await loadReplies(commentId);
-    } catch (error) {
-      console.error('Error loading replies:', error);
-      throw error;
-    }
-  }, [loadReplies]);
+  const handleLoadReplies = useCallback(
+    async (commentId: string) => {
+      try {
+        await loadReplies(commentId);
+      } catch (error) {
+        console.error("Error loading replies:", error);
+        throw error;
+      }
+    },
+    [loadReplies]
+  );
 
   const displayCount = totalComments || initialCommentsCount;
 
@@ -182,17 +224,17 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
   if (displayCount === 0 && !isExpanded && !autoExpand) {
     return (
       <Pressable
-          onPress={() => {
-            setIsExpanded(true);
-            if (onOpenNewCommentModal && currentUser) {
-              onOpenNewCommentModal();
-            }
-          }}
+        onPress={() => {
+          setIsExpanded(true);
+          if (onOpenNewCommentModal && currentUser) {
+            onOpenNewCommentModal();
+          }
+        }}
         className="pt-3 py-2 px-3 bg-gray-50 rounded-lg"
       >
         <HStack className="items-center gap-2">
           <MessageCircle size={16} color="#6B7280" />
-          <Text className="text-sm text-gray-600">Añadir comentario</Text>
+          <Text className="text-sm text-gray-600">Add comment</Text>
         </HStack>
       </Pressable>
     );
@@ -210,7 +252,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
             <HStack className="items-center gap-2">
               <MessageCircle size={16} color="#6B7280" />
               <Text className="text-sm text-gray-700 font-medium">
-                {displayCount} {displayCount === 1 ? "comentario" : "comentarios"}
+                {displayCount} {displayCount === 1 ? "comment" : "comments"}
               </Text>
             </HStack>
             {isExpanded ? (
@@ -232,7 +274,9 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
               className="flex-row items-center gap-2 py-3 px-4 bg-blue-50 rounded-xl active:bg-blue-100 border border-blue-100"
             >
               <Plus size={18} color="#3b82f6" />
-              <Text className="text-sm text-blue-600 font-medium">Añadir comentario</Text>
+              <Text className="text-sm text-blue-600 font-medium">
+                Add comment
+              </Text>
             </Pressable>
           )}
 
@@ -242,15 +286,17 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
               <ActivityIndicator color="#3b82f6" />
             </View>
           ) : error ? (
-            <Text className="text-red-600 text-sm text-center py-2">{error}</Text>
+            <Text className="text-red-600 text-sm text-center py-2">
+              {error}
+            </Text>
           ) : comments.length === 0 ? (
             <Text className="text-center text-gray-500 py-4">
-              No hay comentarios aún. ¡Sé el primero en comentar!
+              No comments yet. Be the first to comment!
             </Text>
           ) : (
             <VStack className="gap-1">
               {comments.map((comment) => (
-                <CommentCard 
+                <CommentCard
                   key={comment.id}
                   comment={comment}
                   contextId={spotId}
@@ -269,7 +315,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                   registerLayout={registerLayout}
                 />
               ))}
-              
+
               {/* Botón de cargar más */}
               {hasMore && (
                 <Button
@@ -282,7 +328,7 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
                   {loading ? (
                     <ActivityIndicator size="small" color="#3b82f6" />
                   ) : (
-                    <ButtonText>Cargar más comentarios</ButtonText>
+                    <ButtonText>Load more comments</ButtonText>
                   )}
                 </Button>
               )}
@@ -299,4 +345,3 @@ export const ReviewComments: React.FC<ReviewCommentsProps> = ({
 
 // Re-export CommentWithUser for convenience
 export type { CommentWithUser };
-

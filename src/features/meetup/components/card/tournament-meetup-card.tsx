@@ -1,7 +1,7 @@
 import { Card } from '@/src/components/ui/card';
 import { Pressable } from '@/src/components/ui/pressable';
 import { Text } from '@/src/components/ui/text';
-import { TournamentMeetup } from '@/src/entities/meetup/model';
+import { TournamentMeetup } from '@/src/entities/meetup/model/meetup';
 import { useSportNames } from '@/src/features/sport/hooks/use-sport-names';
 import { useAllSportsMap } from '@/src/hooks/use-sports';
 import React from 'react';

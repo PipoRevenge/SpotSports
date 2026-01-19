@@ -117,7 +117,7 @@ export const EditReviewPage = () => {
             <SafeAreaView className="flex-1 bg-white">
                 <View className="flex-1 justify-center items-center">
                     <ActivityIndicator size="large" color="#0000ff" />
-                    <Text className="pt-4 text-gray-600">Cargando review...</Text>
+                    <Text className="pt-4 text-gray-600">Loading review...</Text>
                 </View>
             </SafeAreaView>
         );
@@ -129,7 +129,7 @@ export const EditReviewPage = () => {
                 <View className="flex-1 justify-center items-center p-6">
                     <Text className="text-red-600 text-lg font-semibold">Error</Text>
                     <Text className="pt-2 text-gray-600 text-center">
-                        {loadError || "No se pudo cargar la review"}
+                        {loadError || "Could not load the review"}
                     </Text>
                     <Button onPress={handleCancel} className="pt-4">
                         <Text>Volver</Text>

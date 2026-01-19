@@ -1,3 +1,4 @@
+import { logRepositoryError, parseFirebaseError } from "@/src/api/repositories/utils/firebase-parsers";
 import { Review, ReviewDetails } from "@/src/entities/review/model/review";
 import { firestore, functions, storage } from "@/src/lib/firebase-config";
 import { ReviewFilters, ReviewSortOptions, shouldApplyCreatedByMe } from '@/src/types/filtering.types';
@@ -71,7 +72,9 @@ export class ReviewRepositoryImpl implements IReviewRepository {
           console.log('[ReviewRepository] Media processing successful. Total URLs:', uploadedMediaUrls.length);
         } catch (uploadError) {
           console.error('[ReviewRepository] Media upload failed:', uploadError);
-          throw new Error(`Failed to upload media files: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
+          const parsed = parseFirebaseError(uploadError);
+          logRepositoryError('review.uploadMedia', { reviewId: reviewId ?? null }, uploadError);
+          throw new Error(parsed.message);
         }
       }
 
@@ -101,7 +104,9 @@ export class ReviewRepositoryImpl implements IReviewRepository {
       return mapFirestoreToReview(reviewId, review);
     } catch (error) {
       console.error('[ReviewRepository] createReview:', error);
-      throw error;
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('review.createReview', { reviewData: { spotId: reviewData?.spotId } }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -215,7 +220,9 @@ export class ReviewRepositoryImpl implements IReviewRepository {
       return paginatedReviews;
     } catch (error) {
       console.error("[ReviewRepository] Error getting reviews by spot:", error);
-      throw new Error("Failed to get reviews");
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('review.getReviewsBySpot', { spotId, limit, offset }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -302,7 +309,9 @@ export class ReviewRepositoryImpl implements IReviewRepository {
       return reviews;
     } catch (error) {
       console.error("[ReviewRepository] Error getting reviews by user:", error);
-      throw new Error("Failed to get user reviews");
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('review.getReviewsByUser', { userId, limit, offset }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -408,7 +417,9 @@ export class ReviewRepositoryImpl implements IReviewRepository {
       return allReviews.slice(offset, offset + limit);
     } catch (error) {
       console.error("[ReviewRepository] Error in getReviews:", error);
-      throw new Error("Failed to get reviews");
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('review.getReviews', { params: { limit, offset, spotId } }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -511,7 +522,9 @@ export class ReviewRepositoryImpl implements IReviewRepository {
       return mapFirestoreToReview(reviewId, review);
     } catch (error) {
       console.error('[ReviewRepository] updateReview:', error);
-      throw error;
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('review.updateReview', { reviewId, spotId, updates }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -525,7 +538,9 @@ export class ReviewRepositoryImpl implements IReviewRepository {
       });
     } catch (error) {
       console.error('[ReviewRepository] deleteReview:', error);
-      throw error;
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('review.deleteReview', { reviewId, spotId }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -538,7 +553,9 @@ export class ReviewRepositoryImpl implements IReviewRepository {
       throw new Error("Like review not yet implemented");
     } catch (error) {
       console.error("[ReviewRepository] Error liking review:", error);
-      throw new Error("Failed to like review");
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('review.likeReview', { reviewId, userId }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -551,7 +568,9 @@ export class ReviewRepositoryImpl implements IReviewRepository {
       throw new Error("Unlike review not yet implemented");
     } catch (error) {
       console.error("[ReviewRepository] Error unliking review:", error);
-      throw new Error("Failed to unlike review");
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('review.unlikeReview', { reviewId, userId }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -568,7 +587,9 @@ export class ReviewRepositoryImpl implements IReviewRepository {
       throw new Error("Report review not yet implemented");
     } catch (error) {
       console.error("[ReviewRepository] Error reporting review:", error);
-      throw new Error("Failed to report review");
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('review.reportReview', { reviewId, userId, reason }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -679,7 +700,9 @@ export class ReviewRepositoryImpl implements IReviewRepository {
       return downloadUrls;
     } catch (error) {
       console.error('[ReviewRepository] Error uploading review media:', error);
-      throw new Error(`Failed to upload media: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('review.createOrUpdate', { reviewId: reviewId ?? null }, error);
+      throw new Error(parsed.message);
     }
   }
 

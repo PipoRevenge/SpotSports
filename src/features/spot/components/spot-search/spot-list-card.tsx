@@ -1,5 +1,5 @@
 import { RatingStars } from "@/src/components/commons/rating/rating-stars";
-import Tag from '@/src/components/commons/tag';
+import Tag from "@/src/components/commons/tag";
 import { Badge, BadgeIcon, BadgeText } from "@/src/components/ui/badge";
 import { Card } from "@/src/components/ui/card";
 import { HStack } from "@/src/components/ui/hstack";
@@ -8,7 +8,7 @@ import { Pressable } from "@/src/components/ui/pressable";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { Spot } from "@/src/entities/spot/model/spot";
-import { useSportsMapByIds } from '@/src/hooks/use-sports';
+import { useSportsMapByIds } from "@/src/hooks/use-sports";
 import { Check } from "lucide-react-native";
 import React from "react";
 
@@ -49,17 +49,16 @@ export const SpotListCard: React.FC<SpotListCardProps> = ({
             {/* Nombre y badges */}
             <VStack className="gap-1">
               <HStack className="items-center gap-2">
-                <Text className="font-semibold text-lg flex-1" numberOfLines={1}>
+                <Text
+                  className="font-semibold text-lg flex-1"
+                  numberOfLines={1}
+                >
                   {spot.details.name}
                 </Text>
                 {spot.metadata.isVerified && (
-                  <Badge
-                    size="sm"
-                    variant="solid"
-                    action="success"
-                  >
+                  <Badge size="sm" variant="solid" action="success">
                     <BadgeIcon as={Check} />
-                    <BadgeText>Verificado</BadgeText>
+                    <BadgeText>Verified</BadgeText>
                   </Badge>
                 )}
               </HStack>
@@ -72,8 +71,12 @@ export const SpotListCard: React.FC<SpotListCardProps> = ({
 
             {/* Rating y distancia */}
             <HStack className="items-center justify-between pt-2">
-              <RatingStars rating={spot.details.overallRating} size="sm" showValue={true} />
-              
+              <RatingStars
+                rating={spot.details.overallRating}
+                size="sm"
+                showValue={true}
+              />
+
               {showDistance && distance !== undefined && (
                 <Text className="text-sm text-typography-500">
                   📍 {distance.toFixed(1)} km
@@ -84,13 +87,22 @@ export const SpotListCard: React.FC<SpotListCardProps> = ({
             {/* Deportes disponibles */}
             {spot.details.availableSports.length > 0 && (
               <HStack className="gap-1 pt-2 flex-wrap">
-                {spot.details.availableSports.slice(0, 3).filter((s): s is string => Boolean(s)).map((sportId) => (
-                  <Tag key={sportId} label={getSportName(sportId) || sportId} color={'#E6F6FF'} />
-                ))}
+                {spot.details.availableSports
+                  .slice(0, 3)
+                  .filter((s): s is string => Boolean(s))
+                  .map((sportId) => (
+                    <Tag
+                      key={sportId}
+                      label={getSportName(sportId) || sportId}
+                      color={"#E6F6FF"}
+                    />
+                  ))}
 
                 {spot.details.availableSports.length > 3 && (
                   <Badge size="sm" variant="outline" action="muted">
-                    <BadgeText>+{spot.details.availableSports.length - 3}</BadgeText>
+                    <BadgeText>
+                      +{spot.details.availableSports.length - 3}
+                    </BadgeText>
                   </Badge>
                 )}
               </HStack>

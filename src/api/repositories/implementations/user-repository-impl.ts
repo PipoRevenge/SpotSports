@@ -19,6 +19,7 @@ import { auth, firestore, functions } from '../../../lib/firebase-config';
 import { uploadFileFromUri } from '../../lib/storage-service';
 import { IUserRepository } from '../interfaces/i-user-repository';
 import { UserFirebase, UserMapper } from '../mappers/user-mapper';
+import { logRepositoryError, parseFirebaseError } from '../utils/firebase-parsers';
 
 export class UserRepositoryImpl implements IUserRepository {
     private readonly USERS_COLLECTION = 'users';
@@ -52,12 +53,12 @@ export class UserRepositoryImpl implements IUserRepository {
     async createUser(userId: string, userData: Partial<UserDetails>): Promise<boolean> {
         try {
             if (!userId) {
-                throw new Error('El ID de usuario es requerido');
+                throw new Error('User ID is required');
             }
 
-            // Validar datos requeridos
+            // Validate required data
             if (!userData.email || !userData.userName) {
-                throw new Error('El email y nombre de usuario son requeridos');
+                throw new Error('Email and username are required');
             }
 
             // Call cloud function to complete profile - REMOVED due to persistent 'unauthenticated' errors
@@ -108,13 +109,9 @@ export class UserRepositoryImpl implements IUserRepository {
             return true;
         } catch (error: any) {
             console.error('Error creating user:', error);
-            
-            // Handle specific errors
-            if (error?.code === 'permission-denied') {
-                throw new Error('No tienes permisos para crear este usuario. Verifica tu sesión.');
-            }
-            
-            throw error;
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('user.createUser', { userId }, error);
+            throw new Error(parsed.message);
         }
     }
 
@@ -174,25 +171,15 @@ export class UserRepositoryImpl implements IUserRepository {
             return UserMapper.fromFirebase(firebaseUser, resolvedId);
         } catch (error: any) {
             console.error('Error getting user:', error, { userIdRaw });
-            
-            // Preservar el mensaje "User not found" para que el contexto pueda hacer retry
+
+            // Preserve 'User not found' so callers can retry/handle specifically
             if (error?.message === 'User not found') {
                 throw error;
             }
-            
-            // Para otros errores de Firestore
-            if (error?.code) {
-                switch (error.code) {
-                    case 'permission-denied':
-                        throw new Error('No tienes permisos para acceder a este usuario.');
-                    case 'unavailable':
-                        throw new Error('El servicio no está disponible. Por favor, intenta más tarde.');
-                    default:
-                        throw new Error('Error al obtener los datos del usuario.');
-                }
-            }
-            
-            throw new Error('No se pudo obtener el usuario');
+
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('user.getUserById', { userIdRaw }, error);
+            throw new Error(parsed.message);
         }
     }
 
@@ -207,7 +194,9 @@ export class UserRepositoryImpl implements IUserRepository {
             return UserMapper.fromFirebase(firebaseUser, docSnap.id);
         } catch (error) {
             console.error('Error getting user by username:', error);
-            throw new Error('Unable to get user by username');
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('user.getUserByUserName', { userName }, error);
+            throw new Error(parsed.message);
         }
     }
 
@@ -347,14 +336,16 @@ export class UserRepositoryImpl implements IUserRepository {
 
             // Convert auth/permission errors into user-friendly messages
             if (error?.message && (error.message.includes('User not authenticated') || error.message.includes('Insufficient permissions'))) {
-                throw new Error('No tienes permisos para ver los spots guardados. Asegúrate de estar autenticado y que sea tu cuenta.');
+                throw new Error('You do not have permission to view saved spots. Ensure you are authenticated and accessing your own account.');
             }
 
             if (error?.code === 'permission-denied') {
-                throw new Error('No tienes permisos para ver los spots guardados.');
+                throw new Error('You do not have permission to view saved spots.');
             }
 
-            throw new Error('Unable to get user saved spots');
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('user.getUserSavedSpots', { userId, category }, error);
+            throw new Error(parsed.message);
         }
     }
 
@@ -383,7 +374,9 @@ export class UserRepositoryImpl implements IUserRepository {
             return { items: users, lastVisible };
         } catch (error) {
             console.error('Error getting followers:', error);
-            throw new Error('Unable to get followers');
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('user.getFollowers', { userId, options }, error);
+            throw new Error(parsed.message);
         }
     }
 
@@ -412,7 +405,9 @@ export class UserRepositoryImpl implements IUserRepository {
             return { items: users, lastVisible };
         } catch (error) {
             console.error('Error getting following:', error);
-            throw new Error('Unable to get following');
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('user.getFollowing', { userId, options }, error);
+            throw new Error(parsed.message);
         }
     }
 
@@ -453,7 +448,9 @@ export class UserRepositoryImpl implements IUserRepository {
             }
         } catch (error) {
             console.error('Error adding spot to categories:', error);
-            throw new Error(error instanceof Error ? error.message : 'Unable to add spot to categories');
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('user.addSpotToCategories', { userId, spotId }, error);
+            throw new Error(parsed.message);
         }
     }
 
@@ -490,7 +487,9 @@ export class UserRepositoryImpl implements IUserRepository {
             }
         } catch (error) {
             console.error('Error removing spot from categories:', error);
-            throw new Error(error instanceof Error ? error.message : 'Unable to remove spot from categories');
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('user.removeSpotFromCategories', { userId, spotId }, error);
+            throw new Error(parsed.message);
         }
     }
 
@@ -536,7 +535,9 @@ export class UserRepositoryImpl implements IUserRepository {
             return { items, lastVisible };
         } catch (error) {
             console.error('Error getting all users:', error);
-            throw new Error('Unable to get users');
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('user.getAllUsers', { options }, error);
+            throw new Error(parsed.message);
         }
     }
 
@@ -568,7 +569,9 @@ export class UserRepositoryImpl implements IUserRepository {
             console.log(`[UserRepository] Updated spot ${spotId} categories:`, newCategories);
         } catch (error) {
             console.error('Error updating spot categories:', error);
-            throw new Error(error instanceof Error ? error.message : 'Unable to update spot categories');
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('user.updateSpotCategories', { userId, spotId }, error);
+            throw new Error(parsed.message);
         }
     }
 
@@ -620,7 +623,9 @@ export class UserRepositoryImpl implements IUserRepository {
             });
         } catch (error) {
             console.error('Error adding favorite sport:', error);
-            throw new Error(error instanceof Error ? error.message : 'Unable to add favorite sport');
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('user.addFavoriteSport', { userId, sportId }, error);
+            throw new Error(parsed.message);
         }
     }
 
@@ -654,7 +659,9 @@ export class UserRepositoryImpl implements IUserRepository {
             });
         } catch (error) {
             console.error('Error removing favorite sport:', error);
-            throw new Error(error instanceof Error ? error.message : 'Unable to remove favorite sport');
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('user.removeFavoriteSport', { userId, sportId }, error);
+            throw new Error(parsed.message);
         }
     }
 
@@ -664,7 +671,9 @@ export class UserRepositoryImpl implements IUserRepository {
             await followUserFn({ targetUserId });
         } catch (error) {
             console.error('Error following user:', error);
-            throw new Error(error instanceof Error ? error.message : 'Unable to follow user');
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('user.followUser', { userId, targetUserId }, error);
+            throw new Error(parsed.message);
         }
     }
 
@@ -674,7 +683,9 @@ export class UserRepositoryImpl implements IUserRepository {
             await unfollowUserFn({ targetUserId });
         } catch (error) {
             console.error('Error unfollowing user:', error);
-            throw new Error(error instanceof Error ? error.message : 'Unable to unfollow user');
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('user.unfollowUser', { userId, targetUserId }, error);
+            throw new Error(parsed.message);
         }
     }
 
@@ -686,7 +697,9 @@ export class UserRepositoryImpl implements IUserRepository {
             return followingDoc.exists();
         } catch (error) {
             console.error('Error checking following status:', error);
-            throw new Error('Unable to check following status');
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('user.isFollowing', { followerId, followedId }, error);
+            throw new Error(parsed.message);
         }
     }
 
@@ -708,41 +721,43 @@ export class UserRepositoryImpl implements IUserRepository {
             if (error?.code) {
                 switch (error.code) {
                     case 'storage/unauthorized':
-                        throw new Error('No tienes permisos para subir esta foto. Verifica tu autenticación.');
+                        throw new Error('You do not have permission to upload this photo. Verify your authentication.');
                     case 'storage/canceled':
-                        throw new Error('La carga de la foto fue cancelada.');
+                        throw new Error('The photo upload was cancelled.');
                     case 'storage/unknown':
-                        throw new Error(`Error desconocido al subir la foto: ${error.message}`);
+                        throw new Error(`Unknown error uploading the photo: ${error.message}`);
                     case 'storage/quota-exceeded':
-                        throw new Error('Se ha excedido el límite de almacenamiento. Contacta al administrador.');
+                        throw new Error('Storage quota exceeded. Please contact the administrator.');
                     case 'storage/invalid-format':
-                        throw new Error('El formato de la imagen no es válido. Usa JPG, PNG o similar.');
+                        throw new Error('The image format is not valid. Use JPG, PNG, or similar.');
                     case 'storage/object-not-found':
-                        throw new Error('No se pudo encontrar el archivo a subir.');
+                        throw new Error('Could not find the file to upload.');
                     default:
                         // Si el error ya tiene un mensaje descriptivo (ej: throw new Error...), lo mantenemos
                         if (error.message && !error.message.startsWith('Firebase Storage:')) {
                             throw error;
                         }
-                        throw new Error('Error al subir la foto de perfil. Por favor, intenta nuevamente.');
+                        throw new Error('Error uploading profile photo. Please try again.');
                 }
             }
             
-            throw error;
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('user.uploadProfilePhoto', { userId, photoUri }, error);
+            throw new Error(parsed.message);
         }
     }
 
     async checkUserNameExists(userName: string, excludeUserId?: string): Promise<boolean> {
         try {
             if (!userName || typeof userName !== 'string') {
-                throw new Error('Se requiere un nombre de usuario válido');
+                throw new Error('A valid username is required');
             }
 
             // Normalizar userName para comparación case-insensitive
             const normalizedUserName = userName.toLowerCase().trim();
             
             if (normalizedUserName.length === 0) {
-                throw new Error('El nombre de usuario no puede estar vacío');
+                throw new Error('Username cannot be empty');
             }
 
             // Crear consulta para buscar usuarios con el mismo userName
@@ -776,27 +791,32 @@ export class UserRepositoryImpl implements IUserRepository {
         } catch (error: any) {
             console.error('Error checking userName existence:', error);
             
-            // Si el error es de validación, relanzarlo
+            // If it's a validation error, rethrow it
             if (error instanceof Error && (
                 error.message.includes('requerido') || 
-                error.message.includes('vacío')
+                error.message.includes('vacío') ||
+                error.message.includes('required') || 
+                error.message.includes('empty')
             )) {
                 throw error;
             }
-            
-            // Manejar errores de Firestore
+
+            // Handle Firestore specific codes first
             if (error?.code) {
                 switch (error.code) {
                     case 'permission-denied':
-                        throw new Error('No tienes permisos para verificar nombres de usuario.');
+                        throw new Error('You do not have permission to verify usernames.');
                     case 'unavailable':
-                        throw new Error('El servicio no está disponible. Por favor, intenta más tarde.');
+                        throw new Error('Service is unavailable. Please try again later.');
                     default:
-                        throw new Error('Error al verificar la disponibilidad del nombre de usuario.');
+                        // fallthrough to parsed message
+                        break;
                 }
             }
-            
-            throw new Error('No se pudo verificar la disponibilidad del nombre de usuario');
+
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('user.checkUserNameExists', { userName, excludeUserId }, error);
+            throw new Error(parsed.message);
         }
     }
 

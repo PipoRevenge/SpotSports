@@ -1,6 +1,16 @@
-import { Checkbox, CheckboxIcon, CheckboxIndicator, CheckboxLabel } from "@/src/components/ui/checkbox";
+import {
+  Checkbox,
+  CheckboxIcon,
+  CheckboxIndicator,
+  CheckboxLabel,
+} from "@/src/components/ui/checkbox";
 import { HStack } from "@/src/components/ui/hstack";
-import { Slider, SliderFilledTrack, SliderThumb, SliderTrack } from "@/src/components/ui/slider";
+import {
+  Slider,
+  SliderFilledTrack,
+  SliderThumb,
+  SliderTrack,
+} from "@/src/components/ui/slider";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { Check } from "lucide-react-native";
@@ -28,7 +38,7 @@ export const DistanceFilter: React.FC<DistanceFilterProps> = ({
 }) => {
   const isEnabled = maxDistance !== undefined;
   const currentDistance = maxDistance ?? DISTANCE_CONFIG.DEFAULT;
-  
+
   // Estado local para mostrar el valor mientras se arrastra
   const [localDistance, setLocalDistance] = useState(currentDistance);
 
@@ -52,14 +62,14 @@ export const DistanceFilter: React.FC<DistanceFilterProps> = ({
           value="distance"
           isChecked={isEnabled}
           onChange={handleToggle}
-          aria-label="Activar filtro de distancia"
+          aria-label="Enable distance filter"
         >
           <CheckboxIndicator>
             <CheckboxIcon as={Check} />
           </CheckboxIndicator>
           <CheckboxLabel>
             <Text className="font-semibold text-typography-900">
-              Distancia máxima
+              Maximum distance
             </Text>
           </CheckboxLabel>
         </Checkbox>

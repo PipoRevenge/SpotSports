@@ -18,6 +18,7 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { ICommentRepository } from '../interfaces/i-comment-repository';
+import { logRepositoryError, parseFirebaseError } from '../utils/firebase-parsers';
 import { voteRepository } from './vote-repository-impl';
 
 /**
@@ -190,7 +191,9 @@ export class CommentRepositoryImpl implements ICommentRepository {
       return { comments, total };
     } catch (error) {
       console.error('[CommentRepository] getCommentsByParent:', error);
-      throw error;
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('comment.getCommentsByParent', { contextId, sourceType, sourceId, page, pageSize }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -229,7 +232,9 @@ export class CommentRepositoryImpl implements ICommentRepository {
       return { comments, total };
     } catch (error) {
       console.error('[CommentRepository] getReplies:', error);
-      throw error;
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('comment.getReplies', { contextId, sourceType, sourceId, commentId, page, pageSize }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -295,7 +300,9 @@ export class CommentRepositoryImpl implements ICommentRepository {
       );
     } catch (error) {
       console.error('[CommentRepository] addComment:', error);
-      throw error;
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('comment.addComment', { contextId, sourceType, sourceId, payload }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -314,7 +321,9 @@ export class CommentRepositoryImpl implements ICommentRepository {
       return mapFirestoreCommentToEntity(snap, contextId, sourceType, sourceId);
     } catch (error) {
       console.error('[CommentRepository] updateComment:', error);
-      throw error;
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('comment.updateComment', { commentId, contextId, sourceType, sourceId, updates }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -334,7 +343,9 @@ export class CommentRepositoryImpl implements ICommentRepository {
       });
     } catch (error) {
       console.error('[CommentRepository] deleteComment:', error);
-      throw error;
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('comment.deleteComment', { commentId, contextId, sourceType, sourceId }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -391,7 +402,9 @@ export class CommentRepositoryImpl implements ICommentRepository {
       return all;
     } catch (error) {
       console.error('[CommentRepository] getCommentsByUser:', error);
-      throw error;
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('comment.getCommentById', { commentId, contextId, sourceType, sourceId }, error);
+      throw new Error(parsed.message);
     }
   }
 

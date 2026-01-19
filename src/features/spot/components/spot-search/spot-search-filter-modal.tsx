@@ -1,19 +1,29 @@
 import { Button, ButtonText } from "@/src/components/ui/button";
 import { Heading } from "@/src/components/ui/heading";
 import { HStack } from "@/src/components/ui/hstack";
-import { Modal, ModalBackdrop, ModalBody, ModalContent, ModalFooter, ModalHeader } from "@/src/components/ui/modal";
+import {
+  Modal,
+  ModalBackdrop,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+} from "@/src/components/ui/modal";
 import { VStack } from "@/src/components/ui/vstack";
 import { SimpleSport as SportSimple } from "@/src/entities/sport/model/sport";
 import { SportSearch } from "@/src/features/sport";
-import { SportFilterCriteria, SpotSearchFilters } from '@/src/features/spot/types/spot-search-types';
+import {
+  SportFilterCriteria,
+  SpotSearchFilters,
+} from "@/src/features/spot/types/spot-search-types";
 import React, { useState } from "react";
 import { ScrollView } from "react-native";
 import {
-    DistanceFilter,
-    RatingFilter,
-    SportFilter,
-    SportSelectedFilter,
-    VerifiedFilter,
+  DistanceFilter,
+  RatingFilter,
+  SportFilter,
+  SportSelectedFilter,
+  VerifiedFilter,
 } from "../spot-filter-components";
 
 interface SpotSearchFilterModalProps {
@@ -53,12 +63,12 @@ export const SpotSearchFilterModal: React.FC<SpotSearchFilterModalProps> = ({
   };
 
   const handleSportSelect = (sport: SportSimple) => {
-    const isSelected = localFilters.sports.some(s => s.id === sport.id);
-    
+    const isSelected = localFilters.sports.some((s) => s.id === sport.id);
+
     if (isSelected) {
       setLocalFilters({
         ...localFilters,
-        sports: localFilters.sports.filter(s => s.id !== sport.id),
+        sports: localFilters.sports.filter((s) => s.id !== sport.id),
       });
     } else {
       setLocalFilters({
@@ -71,14 +81,21 @@ export const SpotSearchFilterModal: React.FC<SpotSearchFilterModalProps> = ({
   const handleRemoveSport = (sportId: string) => {
     setLocalFilters({
       ...localFilters,
-      sports: localFilters.sports.filter(s => s.id !== sportId),
-      sportCriteria: localFilters.sportCriteria.filter(c => c.sportId !== sportId),
+      sports: localFilters.sports.filter((s) => s.id !== sportId),
+      sportCriteria: localFilters.sportCriteria.filter(
+        (c) => c.sportId !== sportId
+      ),
     });
   };
 
-  const handleCriteriaChange = (sportId: string, criteria: Partial<SportFilterCriteria>) => {
-    const existingCriteriaIndex = localFilters.sportCriteria.findIndex(c => c.sportId === sportId);
-    
+  const handleCriteriaChange = (
+    sportId: string,
+    criteria: Partial<SportFilterCriteria>
+  ) => {
+    const existingCriteriaIndex = localFilters.sportCriteria.findIndex(
+      (c) => c.sportId === sportId
+    );
+
     if (existingCriteriaIndex >= 0) {
       // Actualizar criterio existente
       const updatedCriteria = [...localFilters.sportCriteria];
@@ -107,7 +124,7 @@ export const SpotSearchFilterModal: React.FC<SpotSearchFilterModalProps> = ({
       <ModalBackdrop />
       <ModalContent className="max-h-[85%]">
         <ModalHeader>
-          <Heading size="lg">Filtros de búsqueda</Heading>
+          <Heading size="lg">Search filters</Heading>
         </ModalHeader>
 
         <ModalBody>
@@ -161,18 +178,11 @@ export const SpotSearchFilterModal: React.FC<SpotSearchFilterModalProps> = ({
 
         <ModalFooter>
           <HStack space="md" className="w-full">
-            <Button
-              variant="outline"
-              onPress={handleReset}
-              className="flex-1"
-            >
-              <ButtonText>Limpiar</ButtonText>
+            <Button variant="outline" onPress={handleReset} className="flex-1">
+              <ButtonText>Clear</ButtonText>
             </Button>
-            <Button
-              onPress={handleApply}
-              className="flex-1"
-            >
-              <ButtonText>Aplicar</ButtonText>
+            <Button onPress={handleApply} className="flex-1">
+              <ButtonText>Apply</ButtonText>
             </Button>
           </HStack>
         </ModalFooter>

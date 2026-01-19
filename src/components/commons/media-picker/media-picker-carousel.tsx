@@ -8,13 +8,13 @@ import { VideoView, useVideoPlayer } from "expo-video";
 import { Image as ImageIcon, Trash2, Video as VideoIcon, X } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Dimensions,
-  FlatList,
-  Image,
-  Modal,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Dimensions,
+    FlatList,
+    Image,
+    Modal,
+    TouchableOpacity,
+    View
 } from "react-native";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -51,9 +51,9 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
   maxCount = MAX_MEDIA_COUNT,
   minCount = 0,
   required = false,
-  title = "Fotos y Videos",
-  emptyMessage = "No hay archivos multimedia",
-  emptyDescription = "Añade fotos o videos",
+  title = "Photos & Videos",
+  emptyMessage = "No media files",
+  emptyDescription = "Add photos or videos",
   showTitle = true,
   helpText,
   showHelpText = false,
@@ -116,12 +116,12 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
     try {
       const permissionResult = await ExpoImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        showError("Necesitamos acceso a tu galería para seleccionar fotos y videos.", 'Permiso Requerido');
+        showError("We need access to your gallery to select photos and videos.", 'Permission Required');
         return false;
       }
       return true;
       } catch {
-      showError("No se pudo solicitar el permiso");
+      showError("Could not request permission");
       return false;
     }
   };
@@ -133,12 +133,12 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
     try {
       const permissionResult = await ExpoImagePicker.requestCameraPermissionsAsync();
       if (!permissionResult.granted) {
-        showError("Necesitamos acceso a tu cámara para tomar fotos.", 'Permiso Requerido');
+        showError("We need access to your camera to take photos.", 'Permission Required');
         return false;
       }
       return true;
       } catch {
-      showError("No se pudo solicitar el permiso");
+      showError("Could not request permission");
       return false;
     }
   };
@@ -148,7 +148,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
    */
   const pickMedia = async () => {
     if (media.length >= maxCount) {
-      showInfo(`Solo puedes subir un máximo de ${maxCount} archivos.`, 'Límite Alcanzado');
+      showInfo(`You can only upload a maximum of ${maxCount} files.`, 'Limit Reached');
       return;
     }
 
@@ -179,11 +179,11 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
         onMediaChange([...media, ...newMedia]);
 
         if (result.assets.length > remainingSlots) {
-          showInfo(`Solo se añadieron ${remainingSlots} archivos. Límite: ${maxCount}.`, 'Límite Alcanzado');
+          showInfo(`Only ${remainingSlots} files were added. Limit: ${maxCount}.`, 'Limit Reached');
         }
       }
     } catch {
-      showError("No se pudo seleccionar el archivo");
+      showError("Could not select the file");
     } finally {
       setIsLoading(false);
     }
@@ -194,7 +194,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
    */
   const takePhoto = async () => {
     if (media.length >= maxCount) {
-      showInfo(`Solo puedes subir un máximo de ${maxCount} archivos.`, 'Límite Alcanzado');
+      showInfo(`You can only upload a maximum of ${maxCount} files.`, 'Limit Reached');
       return;
     }
 
@@ -220,7 +220,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
         onMediaChange([...media, newMediaItem]);
       }
     } catch {
-      showError("No se pudo tomar la foto");
+      showError("Could not take the photo");
     } finally {
       setIsLoading(false);
     }
@@ -230,7 +230,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
    * Elimina un medio
    */
   const removeMedia = async (index: number) => {
-    const confirmed = await showConfirm('Eliminar Archivo', '¿Estás seguro de que quieres eliminar este archivo?', 'Eliminar', 'Cancelar');
+    const confirmed = await showConfirm('Delete File', 'Are you sure you want to delete this file?', 'Delete', 'Cancel');
     if (!confirmed) return;
     const newMedia = media.filter((_, i) => i !== index);
     onMediaChange(newMedia);
@@ -245,9 +245,9 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
    * Muestra las opciones para añadir medios
    */
   const showMediaOptions = async () => {
-    const choice = await showActionSheet('Añadir Multimedia', 'Selecciona una opción', [
-      { key: 'camera', label: 'Tomar Foto' },
-      { key: 'gallery', label: 'Seleccionar de Galería' },
+    const choice = await showActionSheet('Add Media', 'Select an option', [
+      { key: 'camera', label: 'Take Photo' },
+      { key: 'gallery', label: 'Select from Gallery' },
     ]);
     if (choice === 'camera') return takePhoto();
     if (choice === 'gallery') return pickMedia();
@@ -447,7 +447,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
             <>
               <ButtonIcon as={ImageIcon} className="pr-2" />
               <ButtonText>
-                {media.length === 0 ? "Añadir Archivos" : "Añadir Más"}
+                {media.length === 0 ? "Add Files" : "Add More"}
               </ButtonText>
             </>
           )}
@@ -457,7 +457,7 @@ export const MediaPickerCarousel: React.FC<MediaPickerCarouselProps> = ({
           <Button
             variant="outline"
             onPress={async () => {
-              const confirmed = await showConfirm('Eliminar Todo', '¿Estás seguro de que quieres eliminar todos los archivos?', 'Eliminar', 'Cancelar');
+              const confirmed = await showConfirm('Delete All', 'Are you sure you want to delete all files?', 'Delete', 'Cancel');
               if (!confirmed) return;
               onMediaChange([]);
               setCurrentIndex(0);

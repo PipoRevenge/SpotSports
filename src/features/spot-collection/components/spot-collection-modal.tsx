@@ -50,9 +50,9 @@ export const SpotCollectionModal: React.FC<SpotCollectionModalProps> = ({
       )?.label;
       showSuccess(
         `Spot ${
-          isNowInCategory ? "añadido a" : "eliminado de"
+          isNowInCategory ? "added to" : "removed from"
         } ${categoryLabel}`,
-        isNowInCategory ? "Añadido" : "Eliminado"
+        isNowInCategory ? "Added" : "Removed"
       );
     }
   };
@@ -79,11 +79,9 @@ export const SpotCollectionModal: React.FC<SpotCollectionModalProps> = ({
               className="bg-white rounded-t-3xl p-6"
               style={{ paddingBottom: Math.max(insets.bottom, 24) }}
             >
-              <Text className="text-xl font-bold pb-2">
-                Guardar en colección
-              </Text>
+              <Text className="text-xl font-bold pb-2">Save to collection</Text>
               <Text className="text-gray-600 pb-6">
-                Selecciona donde quieres guardar este spot
+                Select where you want to save this spot
               </Text>
 
               <VStack className="gap-3">
@@ -128,7 +126,7 @@ export const SpotCollectionModal: React.FC<SpotCollectionModalProps> = ({
                 onPress={onClose}
                 className="pt-6 p-4 bg-gray-100 rounded-lg items-center"
               >
-                <Text className="text-gray-700 font-medium">Cancelar</Text>
+                <Text className="text-gray-700 font-medium">Cancel</Text>
               </Pressable>
             </VStack>
           </TouchableOpacity>
@@ -160,13 +158,13 @@ export const showSpotCollectionActionSheet = async (
       const isInCategory = categories.includes(ct.type);
       return `${ct.label}${isInCategory ? " ✓" : ""}`;
     }),
-    "Cancelar",
+    "Cancel",
   ];
 
   if (showActionSheet) {
     const result = await showActionSheet(
-      "Guardar en colección",
-      "Selecciona donde quieres guardar este spot",
+      "Save to collection",
+      "Select where you want to save this spot",
       SPOT_CATEGORIES.map((ct) => ({ key: ct.type, label: ct.label }))
     );
     if (result) {
@@ -181,9 +179,9 @@ export const showSpotCollectionActionSheet = async (
         )?.label;
         showSuccess?.(
           `Spot ${
-            isNowInCategory ? "añadido a" : "eliminado de"
+            isNowInCategory ? "added to" : "removed from"
           } ${categoryLabel}`,
-          isNowInCategory ? "Añadido" : "Eliminado"
+          isNowInCategory ? "Added" : "Removed"
         );
       }
     }
@@ -194,8 +192,8 @@ export const showSpotCollectionActionSheet = async (
     {
       options,
       cancelButtonIndex: options.length - 1,
-      title: "Guardar en colección",
-      message: "Selecciona donde quieres guardar este spot",
+      title: "Save to collection",
+      message: "Select where you want to save this spot",
     },
     async (buttonIndex) => {
       if (buttonIndex < SPOT_CATEGORIES.length) {
@@ -207,9 +205,9 @@ export const showSpotCollectionActionSheet = async (
           const categoryLabel = SPOT_CATEGORIES[buttonIndex].label;
           showSuccess?.(
             `Spot ${
-              isInCategory ? "añadido a" : "eliminado de"
+              isInCategory ? "added to" : "removed from"
             } ${categoryLabel}`,
-            isInCategory ? "Añadido" : "Eliminado"
+            isInCategory ? "Added" : "Removed"
           );
         }
       }

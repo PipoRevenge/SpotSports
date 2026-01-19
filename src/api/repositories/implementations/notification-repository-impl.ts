@@ -1,3 +1,4 @@
+import { AppNotification } from '@/src/features/notification/types/notification';
 import { firestore as db, functions } from '@/src/lib/firebase-config';
 import {
     arrayRemove,
@@ -14,8 +15,7 @@ import {
     writeBatch
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-
-import { AppNotification } from '@/src/features/notification/types/notification';
+import { logRepositoryError, parseFirebaseError } from '../utils/firebase-parsers';
 
 import { INotificationRepository, NotificationPage } from '../interfaces/i-notification-repository';
 
@@ -75,8 +75,9 @@ export class NotificationRepositoryImpl implements INotificationRepository {
       await registerTokenFn({ token });
     } catch (error) {
       console.error('Failed to register push token:', error);
-      // Fallback or re-throw depending on requirements. 
-      // For now, we log but don't crash app flow as this is background task often.
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('notification.registerPushToken', { userId }, error);
+      // Fallback: do not rethrow to avoid breaking background flow
     }
   }
 

@@ -14,23 +14,23 @@ export interface SportMultiSelectorProps {
    * Lista de deportes disponibles
    */
   availableSports: { id: string; name: string }[];
-  
+
   /**
    * IDs de deportes seleccionados
    */
   selectedSportIds: string[];
-  
+
   /**
    * Callback cuando cambian los deportes seleccionados
    */
   onSelectionChange: (sportIds: string[]) => void;
-  
+
   /**
    * Placeholder cuando no hay selección
    * @default "Filtrar por deporte"
    */
   placeholder?: string;
-  
+
   /**
    * Mostrar badge con cantidad seleccionada
    * @default true
@@ -41,7 +41,7 @@ export interface SportMultiSelectorProps {
 /**
  * Componente selector multi-deporte para filtros
  * Permite seleccionar múltiples deportes (OR logic)
- * 
+ *
  * @example
  * ```tsx
  * <SportMultiSelector
@@ -55,7 +55,7 @@ export const SportMultiSelector: React.FC<SportMultiSelectorProps> = ({
   availableSports,
   selectedSportIds,
   onSelectionChange,
-  placeholder = "Filtrar por deporte",
+  placeholder = "Filter by sport",
   showCount = true,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -65,7 +65,7 @@ export const SportMultiSelector: React.FC<SportMultiSelectorProps> = ({
    */
   const toggleSport = (sportId: string) => {
     if (selectedSportIds.includes(sportId)) {
-      onSelectionChange(selectedSportIds.filter(id => id !== sportId));
+      onSelectionChange(selectedSportIds.filter((id) => id !== sportId));
     } else {
       onSelectionChange([...selectedSportIds, sportId]);
     }
@@ -86,13 +86,13 @@ export const SportMultiSelector: React.FC<SportMultiSelectorProps> = ({
     if (selectedSportIds.length === 0) {
       return placeholder;
     }
-    
+
     if (selectedSportIds.length === 1) {
-      const sport = availableSports.find(s => s.id === selectedSportIds[0]);
+      const sport = availableSports.find((s) => s.id === selectedSportIds[0]);
       return sport?.name || placeholder;
     }
-    
-    return `${selectedSportIds.length} deportes`;
+
+    return `${selectedSportIds.length} sports`;
   };
 
   return (
@@ -129,24 +129,21 @@ export const SportMultiSelector: React.FC<SportMultiSelectorProps> = ({
           <View className="border-b border-gray-200 px-4 py-4">
             <HStack className="justify-between items-center pb-4">
               <Text className="text-xl font-bold text-gray-900">
-                Filtrar por deportes
+                Filter by sports
               </Text>
-              <Pressable
-                onPress={() => setIsModalOpen(false)}
-                className="p-2"
-              >
+              <Pressable onPress={() => setIsModalOpen(false)} className="p-2">
                 <X size={24} color="#6b7280" />
               </Pressable>
             </HStack>
-            
+
             {selectedSportIds.length > 0 && (
               <HStack className="items-center gap-2">
                 <Text className="text-sm text-gray-600">
-                  {selectedSportIds.length} seleccionado{selectedSportIds.length > 1 ? 's' : ''}
+                  {selectedSportIds.length} selected
                 </Text>
                 <Pressable onPress={clearAll}>
                   <Text className="text-sm font-semibold text-blue-600">
-                    Limpiar todo
+                    Clear all
                   </Text>
                 </Pressable>
               </HStack>
@@ -158,7 +155,7 @@ export const SportMultiSelector: React.FC<SportMultiSelectorProps> = ({
             <VStack className="gap-2">
               {availableSports.map((sport) => {
                 const isSelected = selectedSportIds.includes(sport.id);
-                
+
                 return (
                   <Pressable
                     key={sport.id}
@@ -179,7 +176,9 @@ export const SportMultiSelector: React.FC<SportMultiSelectorProps> = ({
                       </Text>
                       {isSelected && (
                         <View className="bg-blue-500 rounded-full w-6 h-6 items-center justify-center">
-                          <Text className="text-white text-xs font-bold">✓</Text>
+                          <Text className="text-white text-xs font-bold">
+                            ✓
+                          </Text>
                         </View>
                       )}
                     </HStack>
@@ -196,7 +195,7 @@ export const SportMultiSelector: React.FC<SportMultiSelectorProps> = ({
               className="bg-blue-600 rounded-lg py-3 items-center"
             >
               <Text className="text-white font-semibold text-base">
-                Aplicar filtros
+                Apply filters
               </Text>
             </Pressable>
           </View>

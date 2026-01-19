@@ -54,7 +54,7 @@ export const MapSearchFilterModal: React.FC<MapSearchFilterModalProps> = ({
   title = "Filtros",
   applyButtonText = "Aplicar",
   resetButtonText = "Limpiar",
-  cancelButtonText = "Cancelar",
+  cancelButtonText = "Cancel",
   children,
 }) => {
   const handleApply = () => {

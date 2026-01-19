@@ -83,9 +83,7 @@ export default function ChatConversation() {
         await send({ text: "", senderId: user.id, mediaUrl, mediaType });
       }
     } catch (err) {
-      showError(
-        err instanceof Error ? err.message : "No se pudo adjuntar el archivo"
-      );
+      showError(err instanceof Error ? err.message : "Could not attach file");
     } finally {
       setIsSendingMedia(false);
     }
@@ -93,10 +91,10 @@ export default function ChatConversation() {
 
   const confirmClearChat = async () => {
     const ok = await showConfirm(
-      "Eliminar para mí",
-      "Borra este chat solo en tu dispositivo. No afecta a la otra persona y solo verás mensajes nuevos a partir de ahora.",
-      "Eliminar",
-      "Cancelar"
+      "Delete for me",
+      "Delete this chat only on your device. It does not affect the other person and you will only see new messages from now on.",
+      "Delete",
+      "Cancel"
     );
     if (!ok || !chatId || !user) return;
     try {
@@ -104,14 +102,13 @@ export default function ChatConversation() {
       router.back();
     } catch (err) {
       showError(
-        err instanceof Error ? err.message : "No se pudo eliminar localmente"
+        err instanceof Error ? err.message : "Could not delete locally"
       );
     }
   };
 
-  const viewLabel =
-    chat?.type === "group" ? "Ver info del grupo" : "Ver perfil";
-  const deleteLabel = "Eliminar para mí";
+  const viewLabel = chat?.type === "group" ? "View group info" : "View profile";
+  const deleteLabel = "Delete for me";
 
   // Special label for meetup chats
   const actualViewLabel =
@@ -119,7 +116,7 @@ export default function ChatConversation() {
       chat?.type === "meetup-group" ||
       chat?.type === "meetup") &&
     chat?.meetupId
-      ? "Ver detalles del meetup"
+      ? "View meetup details"
       : viewLabel;
 
   const goToGroupInfoOrProfile = () => {
@@ -157,7 +154,7 @@ export default function ChatConversation() {
   if (isChatLoading) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-white">
-        <Text className="text-slate-500">Cargando chat...</Text>
+        <Text className="text-slate-500">Loading chat...</Text>
       </SafeAreaView>
     );
   }
@@ -165,7 +162,7 @@ export default function ChatConversation() {
   if (!chat) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-white">
-        <Text className="text-slate-500">{error || "Chat no encontrado"}</Text>
+        <Text className="text-slate-500">{error || "Chat not found"}</Text>
       </SafeAreaView>
     );
   }
@@ -200,13 +197,13 @@ export default function ChatConversation() {
           disabled={isClearing}
         >
           <MenuItemLabel size="sm" className="text-red-600">
-            {isClearing ? "Eliminando..." : deleteLabel}
+            {isClearing ? "Deleting..." : deleteLabel}
           </MenuItemLabel>
         </MenuItem>
       </Menu>
       {isMessagesLoading ? (
         <View className="flex-1 items-center justify-center">
-          <Text className="text-slate-500">Cargando mensajes...</Text>
+          <Text className="text-slate-500">Loading messages...</Text>
         </View>
       ) : (
         <KeyboardAvoidingView

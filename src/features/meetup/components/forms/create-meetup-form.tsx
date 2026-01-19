@@ -188,14 +188,14 @@ export const CreateMeetupForm: React.FC<CreateMeetupFormProps> = ({
           onError: (error) => {
             console.error("Error creating meetup:", error);
             setErrors({
-              form: (error as Error)?.message || "Error desconocido",
+              form: (error as Error)?.message || "Unknown error",
             });
           },
         }
       );
     } catch (error) {
       console.error("Error creating meetup flow:", error);
-      setErrors({ form: (error as Error)?.message || "Error desconocido" });
+      setErrors({ form: (error as Error)?.message || "Unknown error" });
     }
   };
 
@@ -261,7 +261,7 @@ export const CreateMeetupForm: React.FC<CreateMeetupFormProps> = ({
             >
               <SelectTrigger>
                 <SelectInput
-                  placeholder="Selecciona un deporte"
+                  placeholder="Select a sport"
                   value={sportOptions.find((s) => s.id === sport)?.name || ""}
                 />
                 <SelectIcon as={ChevronDownIcon} />
@@ -284,8 +284,8 @@ export const CreateMeetupForm: React.FC<CreateMeetupFormProps> = ({
                 <SelectInput
                   placeholder={
                     spotSportsQuery.isLoading
-                      ? "Cargando deportes..."
-                      : "No hay deportes disponibles"
+                      ? "Loading sports..."
+                      : "No sports available"
                   }
                 />
                 <SelectIcon as={ChevronDownIcon} />
@@ -331,14 +331,14 @@ export const CreateMeetupForm: React.FC<CreateMeetupFormProps> = ({
             <TagInput tags={tags} onChange={setTags} />
 
             <Text className="mb-1 font-medium text-gray-700 mt-3">
-              Visibilidad
+              Visibility
             </Text>
             <Select
               selectedValue={visibility}
               onValueChange={(v) => setVisibility(v as any)}
             >
               <SelectTrigger>
-                <SelectInput placeholder="Abrir o cerrar" />
+                <SelectInput placeholder="Open or closed" />
                 <SelectIcon as={ChevronDownIcon} />
               </SelectTrigger>
               <SelectPortal>
@@ -347,8 +347,8 @@ export const CreateMeetupForm: React.FC<CreateMeetupFormProps> = ({
                   <SelectDragIndicatorWrapper>
                     <SelectDragIndicator />
                   </SelectDragIndicatorWrapper>
-                  <SelectItem label="Abierto" value={"OPEN"} />
-                  <SelectItem label="Cerrado" value={"CLOSED"} />
+                  <SelectItem label="Open" value={"OPEN"} />
+                  <SelectItem label="Closed" value={"CLOSED"} />
                 </SelectContent>
               </SelectPortal>
             </Select>
@@ -358,7 +358,7 @@ export const CreateMeetupForm: React.FC<CreateMeetupFormProps> = ({
           {selectedType === MeetupType.ROUTINE ? (
             <View className="mt-4">
               <Text className="mb-1 font-medium text-gray-700">
-                Días de la semana
+                Days of the week
               </Text>
               <HStack className="flex-wrap gap-2">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
@@ -381,7 +381,7 @@ export const CreateMeetupForm: React.FC<CreateMeetupFormProps> = ({
               </HStack>
 
               <View className="mt-3">
-                <Text className="mb-1 font-medium text-gray-700">Hora</Text>
+                <Text className="mb-1 font-medium text-gray-700">Time</Text>
                 <HourPicker value={routineTime} onChange={setRoutineTime} />
                 {errors.time && (
                   <Text className="text-red-500 text-xs mt-1">
@@ -433,7 +433,7 @@ export const CreateMeetupForm: React.FC<CreateMeetupFormProps> = ({
                   />
                 </Input>
                 <Text className="text-xs text-slate-500 mt-1">
-                  Por defecto: {DEFAULT_MEETUP_PARTICIPANT_LIMIT} participantes
+                  Default: {DEFAULT_MEETUP_PARTICIPANT_LIMIT} participants
                 </Text>
                 {errors.participantLimit && (
                   <Text className="text-red-500 text-xs mt-1">

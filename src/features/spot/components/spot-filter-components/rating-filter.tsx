@@ -1,5 +1,10 @@
 import { HStack } from "@/src/components/ui/hstack";
-import { Slider, SliderFilledTrack, SliderThumb, SliderTrack } from "@/src/components/ui/slider";
+import {
+  Slider,
+  SliderFilledTrack,
+  SliderThumb,
+  SliderTrack,
+} from "@/src/components/ui/slider";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import React, { useState } from "react";
@@ -36,7 +41,7 @@ export const RatingFilter: React.FC<RatingFilterProps> = ({
     <VStack space="sm">
       <HStack className="justify-between items-center">
         <Text className="font-semibold text-typography-900">
-          Rating mínimo
+          Minimum rating
         </Text>
         <HStack className="items-center gap-1">
           <Text className="text-primary-600 font-medium">

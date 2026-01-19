@@ -1,19 +1,20 @@
 import { Sport, SportDetails } from '@/src/entities/sport/model/sport';
 import { firestore, functions } from '@/src/lib/firebase-config';
 import {
-    collection,
-    doc,
-    query as firestoreQuery,
-    getDoc,
-    getDocs,
-    orderBy,
-    Timestamp,
-    updateDoc,
-    where
+  collection,
+  doc,
+  query as firestoreQuery,
+  getDoc,
+  getDocs,
+  orderBy,
+  Timestamp,
+  updateDoc,
+  where
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { ISportRepository } from '../interfaces/i-sport-repository';
 import { SportMapper } from '../mappers/sport-mapper';
+import { logRepositoryError, parseFirebaseError } from '../utils/firebase-parsers';
 
 export class SportRepositoryImpl implements ISportRepository {
   private readonly SPORTS_COLLECTION = 'sports';
@@ -29,13 +30,13 @@ export class SportRepositoryImpl implements ISportRepository {
         throw new Error('Ya existe un deporte con este nombre');
       }
 
-      // Validaciones básicas
+      // Basic validations
       if (!sportData.name?.trim()) {
-        throw new Error('El nombre del deporte es requerido');
+        throw new Error('Sport name is required');
       }
 
       if (!sportData.description?.trim()) {
-        throw new Error('La descripción del deporte es requerida');
+        throw new Error('Sport description is required');
       }
 
       const createSportFn = httpsCallable(functions, 'sports-create');
@@ -54,7 +55,9 @@ export class SportRepositoryImpl implements ISportRepository {
       
     } catch (error: any) {
       console.error('Error creating sport:', error);
-      throw new Error(error.message || 'No se pudo crear el deporte');
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('sport.createSport', { name: sportData?.name }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -64,7 +67,7 @@ export class SportRepositoryImpl implements ISportRepository {
   async getSportById(id: string): Promise<Sport | null> {
     try {
       if (!id?.trim()) {
-        throw new Error('ID del deporte es requerido');
+        throw new Error('Sport ID is required');
       }
 
       const sportRef = doc(firestore, this.SPORTS_COLLECTION, id);
@@ -78,7 +81,9 @@ export class SportRepositoryImpl implements ISportRepository {
       
     } catch (error: any) {
       console.error('Error getting sport by ID:', error);
-      throw new Error(error.message || 'No se pudo obtener el deporte');
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('sport.getSportById', { id }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -106,7 +111,9 @@ export class SportRepositoryImpl implements ISportRepository {
       
     } catch (error: any) {
       console.error('Error getting sports by IDs:', error);
-      throw new Error(error.message || 'No se pudieron obtener los deportes');
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('sport.getSportsByIds', { ids }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -124,7 +131,9 @@ export class SportRepositoryImpl implements ISportRepository {
       return sports;
     } catch (error: any) {
       console.error('Error getting all sports:', error);
-      throw new Error(error.message || 'No se pudieron obtener los deportes');
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('sport.getAllSports', {}, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -145,7 +154,9 @@ export class SportRepositoryImpl implements ISportRepository {
       
     } catch (error: any) {
       console.error('Error searching sports:', error);
-      throw new Error(error.message || 'No se pudieron buscar los deportes');
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('sport.searchSportsByName', { query }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -166,7 +177,9 @@ export class SportRepositoryImpl implements ISportRepository {
       
     } catch (error: any) {
       console.error('Error searching sports by category:', error);
-      throw new Error(error.message || 'No se pudieron buscar los deportes por categoría');
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('sport.searchSportsByCategory', { category }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -193,7 +206,9 @@ export class SportRepositoryImpl implements ISportRepository {
       
     } catch (error: any) {
       console.error('Error searching sports with filters:', error);
-      throw new Error(error.message || 'No se pudieron buscar los deportes con filtros');
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('sport.searchSportsWithFilters', { filters }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -214,7 +229,9 @@ export class SportRepositoryImpl implements ISportRepository {
       
     } catch (error: any) {
       console.error('Error getting sports by category:', error);
-      throw new Error(error.message || 'No se pudieron obtener los deportes por categoría');
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('sport.getActiveSportsByCategory', { category }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -224,20 +241,20 @@ export class SportRepositoryImpl implements ISportRepository {
   async updateSport(id: string, sportData: Partial<SportDetails>): Promise<Sport> {
     try {
       if (!id?.trim()) {
-        throw new Error('ID del deporte es requerido');
+        throw new Error('Sport ID is required');
       }
 
       // Verificar si el deporte existe
       const existingSport = await this.getSportById(id);
       if (!existingSport) {
-        throw new Error('Deporte no encontrado');
+        throw new Error('Sport not found');
       }
 
       // Si se está actualizando el nombre, verificar que no exista otro con el mismo nombre
       if (sportData.name && sportData.name !== existingSport.details.name) {
         const nameExists = await this.sportExistsByName(sportData.name, id);
         if (nameExists) {
-          throw new Error('Ya existe un deporte con este nombre');
+          throw new Error('A sport with this name already exists');
         }
       }
 
@@ -275,7 +292,9 @@ export class SportRepositoryImpl implements ISportRepository {
       
     } catch (error: any) {
       console.error('Error updating sport:', error);
-      throw new Error(error.message || 'No se pudo actualizar el deporte');
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('sport.updateSport', { sportId: id, updates: sportData }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -285,14 +304,14 @@ export class SportRepositoryImpl implements ISportRepository {
   async deactivateSport(id: string): Promise<void> {
     try {
       if (!id?.trim()) {
-        throw new Error('ID del deporte es requerido');
+        throw new Error('Sport ID is required');
       }
 
       const sportRef = doc(firestore, this.SPORTS_COLLECTION, id);
       const sportDoc = await getDoc(sportRef);
 
       if (!sportDoc.exists()) {
-        throw new Error('Deporte no encontrado');
+        throw new Error('Sport not found');
       }
 
       await updateDoc(sportRef, {
@@ -301,7 +320,9 @@ export class SportRepositoryImpl implements ISportRepository {
       
     } catch (error: any) {
       console.error('Error deactivating sport:', error);
-      throw new Error(error.message || 'No se pudo desactivar el deporte');
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('sport.deactivateSport', { sportId: id }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -323,7 +344,9 @@ export class SportRepositoryImpl implements ISportRepository {
       
     } catch (error: any) {
       console.error('Error getting sports:', error);
-      throw new Error(error.message || 'No se pudieron obtener los deportes');
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('sport.getActiveSports', {}, error);
+      throw new Error(parsed.message);
     }
   }
 

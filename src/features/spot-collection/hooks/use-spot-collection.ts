@@ -72,7 +72,7 @@ export const useSpotCollection = (spotId?: string) => {
     
     // useAppAlert is initialized at the top of the hook (see above)
     if (!user) {
-      showError("Debes iniciar sesión para guardar spots");
+      showError("You must sign in to save spots");
       return false;
     }
 
@@ -100,7 +100,7 @@ export const useSpotCollection = (spotId?: string) => {
       return true;
     } catch (error) {
       console.error("[useSpotCollection] Error adding to categories:", error);
-      showError("No se pudo guardar el spot");
+      showError("Could not save the spot");
       return false;
     } finally {
       setIsLoading(false);
@@ -118,7 +118,7 @@ export const useSpotCollection = (spotId?: string) => {
     
     // useAppAlert is initialized at the top of the hook (see above)
     if (!user) {
-      showError("Debes iniciar sesión");
+      showError("You must sign in");
       return false;
     }
 
@@ -146,7 +146,7 @@ export const useSpotCollection = (spotId?: string) => {
       return true;
     } catch (error) {
       console.error("[useSpotCollection] Error removing from categories:", error);
-      showError("No se pudo eliminar el spot");
+      showError("Could not delete the spot");
       return false;
     } finally {
       setIsLoading(false);

@@ -36,19 +36,19 @@ export const DiscussionHeader: React.FC<DiscussionHeaderProps> = ({ discussion, 
   const handleDelete = async () => {
     try {
       const confirmed = await showConfirm(
-        'Eliminar discusión',
-        '¿Estás seguro de que quieres eliminar esta discusión? Esta acción no se puede deshacer.',
-        'Eliminar',
-        'Cancelar'
+        'Delete discussion',
+        'Are you sure you want to delete this discussion? This action cannot be undone.',
+        'Delete',
+        'Cancel'
       );
       if (!confirmed) return;
 
       await deleteDiscussion(discussion.id, discussion.details.spotId);
-      showSuccess('Discusión eliminada');
+      showSuccess('Discussion deleted');
       router.back();
     } catch (error) {
       console.error('[DiscussionHeader] delete failed', error);
-      showError('No se pudo eliminar la discusión');
+      showError('Could not delete the discussion');
     }
   };
   

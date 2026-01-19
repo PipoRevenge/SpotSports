@@ -2,38 +2,38 @@ import { userRepository } from "@/src/api/repositories";
 import { MapMarker, MapView } from "@/src/components/commons/map";
 import { Button, ButtonIcon, ButtonText } from "@/src/components/ui/button";
 import {
-  Select,
-  SelectBackdrop,
-  SelectContent,
-  SelectDragIndicator,
-  SelectDragIndicatorWrapper,
-  SelectIcon,
-  SelectInput,
-  SelectItem,
-  SelectPortal,
-  SelectTrigger,
+    Select,
+    SelectBackdrop,
+    SelectContent,
+    SelectDragIndicator,
+    SelectDragIndicatorWrapper,
+    SelectIcon,
+    SelectInput,
+    SelectItem,
+    SelectPortal,
+    SelectTrigger,
 } from "@/src/components/ui/select";
 import { useUser } from "@/src/context/user-context";
 import { Review } from "@/src/entities/review/model/review";
 import {
-  CommentWithUser,
-  ReplyModal,
-  ReviewHeaderForModal,
-  useComments,
+    CommentWithUser,
+    ReplyModal,
+    ReviewHeaderForModal,
+    useComments,
 } from "@/src/features/comment";
 import {
-  DiscussionCard,
-  DiscussionListWithFilters,
-  type DiscussionListWithFiltersControls,
+    DiscussionCard,
+    DiscussionListWithFilters,
+    type DiscussionListWithFiltersControls,
 } from "@/src/features/discussion";
 import {
-  DEFAULT_DISCUSSION_SORT,
-  DISCUSSION_SORT_OPTIONS,
+    DEFAULT_DISCUSSION_SORT,
+    DISCUSSION_SORT_OPTIONS,
 } from "@/src/features/discussion/constants/sort-options";
 import { MeetupList } from "@/src/features/meetup";
 import {
-  DEFAULT_MEETUP_SORT,
-  MEETUP_SORT_OPTIONS,
+    DEFAULT_MEETUP_SORT,
+    MEETUP_SORT_OPTIONS,
 } from "@/src/features/meetup/constants/sort-options";
 import { ReviewList, useReviewDelete } from "@/src/features/review";
 import type { ReviewSortValue } from "@/src/features/review/utils/review-constants";
@@ -47,23 +47,23 @@ import { Icon } from "@components/ui/icon";
 import { SafeAreaView } from "@components/ui/safe-area-view";
 import { Text } from "@components/ui/text";
 import { VStack } from "@components/ui/vstack";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
-  ChevronDown,
-  ChevronUp,
-  Filter,
-  MessageSquare,
-  Target,
+    ChevronDown,
+    ChevronUp,
+    Filter,
+    MessageSquare,
+    Target,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  findNodeHandle,
-  KeyboardAvoidingView,
-  Pressable,
-  ScrollView,
-  UIManager,
-  View,
+    ActivityIndicator,
+    findNodeHandle,
+    KeyboardAvoidingView,
+    Pressable,
+    ScrollView,
+    UIManager,
+    View,
 } from "react-native";
 
 export const SpotPage = () => {
@@ -112,17 +112,29 @@ export const SpotPage = () => {
 
   // Cargar el spot y reviews cuando se monta el componente
   // SIEMPRE con shouldLoadReviews: true para asegurar que las reviews se carguen
-  useEffect(() => {
-    if (spotId) {
-      console.log(
-        "[SpotPage] Mounting with spotId:",
-        spotId,
-        "forcing review load"
-      );
-      // Siempre seleccionar con shouldLoadReviews: true para cargar reviews
-      selectSpot(spotId, true);
-    }
-  }, [spotId, selectSpot]);
+  // Cargar el spot y reviews cuando se monta el componente
+  // Refrescar cuando la pantalla gana foco (ej. al volver de crear review)
+  useFocusEffect(
+    useCallback(() => {
+      // Si tenemos spotId, refrescamos los datos
+      if (spotId) {
+        // selectSpot carga si no estaba cargado o fuerza recarga
+        // Usamos selectSpot con forceLoadReviews=true para asegurar
+        console.log("[SpotPage] Screen focused, refreshing data for:", spotId);
+        selectSpot(spotId, true);
+
+        // También llamamos a refreshAll si ya estaba cargado para actualizar todo
+        // refreshAll(); // selectSpot(true) debería ser suficiente si está bien implementado,
+        // pero refreshAll actualiza también contadores y otras cosas si es necesario.
+        // Verificamos si selectSpot ya hace todo.
+        // Si no, descomentar refreshAll()
+      }
+    }, [spotId, selectSpot])
+  );
+
+  // Efecto inicial mantenido por si mounting necesita lógica específica diferente al focus,
+  // pero useFocusEffect cubre el montaje inicial también.
+  // Dejamos useFocusEffect encargarse de todo.
 
   // Filters controls exposed by MeetupList
   const [meetupFiltersControls, setMeetupFiltersControls] = useState<{
@@ -473,7 +485,7 @@ export const SpotPage = () => {
                     <Text className="pt-2 text-sm text-gray-600">
                       Creado por @
                       {isLoadingCreator
-                        ? "cargando..."
+                        ? "loading..."
                         : creatorUser?.userDetails?.userName ||
                           usersData.get(selectedSpot.metadata?.createdBy)
                             ?.userDetails?.userName ||
@@ -563,7 +575,7 @@ export const SpotPage = () => {
                     <HStack className="flex-row justify-between items-center py-3 border-b border-gray-300">
                       <Text className="text-xl font-bold">Interactions</Text>
                       {/* Edit button visible only to the creator */}
-                      {user?.id === selectedSpot.metadata.createdBy && (
+                      {user?.id === selectedSpot.metadata?.createdBy && (
                         <Button
                           onPress={() => {
                             if (!spotId) return;

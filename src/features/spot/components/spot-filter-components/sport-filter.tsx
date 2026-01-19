@@ -38,23 +38,26 @@ export const SportFilter: React.FC<SportFilterProps> = ({
 }) => {
   console.log("[SportFilter] RENDER");
   console.log("[SportFilter] selectedSports:", JSON.stringify(selectedSports));
-  
+
   return (
     <VStack space="sm">
-      <Text className="font-semibold text-typography-900">Deportes</Text>
+      <Text className="font-semibold text-typography-900">Sports</Text>
       <Text className="text-sm text-typography-500">
-        Selecciona los deportes que te interesan o filtra por categoría
+        Select the sports you are interested in or filter by category
       </Text>
 
       {/* Buscador de deportes - slot injected from app layer */}
       {SportSearchComponent ? (
         <SportSearchComponent
           onSportSelect={(sport) => {
-            console.log("[SportFilter] onSportSelect called with sport:", JSON.stringify(sport));
+            console.log(
+              "[SportFilter] onSportSelect called with sport:",
+              JSON.stringify(sport)
+            );
             onSportSelect(sport);
           }}
           excludeIds={selectedSports.map((s) => s.id)}
-          placeholder="Buscar deportes..."
+          placeholder="Search sports..."
           showAllOnEmpty={false}
           maxResults={5}
           showCategoryFilter={true}

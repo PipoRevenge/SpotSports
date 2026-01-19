@@ -1,11 +1,10 @@
 import { useAppAlert } from "@/src/context/app-alert-context";
-import { useSelectedSpot } from '@/src/context/selected-spot-context';
+import { useSelectedSpot } from "@/src/context/selected-spot-context";
 import { useUser } from "@/src/context/user-context";
 import { useCreateDiscussion } from "@/src/features/discussion";
 import { DiscussionForm } from "@/src/features/discussion/components/discussion-create/discussion-form";
-import { useSpotDetails } from "@/src/features/spot/hooks/use-spot-details";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import { ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -15,9 +14,20 @@ export default function DiscussionCreatePage() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const spotId = params.spotId as string | undefined;
-  const { sportRatings } = useSpotDetails(spotId);
+
+  // Use context instead of local hook to avoid cache collision and reuse data
+  const { bumpDiscussionRefresh, selectSpot, selectedSpot, availableSports } =
+    useSelectedSpot();
+
   const { showSuccess, showError } = useAppAlert();
-  const { bumpDiscussionRefresh } = useSelectedSpot();
+
+  // Ensure spot is selected so we have access to availableSports
+  useEffect(() => {
+    if (spotId && selectedSpot?.id !== spotId) {
+      // Don't need to load reviews for discussion creation
+      selectSpot(spotId, false);
+    }
+  }, [spotId, selectedSpot, selectSpot]);
 
   const handleSubmit = async (payload: {
     title: string;
@@ -55,7 +65,10 @@ export default function DiscussionCreatePage() {
         } catch {
           // ignore if context not available
         }
-        router.replace({ pathname: `/spot/[spotId]/discussion/[discussionId]`, params: { spotId: targetSpotId, discussionId: newDiscussion.id } });
+        router.replace({
+          pathname: `/spot/[spotId]/discussion/[discussionId]`,
+          params: { spotId: targetSpotId, discussionId: newDiscussion.id },
+        });
       }
     } catch {
       showError("Error creating discussion");
@@ -70,12 +83,9 @@ export default function DiscussionCreatePage() {
         showsVerticalScrollIndicator={false}
       >
         <DiscussionForm
-        onSubmit={handleSubmit}
-        isSubmitting={isCreating}
-        spotSports={
-          sportRatings?.map((sr) => ({ id: sr.sportId, name: sr.sportName })) ??
-          []
-        }
+          onSubmit={handleSubmit}
+          isSubmitting={isCreating}
+          spotSports={availableSports}
         />
       </ScrollView>
     </SafeAreaView>

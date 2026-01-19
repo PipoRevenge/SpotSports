@@ -4,12 +4,12 @@ import { Heading } from "@/src/components/ui/heading";
 import { HStack } from "@/src/components/ui/hstack";
 import { Icon } from "@/src/components/ui/icon";
 import {
-  Modal,
-  ModalBackdrop,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalHeader
+    Modal,
+    ModalBackdrop,
+    ModalBody,
+    ModalCloseButton,
+    ModalContent,
+    ModalHeader
 } from "@/src/components/ui/modal";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
@@ -187,7 +187,7 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
             <ModalHeader className="border-b border-gray-400 px-4 py-3">
               <HStack className="items-center justify-between">
                 <Heading size="xl" >
-                  {viewMode === 'select' ? 'Buscar y Seleccionar Deportes' : 'Crear Nuevo Deporte'}
+                  {viewMode === 'select' ? 'Search and Select Sports' : 'Create New Sport'}
                 </Heading>
                 <ModalCloseButton>
                   <Icon as={X} />
@@ -206,7 +206,7 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
                         <SportSearch
                           onSportSelect={handleSportSelect}
                           excludeIds={getSelectedSports()}
-                          placeholder="Buscar deportes en la base de datos..."
+                          placeholder="Search sports in the database..."
                           showAllOnEmpty={true}
                           maxResults={10}
                           showCategoryFilter={true}
@@ -215,11 +215,11 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
                         {/* Lista de deportes seleccionados */}
                         <VStack space="md" className="pt-6 border border-gray-400 rounded-lg p-4 bg-gray-50">
                           <Text className="text-sm text-gray-600 font-medium">
-                            Deportes seleccionados ({selectedCount})
+                            Selected sports ({selectedCount})
                           </Text>
                           {loading ? (
                             <Box className="p-4">
-                              <Text className="text-center text-gray-600">Cargando deportes...</Text>
+                              <Text className="text-center text-gray-600">Loading sports...</Text>
                             </Box>
                           ) : sportOptions.filter(s => s.selected).length > 0 ? (
                             <VStack space="xs">
@@ -246,8 +246,8 @@ export const SportsSelectorModal = forwardRef<SportsSelectorRef, SportsSelectorP
                             <Box className="p-4 bg-white rounded-lg border border-gray-300">
                               <Text className="text-center text-gray-500">
                                 {required 
-                                  ? "Selecciona al menos un deporte para continuar" 
-                                  : "No hay deportes seleccionados"
+                                  ? "Select at least one sport to continue" 
+                                  : "No sports selected"
                                 }
                               </Text>
                             </Box>

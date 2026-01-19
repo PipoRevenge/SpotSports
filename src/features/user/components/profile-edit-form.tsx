@@ -1,26 +1,33 @@
-import { FormContainer } from '@/src/components/commons/forms/form-container';
-import { useImagePicker } from '@/src/components/commons/media-picker/image-picker';
-import { Avatar, AvatarFallbackText, AvatarImage } from '@/src/components/ui/avatar';
-import { Button, ButtonText } from '@/src/components/ui/button';
-import { HStack } from '@/src/components/ui/hstack';
-import { Icon } from '@/src/components/ui/icon';
-import { Input, InputField } from '@/src/components/ui/input';
-import { Text } from '@/src/components/ui/text';
-import { Textarea, TextareaInput } from '@/src/components/ui/textarea';
-import { View } from '@/src/components/ui/view';
-import { VStack } from '@/src/components/ui/vstack';
-import { useAppAlert } from '@/src/context/app-alert-context';
-import { useUser } from '@/src/context/user-context';
-import { Camera } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
-import { TouchableOpacity } from 'react-native';
-import { useUpdateProfile } from '../hooks/use-update-profile';
-import { ProfileEditProps, ProfileUpdateData } from '../types/profile-types';
-import { formatFullName, validateProfileData } from '../utils/profile-validation';
+import { FormContainer } from "@/src/components/commons/forms/form-container";
+import { useImagePicker } from "@/src/components/commons/media-picker/image-picker";
+import {
+  Avatar,
+  AvatarFallbackText,
+  AvatarImage,
+} from "@/src/components/ui/avatar";
+import { Button, ButtonText } from "@/src/components/ui/button";
+import { HStack } from "@/src/components/ui/hstack";
+import { Icon } from "@/src/components/ui/icon";
+import { Input, InputField } from "@/src/components/ui/input";
+import { Text } from "@/src/components/ui/text";
+import { Textarea, TextareaInput } from "@/src/components/ui/textarea";
+import { View } from "@/src/components/ui/view";
+import { VStack } from "@/src/components/ui/vstack";
+import { useAppAlert } from "@/src/context/app-alert-context";
+import { useUser } from "@/src/context/user-context";
+import { Camera } from "lucide-react-native";
+import React, { useEffect, useState } from "react";
+import { TouchableOpacity } from "react-native";
+import { useUpdateProfile } from "../hooks/use-update-profile";
+import { ProfileEditProps, ProfileUpdateData } from "../types/profile-types";
+import {
+  formatFullName,
+  validateProfileData,
+} from "../utils/profile-validation";
 
 export const ProfileEditForm: React.FC<ProfileEditProps> = ({
   onSave,
-  onCancel
+  onCancel,
 }) => {
   const { user } = useUser();
   const { updateProfile, isUpdating, error, clearError } = useUpdateProfile();
@@ -28,10 +35,10 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
 
   // Estados del formulario
   const [formData, setFormData] = useState<ProfileUpdateData>({
-    fullName: '',
-    bio: '',
-    phoneNumber: '',
-    photoURL: ''
+    fullName: "",
+    bio: "",
+    phoneNumber: "",
+    photoURL: "",
   });
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -40,22 +47,22 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
   useEffect(() => {
     if (user) {
       setFormData({
-        fullName: user.userDetails.fullName || '',
-        bio: user.userDetails.bio || '',
-        phoneNumber: user.userDetails.phoneNumber || '',
-        photoURL: user.userDetails.photoURL || ''
+        fullName: user.userDetails.fullName || "",
+        bio: user.userDetails.bio || "",
+        phoneNumber: user.userDetails.phoneNumber || "",
+        photoURL: user.userDetails.photoURL || "",
       });
     }
   }, [user]);
 
   const handleInputChange = (field: keyof ProfileUpdateData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
+    setFormData((prev) => ({ ...prev, [field]: value }));
+
     // Limpiar error específico del campo
     if (formErrors[field]) {
-      setFormErrors(prev => ({ ...prev, [field]: '' }));
+      setFormErrors((prev) => ({ ...prev, [field]: "" }));
     }
-    
+
     // Limpiar error general cuando el usuario empieza a escribir
     if (error) {
       clearError();
@@ -65,7 +72,7 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
   const handlePickImage = async () => {
     const result = await pickImage();
     if (result.uri) {
-      handleInputChange('photoURL', result.uri);
+      handleInputChange("photoURL", result.uri);
     }
   };
 
@@ -76,7 +83,7 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
       fullName: formData.fullName,
       bio: formData.bio,
       phoneNumber: formData.phoneNumber,
-      photoURL: formData.photoURL
+      photoURL: formData.photoURL,
     };
 
     // Validar datos antes de enviar
@@ -85,20 +92,23 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
       // Validation provides a map of field errors
       setFormErrors(validation.errors);
       // Show a generic error if no specific field-level error is present
-      const genericMessage = Object.values(validation.errors)[0] || 'Datos inválidos';
-      showError(genericMessage, 'Error');
+      const genericMessage =
+        Object.values(validation.errors)[0] || "Invalid data";
+      showError(genericMessage, "Error");
       return;
     }
 
     // Formatear el nombre antes de guardar
     const dataToSend = {
       ...editableData,
-      fullName: editableData.fullName ? formatFullName(editableData.fullName) : undefined
+      fullName: editableData.fullName
+        ? formatFullName(editableData.fullName)
+        : undefined,
     };
 
     const success = await updateProfile(dataToSend);
     if (success) {
-      showSuccess('Los cambios se han guardado correctamente', 'Perfil actualizado');
+      showSuccess("Changes saved successfully", "Profile updated");
       onSave?.();
     }
   };
@@ -106,37 +116,42 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
   if (!user) {
     return (
       <View className="flex-1 justify-center items-center">
-        <Text>No se pudo cargar la información del usuario</Text>
+        <Text>Could not load user information</Text>
       </View>
     );
   }
 
   return (
-    <FormContainer title={'Editar perfil'}>
+    <FormContainer title={"Edit profile"}>
       <VStack className="p-4" space="lg">
         {/* Header con foto de perfil */}
         <View className="items-center">
-          <TouchableOpacity onPress={handlePickImage} testID="profile-photo-selector">
+          <TouchableOpacity
+            onPress={handlePickImage}
+            testID="profile-photo-selector"
+          >
             <Avatar size="xl" className="pb-2">
               {formData.photoURL ? (
                 <AvatarImage source={{ uri: formData.photoURL }} />
               ) : (
                 <AvatarFallbackText>
-                  {user.userDetails.fullName || user.userDetails.userName || "Usuario"}
+                  {user.userDetails.fullName ||
+                    user.userDetails.userName ||
+                    "User"}
                 </AvatarFallbackText>
               )}
             </Avatar>
           </TouchableOpacity>
-          <Button 
-            action="primary" 
-            variant="solid" 
-            size="sm" 
-            onPress={handlePickImage} 
-            isDisabled={isUpdating} 
+          <Button
+            action="primary"
+            variant="solid"
+            size="sm"
+            onPress={handlePickImage}
+            isDisabled={isUpdating}
             testID="select-photo-button"
           >
             <Icon as={Camera} className="color-white dark:color-black" />
-            <ButtonText>Cambiar Foto</ButtonText>
+            <ButtonText>Change Photo</ButtonText>
           </Button>
         </View>
 
@@ -144,56 +159,63 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
         <VStack space="md">
           {/* Nombre completo */}
           <View>
-            <Text className="font-medium pb-2">Nombre completo *</Text>
+            <Text className="font-medium pb-2">Full Name *</Text>
             <Input>
               <InputField
                 value={formData.fullName}
-                onChangeText={(value) => handleInputChange('fullName', value)}
-                placeholder="Ingresa tu nombre completo"
+                onChangeText={(value) => handleInputChange("fullName", value)}
+                placeholder="Enter your full name"
               />
             </Input>
             {formErrors.fullName && (
-              <Text className="text-red-500 text-sm pt-1">{formErrors.fullName}</Text>
+              <Text className="text-red-500 text-sm pt-1">
+                {formErrors.fullName}
+              </Text>
             )}
           </View>
 
           {/* Biografía */}
           <View>
-            <Text className="font-medium pb-2">Biografía</Text>
+            <Text className="font-medium pb-2">Bio</Text>
             <Textarea size="lg" className="min-h-24">
               <TextareaInput
                 value={formData.bio}
-                onChangeText={(value) => handleInputChange('bio', value)}
-                placeholder="Cuéntanos sobre ti..."
+                onChangeText={(value) => handleInputChange("bio", value)}
+                placeholder="Tell us about yourself..."
                 multiline
                 numberOfLines={5}
-                style={{ textAlignVertical: 'top' }}
+                style={{ textAlignVertical: "top" }}
               />
             </Textarea>
             <Text className="text-gray-500 text-sm pt-1">
-              {formData.bio?.length || 0}/500 caracteres
+              {formData.bio?.length || 0}/500 characters
             </Text>
             {formErrors.bio && (
-              <Text className="text-red-500 text-sm pt-1">{formErrors.bio}</Text>
+              <Text className="text-red-500 text-sm pt-1">
+                {formErrors.bio}
+              </Text>
             )}
           </View>
 
           {/* Teléfono */}
           <View>
-            <Text className="font-medium pb-2">Teléfono</Text>
+            <Text className="font-medium pb-2">Phone</Text>
             <Input>
               <InputField
                 value={formData.phoneNumber}
-                onChangeText={(value) => handleInputChange('phoneNumber', value)}
-                placeholder="Número de teléfono"
+                onChangeText={(value) =>
+                  handleInputChange("phoneNumber", value)
+                }
+                placeholder="Phone number"
                 keyboardType="phone-pad"
               />
             </Input>
             {formErrors.phoneNumber && (
-              <Text className="text-red-500 text-sm pt-1">{formErrors.phoneNumber}</Text>
+              <Text className="text-red-500 text-sm pt-1">
+                {formErrors.phoneNumber}
+              </Text>
             )}
           </View>
-
         </VStack>
 
         {/* Error general */}
@@ -205,22 +227,16 @@ export const ProfileEditForm: React.FC<ProfileEditProps> = ({
 
         {/* Botones de acción */}
         <HStack className="pt-6" space="md">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="flex-1"
             onPress={() => onCancel?.()}
             disabled={isUpdating}
           >
-            <ButtonText>Cancelar</ButtonText>
+            <ButtonText>Cancel</ButtonText>
           </Button>
-          <Button 
-            className="flex-1"
-            onPress={handleSave}
-            disabled={isUpdating}
-          >
-            <ButtonText>
-              {isUpdating ? 'Guardando...' : 'Guardar cambios'}
-            </ButtonText>
+          <Button className="flex-1" onPress={handleSave} disabled={isUpdating}>
+            <ButtonText>{isUpdating ? "Saving..." : "Save changes"}</ButtonText>
           </Button>
         </HStack>
       </VStack>

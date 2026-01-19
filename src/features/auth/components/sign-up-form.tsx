@@ -113,7 +113,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
         </TouchableOpacity>
         <Button action="primary" variant="solid" size="sm" onPress={handlePickImage} isDisabled={isLoading} testID="select-photo-button">
           <Icon as={Camera} className="color-white dark:color-black" />
-          <ButtonText>Seleccionar Foto</ButtonText>
+          <ButtonText>Select Photo</ButtonText>
         </Button>
       </VStack>
 

@@ -29,13 +29,13 @@ export class MeetupRepositoryImpl implements IMeetupRepository {
   private collectionName = 'meetups';
 
   async createMeetup(meetupData: Omit<Meetup, 'id' | 'createdAt' | 'updatedAt' | 'participants'>): Promise<string> {
-    if (!meetupData.spotId) throw new Error('spotId es requerido');
+    if (!meetupData.spotId) throw new Error('spotId is required');
     console.debug('[MeetupRepo][createMeetup] creating meetup for spot=', meetupData.spotId, 'sport=', (meetupData as any).sport);
 
     // Enforce maximum participant limit
     if ((meetupData as any).type === MeetupType.CASUAL) {
       const limit = (meetupData as any).participantLimit;
-      if (limit && limit > 30) throw new Error('El límite máximo es 30 participantes');
+      if (limit && limit > 30) throw new Error('Maximum participant limit is 30');
     }
 
     // Default participantLimit to global default if not provided for meetups that can have it
@@ -64,7 +64,7 @@ export class MeetupRepositoryImpl implements IMeetupRepository {
     // Enforce max participant limit
     const { DEFAULT_MEETUP_PARTICIPANT_LIMIT } = await import('@/src/entities/meetup/model/meetup');
     if ((data as any).participantLimit && (data as any).participantLimit > DEFAULT_MEETUP_PARTICIPANT_LIMIT) {
-      throw new Error(`El límite máximo es ${DEFAULT_MEETUP_PARTICIPANT_LIMIT} participantes`);
+      throw new Error(`Maximum participant limit is ${DEFAULT_MEETUP_PARTICIPANT_LIMIT}`);
     }
 
     // Call cloud function

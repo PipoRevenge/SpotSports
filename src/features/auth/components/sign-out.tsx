@@ -20,7 +20,7 @@ interface SignOutProps {
 }
 
 export const SignOut: React.FC<SignOutProps> = ({ 
-  triggerText = "Cerrar Sesión",
+  triggerText = "Sign Out",
   variant = "outline",
   size = "md",
   isOpen: isOpenProp,
@@ -90,7 +90,7 @@ export const SignOut: React.FC<SignOutProps> = ({
           <AlertDialogHeader>
             <VStack space="sm">
               <HStack className="justify-between items-center">
-                <Heading size="md">Confirmar Cierre de Sesión</Heading>
+                <Heading size="md">Confirm Sign Out</Heading>
                 <AlertDialogCloseButton>
                   <Icon as={X} size="md" />
                 </AlertDialogCloseButton>
@@ -101,7 +101,7 @@ export const SignOut: React.FC<SignOutProps> = ({
           <AlertDialogBody>
             <VStack space="md">
               <Text size="sm" className="text-typography-600">
-                ¿Estás seguro que deseas cerrar sesión? Tendrás que iniciar sesión nuevamente para acceder a tu cuenta.
+                Are you sure you want to sign out? You will need to sign in again to access your account.
               </Text>
             </VStack>
           </AlertDialogBody>
@@ -115,7 +115,7 @@ export const SignOut: React.FC<SignOutProps> = ({
                 className="flex-1"
                 disabled={isSigningOut}
               >
-                <ButtonText>Cancelar</ButtonText>
+                <ButtonText>Cancel</ButtonText>
               </Button>
               
               <Button
@@ -128,7 +128,7 @@ export const SignOut: React.FC<SignOutProps> = ({
                 <HStack space="xs" className="items-center">
                   <Icon as={LogOut} size="xs" className="text-white" />
                   <ButtonText className="text-white">
-                    {isSigningOut ? 'Cerrando...' : 'Cerrar Sesión'}
+                    {isSigningOut ? 'Signing out...' : 'Sign Out'}
                   </ButtonText>
                 </HStack>
               </Button>

@@ -1,23 +1,21 @@
-import { RatingDifficultySlider } from '@/src/components/commons/rating/rating-difficulty-slider';
-import { RatingStars } from '@/src/components/commons/rating/rating-stars';
-import { Box } from '@/src/components/ui/box';
-import { Button, ButtonIcon } from '@/src/components/ui/button';
+import { RatingDifficultySlider } from "@/src/components/commons/rating/rating-difficulty-slider";
+import { RatingStars } from "@/src/components/commons/rating/rating-stars";
+import { Box } from "@/src/components/ui/box";
+import { Button, ButtonIcon } from "@/src/components/ui/button";
 import {
-    FormControl,
-    FormControlLabel,
-    FormControlLabelText,
-} from '@/src/components/ui/form-control';
-import { HStack } from '@/src/components/ui/hstack';
-import { Text } from '@/src/components/ui/text';
-import { Textarea, TextareaInput } from '@/src/components/ui/textarea';
-import { VStack } from '@/src/components/ui/vstack';
-import { useAppAlert } from '@/src/context/app-alert-context';
-import { numberToDifficulty } from '@/src/types/difficulty';
-import { X } from 'lucide-react-native';
-import React from 'react';
-import {
-    ReviewSportFormData,
-} from '../../types/review-types';
+  FormControl,
+  FormControlLabel,
+  FormControlLabelText,
+} from "@/src/components/ui/form-control";
+import { HStack } from "@/src/components/ui/hstack";
+import { Text } from "@/src/components/ui/text";
+import { Textarea, TextareaInput } from "@/src/components/ui/textarea";
+import { VStack } from "@/src/components/ui/vstack";
+import { useAppAlert } from "@/src/context/app-alert-context";
+import { numberToDifficulty } from "@/src/types/difficulty";
+import { X } from "lucide-react-native";
+import React from "react";
+import { ReviewSportFormData } from "../../types/review-types";
 
 interface SportRatingItemProps {
   sport: ReviewSportFormData;
@@ -61,10 +59,10 @@ export const SportRatingItem: React.FC<SportRatingItemProps> = ({
 
   const handleRemove = async () => {
     const confirmed = await showConfirm(
-      'Eliminar deporte',
-      `¿Estás seguro que quieres eliminar ${sport.name} de la lista?`,
-      'Eliminar',
-      'Cancelar'
+      "Delete sport",
+      `Are you sure you want to delete ${sport.name} from the list?`,
+      "Delete",
+      "Cancel"
     );
     if (!confirmed) return;
     onRemove();
@@ -134,7 +132,7 @@ export const SportRatingItem: React.FC<SportRatingItemProps> = ({
           <Textarea>
             <TextareaInput
               placeholder={`Share your experience with ${sport.name} at this spot...`}
-              value={sport.comment || ''}
+              value={sport.comment || ""}
               onChangeText={handleCommentChange}
               editable={!isLoading}
               numberOfLines={3}

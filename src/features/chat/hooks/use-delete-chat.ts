@@ -12,7 +12,7 @@ export const useDeleteChat = (chatId?: string, userId?: string) => {
     try {
       await chatRepository.deleteChat(chatId, userId);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'No se pudo borrar el chat';
+      const message = err instanceof Error ? err.message : 'Could not delete the chat';
       setError(message);
       throw err;
     } finally {

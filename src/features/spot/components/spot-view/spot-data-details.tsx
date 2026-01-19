@@ -42,7 +42,7 @@ export function SpotDataDetails({
   if (!spot?.details) {
     return (
       <VStack className="w-full flex-1 px-6 pt-6 items-center justify-center">
-        <Text className="text-gray-500">Cargando detalles del spot...</Text>
+        <Text className="text-gray-500">Loading spot details...</Text>
       </VStack>
     );
   }

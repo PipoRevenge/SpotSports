@@ -38,9 +38,9 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   onClose,
   onConfirm,
   initialLocation,
-  title = 'Seleccionar Ubicación',
-  confirmText = 'Confirmar',
-  cancelText = 'Cancelar',
+  title = 'Select Location',
+  confirmText = 'Confirm',
+  cancelText = 'Cancel',
 }) => {
   const mapRef = useRef<MapView>(null);
   // No usar autoRequest, lo haremos manualmente cuando se abra el modal
@@ -172,8 +172,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             {/* Instrucciones */}
             <Text className="text-sm text-gray-600">
               {showLoader
-                ? 'Obteniendo tu ubicación...'
-                : 'Toca en el mapa para seleccionar una ubicación'}
+                ? 'Getting your location...'
+                : 'Tap on the map to select a location'}
             </Text>
 
             {/* Error de permisos */}
@@ -181,7 +181,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               <View className="bg-yellow-50 p-3 rounded-md">
                 <Text className="text-yellow-800 text-sm">{error}</Text>
                   <Text className="text-yellow-700 text-xs pt-1">
-                  Puedes seleccionar una ubicación manualmente en el mapa
+                  You can select a location manually on the map
                 </Text>
               </View>
             )}
@@ -190,8 +190,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             {showLoader ? (
               <View className="h-96 items-center justify-center bg-gray-100 rounded-lg">
                 <ActivityIndicator size="large" color="#007AFF" />
-                  <Text className="pt-4 text-gray-600">Obteniendo tu ubicación...</Text>
-                  <Text className="pt-2 text-xs text-gray-500">Esto puede tardar unos segundos</Text>
+                  <Text className="pt-4 text-gray-600">Getting your location...</Text>
+                  <Text className="pt-2 text-xs text-gray-500">This may take a few seconds</Text>
               </View>
             ) : (
               <View className="h-96 rounded-lg overflow-hidden">
@@ -232,7 +232,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                 >
                   <Locate size={20} color="#007AFF" />
                     <Text className="text-xs text-blue-600 pl-1 font-medium">
-                    Mi ubicación
+                    My location
                   </Text>
                 </Pressable>
               </View>
@@ -246,7 +246,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                   <HStack className="items-center justify-between">
                     <VStack>
                       <Text className="text-sm text-blue-900 font-semibold">
-                        Tu ubicación:
+                        Your location:
                       </Text>
                       <Text className="text-xs text-blue-700 pt-1">
                         Lat: {userLocation.latitude.toFixed(6)}, Lng: {userLocation.longitude.toFixed(6)}
@@ -263,7 +263,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               {selectedLocation && (
                 <View className="bg-red-50 p-3 rounded-md">
                   <Text className="text-sm text-red-900 font-semibold">
-                    Ubicación seleccionada:
+                    Selected location:
                   </Text>
                   <Text className="text-xs text-red-700 pt-1">
                     Lat: {selectedLocation.latitude.toFixed(6)}, Lng: {selectedLocation.longitude.toFixed(6)}

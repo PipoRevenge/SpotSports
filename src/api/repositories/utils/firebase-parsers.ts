@@ -14,8 +14,8 @@ export const parseFirebaseError = (error: unknown): { message: string; code?: st
     
     // Map common Firebase error codes to user-friendly messages
     const errorMessages: Record<string, string> = {
-      'permission-denied': 'No tienes permisos para realizar esta acción',
-      'unauthenticated': 'Debes iniciar sesión para continuar',
+      'permission-denied': 'You do not have permission to perform this action',
+      'unauthenticated': 'You must sign in to continue',
       'not-found': 'El recurso solicitado no existe',
       'already-exists': 'Este recurso ya existe',
       'resource-exhausted': 'Se ha excedido el límite de recursos',
@@ -23,7 +23,7 @@ export const parseFirebaseError = (error: unknown): { message: string; code?: st
       'aborted': 'La operación fue cancelada',
       'out-of-range': 'Valor fuera del rango permitido',
       'unimplemented': 'Esta funcionalidad no está implementada',
-      'internal': 'Error interno del servidor. Por favor, intenta nuevamente',
+      'internal': 'Internal server error. Please try again',
       'unavailable': 'El servicio no está disponible. Verifica tu conexión',
       'data-loss': 'Se perdieron datos durante la operación',
       'invalid-argument': 'Los datos proporcionados no son válidos',
@@ -69,7 +69,7 @@ export const parseFirebaseError = (error: unknown): { message: string; code?: st
   
   console.error('[UnknownError]', error);
   return {
-    message: 'Ocurrió un error inesperado',
+    message: 'An unexpected error occurred',
     details: { error: String(error) },
   };
 };

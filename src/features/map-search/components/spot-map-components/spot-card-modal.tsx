@@ -5,12 +5,12 @@ import { useMediaUrls } from "@/src/hooks";
 import { X } from "lucide-react-native";
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
+    ActivityIndicator,
+    Modal,
+    Pressable,
+    ScrollView,
+    Text,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HStack } from "../../../../components/ui/hstack";
@@ -86,7 +86,7 @@ export const SpotCardModal: React.FC<SpotCardModalProps> = ({
           >
             <ActivityIndicator size="large" color="#3b82f6" />
             <Text className="pt-4 text-gray-600">
-              Cargando detalles del spot...
+              Loading spot details...
             </Text>
           </View>
         </Pressable>

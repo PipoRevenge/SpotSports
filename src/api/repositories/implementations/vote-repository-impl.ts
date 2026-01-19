@@ -2,6 +2,7 @@ import { firestore, functions } from '@/src/lib/firebase-config';
 import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { IVoteRepository } from '../interfaces/i-vote-repository';
+import { logRepositoryError, parseFirebaseError } from '../utils/firebase-parsers';
 
 /**
  * VoteRepository implementation
@@ -25,7 +26,9 @@ export class VoteRepositoryImpl implements IVoteRepository {
       await voteContentFn({ resourcePath, isLike });
     } catch (error) {
       console.error('[VoteRepository] vote:', error);
-      throw error;
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('vote.vote', { resourcePath, userId, isLike }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -38,7 +41,9 @@ export class VoteRepositoryImpl implements IVoteRepository {
       await removeVoteFn({ resourcePath });
     } catch (error) {
       console.error('[VoteRepository] removeVote:', error);
-      throw error;
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('vote.removeVote', { resourcePath, userId }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -53,6 +58,8 @@ export class VoteRepositoryImpl implements IVoteRepository {
       return snap.data().isLike ?? null;
     } catch (error) {
       console.error('[VoteRepository] getUserVote:', error);
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('vote.getUserVote', { resourcePath, userId }, error);
       return null;
     }
   }

@@ -107,22 +107,22 @@ export const MeetupFiltersModal: React.FC<MeetupFiltersModalProps> = ({
     timeOfDay,
   ]);
   const timeOptions: { key: MeetupTimeOfDay; label: string }[] = [
-    { key: "morning", label: "Mañana (05-12h)" },
-    { key: "afternoon", label: "Tarde (12-18h)" },
-    { key: "evening", label: "Noche (18-22h)" },
-    { key: "night", label: "Madrugada (22-05h)" },
+    { key: "morning", label: "Morning (05-12h)" },
+    { key: "afternoon", label: "Afternoon (12-18h)" },
+    { key: "evening", label: "Evening (18-22h)" },
+    { key: "night", label: "Night (22-05h)" },
   ];
 
   const typeOptions: { key: MeetupType; label: string }[] = [
     { key: MeetupType.CASUAL, label: "Casual" },
     { key: MeetupType.ROUTINE, label: "Rutina" },
-    { key: MeetupType.MATCH, label: "Partido" },
-    { key: MeetupType.TOURNAMENT, label: "Torneo" },
+    { key: MeetupType.MATCH, label: "Match" },
+    { key: MeetupType.TOURNAMENT, label: "Tournament" },
   ];
 
   const visibilityOptions: { key: MeetupVisibility; label: string }[] = [
-    { key: MeetupVisibility.OPEN, label: "Abiertas" },
-    { key: MeetupVisibility.CLOSED, label: "Cerradas" },
+    { key: MeetupVisibility.OPEN, label: "Open" },
+    { key: MeetupVisibility.CLOSED, label: "Closed" },
   ];
 
   return (
@@ -130,14 +130,14 @@ export const MeetupFiltersModal: React.FC<MeetupFiltersModalProps> = ({
       <ModalBackdrop />
       <ModalContent>
         <ModalHeader>
-          <Text className="text-lg font-semibold text-gray-900">Filtros</Text>
+          <Text className="text-lg font-semibold text-gray-900">Filters</Text>
           <Button
             onPress={onClose}
             variant="outline"
             size="sm"
             className="px-2"
           >
-            <ButtonText className="text-blue-600">Cerrar</ButtonText>
+            <ButtonText className="text-blue-600">Close</ButtonText>
           </Button>
         </ModalHeader>
 
@@ -145,7 +145,7 @@ export const MeetupFiltersModal: React.FC<MeetupFiltersModalProps> = ({
           <View className="gap-4">
             <View>
               <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Visibilidad
+                Visibility
               </Text>
               <Select
                 selectedValue={localVisibility}
@@ -155,7 +155,7 @@ export const MeetupFiltersModal: React.FC<MeetupFiltersModalProps> = ({
               >
                 <SelectTrigger>
                   <SelectInput
-                    placeholder="Todas (abiertas y cerradas)"
+                    placeholder="All (open and closed)"
                     value={
                       localVisibility
                         ? visibilityOptions.find(
@@ -186,7 +186,7 @@ export const MeetupFiltersModal: React.FC<MeetupFiltersModalProps> = ({
 
             <View>
               <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Tipo de quedada
+                Meetup type
               </Text>
               <Select
                 selectedValue={localType}
@@ -196,7 +196,7 @@ export const MeetupFiltersModal: React.FC<MeetupFiltersModalProps> = ({
               >
                 <SelectTrigger>
                   <SelectInput
-                    placeholder="Todas las quedadas"
+                    placeholder="All meetups"
                     value={
                       localType
                         ? typeOptions.find((o) => o.key === localType)?.label
@@ -225,7 +225,7 @@ export const MeetupFiltersModal: React.FC<MeetupFiltersModalProps> = ({
 
             <View>
               <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Horario
+                Schedule
               </Text>
               <Select
                 selectedValue={localTimeOfDay}
@@ -235,7 +235,7 @@ export const MeetupFiltersModal: React.FC<MeetupFiltersModalProps> = ({
               >
                 <SelectTrigger>
                   <SelectInput
-                    placeholder="Todos los horarios"
+                    placeholder="All times"
                     value={
                       localTimeOfDay
                         ? timeOptions.find((o) => o.key === localTimeOfDay)
@@ -265,7 +265,7 @@ export const MeetupFiltersModal: React.FC<MeetupFiltersModalProps> = ({
 
             <View>
               <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Deportes del spot
+                Spot sports
               </Text>
               <View className="flex-row flex-wrap gap-2">
                 {(spotSports ?? []).map((sport) => (
@@ -303,38 +303,38 @@ export const MeetupFiltersModal: React.FC<MeetupFiltersModalProps> = ({
                 {!spotSports?.length && (
                   <View className="justify-center">
                     <Text className="text-gray-500">
-                      No hay deportes configurados para este spot.
+                      No sports configured for this spot.
                     </Text>
                   </View>
                 )}
               </View>
               <View className="mt-2">
                 <Text className="text-xs text-gray-500">
-                  * Los cambios solo se aplicarán al pulsar{" "}
-                  <Text className="font-medium">Aplicar</Text>
+                  * Changes will only be applied when clicking{" "}
+                  <Text className="font-medium">Apply</Text>
                 </Text>
               </View>
             </View>
 
             <View>
               <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Fecha de celebración
+                Event date
               </Text>
               <View className="flex-row gap-3">
                 <View className="flex-1">
-                  <Text className="text-xs text-gray-600 mb-1">Desde</Text>
+                  <Text className="text-xs text-gray-600 mb-1">From</Text>
                   <DatePickerComponent
                     value={localDateFrom}
                     onChange={setLocalDateFrom}
-                    placeholder="Selecciona fecha inicial"
+                    placeholder="Select start date"
                   />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-xs text-gray-600 mb-1">Hasta</Text>
+                  <Text className="text-xs text-gray-600 mb-1">To</Text>
                   <DatePickerComponent
                     value={localDateTo}
                     onChange={setLocalDateTo}
-                    placeholder="Selecciona fecha final"
+                    placeholder="Select end date"
                   />
                 </View>
               </View>
@@ -352,9 +352,7 @@ export const MeetupFiltersModal: React.FC<MeetupFiltersModalProps> = ({
               }}
               className="px-4 py-2 rounded-md border border-gray-300"
             >
-              <Text className="text-sm font-medium text-gray-700">
-                Cancelar
-              </Text>
+              <Text className="text-sm font-medium text-gray-700">Cancel</Text>
             </Pressable>
 
             <Pressable
@@ -380,11 +378,11 @@ export const MeetupFiltersModal: React.FC<MeetupFiltersModalProps> = ({
                 };
 
                 onApply(applied);
-                showSuccess("Filtros limpiados");
+                showSuccess("Filters cleared");
               }}
               className="px-4 py-2 rounded-md border border-gray-300"
             >
-              <Text className="text-sm font-medium text-gray-700">Limpiar</Text>
+              <Text className="text-sm font-medium text-gray-700">Clear</Text>
             </Pressable>
 
             <Pressable
@@ -405,12 +403,12 @@ export const MeetupFiltersModal: React.FC<MeetupFiltersModalProps> = ({
                   applied
                 );
                 onApply(applied);
-                showSuccess("Filtros aplicados");
+                showSuccess("Filters applied");
                 onClose();
               }}
               className="px-4 py-2 rounded-md bg-blue-600"
             >
-              <Text className="text-sm font-semibold text-white">Aplicar</Text>
+              <Text className="text-sm font-semibold text-white">Apply</Text>
             </Pressable>
           </View>
         </ModalFooter>

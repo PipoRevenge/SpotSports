@@ -7,14 +7,14 @@ import { AppNotification } from "@/src/features/notification/types/notification"
 import { formatDate } from "@/src/utils/date-utils";
 import { useRouter } from "expo-router";
 import {
-  Bell,
-  Calendar,
-  Heart,
-  MapPin,
-  MessageCircle,
-  MessageSquare,
-  Star,
-  UserPlus,
+    Bell,
+    Calendar,
+    Heart,
+    MapPin,
+    MessageCircle,
+    MessageSquare,
+    Star,
+    UserPlus,
 } from "lucide-react-native";
 import React from "react";
 

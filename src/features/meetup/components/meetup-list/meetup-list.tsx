@@ -75,7 +75,7 @@ export const MeetupList: React.FC<MeetupListProps> = ({
   const [sort, setSort] = React.useState<MeetupSortOptions>({
     field: DEFAULT_MEETUP_SORT,
   });
-  const [showOnlyMine, setShowOnlyMine] = React.useState(false);
+
   const [typeFilter, setTypeFilter] = React.useState<MeetupType | undefined>(
     undefined
   );
@@ -182,12 +182,12 @@ export const MeetupList: React.FC<MeetupListProps> = ({
       if (!user?.id) return router.push("/auth/sign-in");
 
       const confirmed = await showConfirm(
-        isOrganizer ? "Salir y eliminar meetup" : "Salir del meetup",
+        isOrganizer ? "Leave and delete meetup" : "Leave meetup",
         isOrganizer
-          ? "Eres el organizador. Al salir se eliminará el meetup y su chat asociados. ¿Deseas continuar?"
-          : "¿Seguro que quieres salir del meetup?",
-        isOrganizer ? "Eliminar y salir" : "Salir",
-        "Cancelar"
+          ? "You are the organizer. Leaving will delete the meetup and its associated chat. Do you want to continue?"
+          : "Are you sure you want to leave the meetup?",
+        isOrganizer ? "Delete and leave" : "Leave",
+        "Cancel"
       );
 
       if (!confirmed) return;

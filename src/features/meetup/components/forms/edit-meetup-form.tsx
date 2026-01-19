@@ -103,10 +103,10 @@ export const EditMeetupForm: React.FC<EditMeetupFormProps> = ({
         data: payload,
         requesterId: user.id,
       });
-      showSuccess("Información actualizada");
+      showSuccess("Information updated");
       onSuccess();
     } catch (err) {
-      showError((err as Error).message || "Error al actualizar");
+      showError((err as Error).message || "Error updating");
     }
   };
 
@@ -129,10 +129,10 @@ export const EditMeetupForm: React.FC<EditMeetupFormProps> = ({
           requesterId: user.id,
         });
       }
-      showSuccess("Programación actualizada");
+      showSuccess("Schedule updated");
       onSuccess();
     } catch (err) {
-      showError((err as Error).message || "Error al actualizar programación");
+      showError((err as Error).message || "Error updating schedule");
     }
   };
 
@@ -141,23 +141,23 @@ export const EditMeetupForm: React.FC<EditMeetupFormProps> = ({
       {/* General Info Card */}
       <Card className="p-4 bg-white rounded-xl shadow-sm border border-slate-100">
         <Text className="text-lg font-semibold text-slate-900 mb-4">
-          Información General
+          General Information
         </Text>
         <VStack space="md">
           <VStack space="xs">
-            <Text className="text-sm font-medium text-slate-700">Título</Text>
+            <Text className="text-sm font-medium text-slate-700">Title</Text>
             <Input size="md" className="bg-slate-50 border-slate-200">
               <InputField
                 value={title}
                 onChangeText={setTitle}
-                placeholder="Título del meetup"
+                placeholder="Meetup title"
               />
             </Input>
           </VStack>
 
           <VStack space="xs">
             <Text className="text-sm font-medium text-slate-700">
-              Descripción
+              Description
             </Text>
             <Input size="md" className="bg-slate-50 border-slate-200 h-24">
               <InputField
@@ -171,7 +171,7 @@ export const EditMeetupForm: React.FC<EditMeetupFormProps> = ({
           </VStack>
 
           <VStack space="xs">
-            <Text className="text-sm font-medium text-slate-700">Deporte</Text>
+            <Text className="text-sm font-medium text-slate-700">Sport</Text>
             <Select selectedValue={sport} onValueChange={setSport}>
               <SelectTrigger
                 variant="outline"
@@ -179,7 +179,7 @@ export const EditMeetupForm: React.FC<EditMeetupFormProps> = ({
                 className="bg-slate-50 border-slate-200 justify-between"
               >
                 <SelectInput
-                  placeholder="Selecciona deporte"
+                  placeholder="Select sport"
                   value={sports?.find((s) => s.id === sport)?.name || sport}
                 />
                 <SelectIcon className="mr-2">
@@ -198,7 +198,7 @@ export const EditMeetupForm: React.FC<EditMeetupFormProps> = ({
 
           <VStack space="xs">
             <Text className="text-sm font-medium text-slate-700">
-              Visibilidad
+              Visibility
             </Text>
             <Select
               selectedValue={visibility}
@@ -212,7 +212,7 @@ export const EditMeetupForm: React.FC<EditMeetupFormProps> = ({
                 <SelectInput
                   placeholder="Visibilidad"
                   value={
-                    visibility === MeetupVisibility.OPEN ? "Público" : "Privado"
+                    visibility === MeetupVisibility.OPEN ? "Public" : "Private"
                   }
                 />
                 <SelectIcon className="mr-2">
@@ -221,22 +221,20 @@ export const EditMeetupForm: React.FC<EditMeetupFormProps> = ({
               </SelectTrigger>
               <SelectPortal>
                 <SelectContent>
-                  <SelectItem label="Público" value={MeetupVisibility.OPEN} />
-                  <SelectItem label="Privado" value={MeetupVisibility.CLOSED} />
+                  <SelectItem label="Public" value={MeetupVisibility.OPEN} />
+                  <SelectItem label="Private" value={MeetupVisibility.CLOSED} />
                 </SelectContent>
               </SelectPortal>
             </Select>
           </VStack>
 
           <VStack space="xs">
-            <Text className="text-sm font-medium text-slate-700">
-              Etiquetas
-            </Text>
+            <Text className="text-sm font-medium text-slate-700">Tags</Text>
             <Input size="md" className="bg-slate-50 border-slate-200">
               <InputField
                 value={tags}
                 onChangeText={setTags}
-                placeholder="Separadas por coma"
+                placeholder="Separated by comma"
               />
             </Input>
           </VStack>
@@ -247,11 +245,13 @@ export const EditMeetupForm: React.FC<EditMeetupFormProps> = ({
       {meetup.type === MeetupType.CASUAL && (
         <Card className="p-4 bg-white rounded-xl shadow-sm border border-slate-100">
           <Text className="text-lg font-semibold text-slate-900 mb-4">
-            Participantes
+            Participants
           </Text>
           <HStack space="md">
             <VStack space="xs" className="flex-1">
-              <Text className="text-sm font-medium text-slate-700">Mínimo</Text>
+              <Text className="text-sm font-medium text-slate-700">
+                Minimum
+              </Text>
               <Input size="md" className="bg-slate-50 border-slate-200">
                 <InputField
                   value={minParticipants}
@@ -262,13 +262,15 @@ export const EditMeetupForm: React.FC<EditMeetupFormProps> = ({
               </Input>
             </VStack>
             <VStack space="xs" className="flex-1">
-              <Text className="text-sm font-medium text-slate-700">Máximo</Text>
+              <Text className="text-sm font-medium text-slate-700">
+                Maximum
+              </Text>
               <Input size="md" className="bg-slate-50 border-slate-200">
                 <InputField
                   value={participantLimit}
                   onChangeText={setParticipantLimit}
                   keyboardType="numeric"
-                  placeholder="Sin límite"
+                  placeholder="No limit"
                 />
               </Input>
             </VStack>
@@ -283,7 +285,7 @@ export const EditMeetupForm: React.FC<EditMeetupFormProps> = ({
         className="bg-primary-600"
       >
         <ButtonText className="font-bold">
-          {isUpdating ? "Guardando..." : "Guardar Información"}
+          {isUpdating ? "Saving..." : "Save Information"}
         </ButtonText>
         <SaveIcon size={18} className="text-white ml-2" />
       </Button>
@@ -293,13 +295,13 @@ export const EditMeetupForm: React.FC<EditMeetupFormProps> = ({
       {/* Schedule */}
       <Card className="p-4 bg-white rounded-xl shadow-sm border border-slate-100">
         <Text className="text-lg font-semibold text-slate-900 mb-4">
-          Programación
+          Schedule
         </Text>
         {meetup.type === MeetupType.ROUTINE ? (
           <VStack space="md">
             <VStack space="xs">
               <Text className="text-sm font-medium text-slate-700 mb-2">
-                Días de la semana
+                Days of the week
               </Text>
               <View className="flex-row flex-wrap gap-2">
                 {[0, 1, 2, 3, 4, 5, 6].map((d) => {
@@ -326,7 +328,7 @@ export const EditMeetupForm: React.FC<EditMeetupFormProps> = ({
                       <ButtonText
                         className={active ? "text-white" : "text-slate-600"}
                       >
-                        {["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"][d]}
+                        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d]}
                       </ButtonText>
                     </Button>
                   );
@@ -335,7 +337,7 @@ export const EditMeetupForm: React.FC<EditMeetupFormProps> = ({
             </VStack>
             <VStack space="xs">
               <Text className="text-sm font-medium text-slate-700 mb-1">
-                Hora
+                Time
               </Text>
               <View className="bg-slate-50 p-2 rounded-lg border border-slate-200">
                 <HourPicker value={routineTime} onChange={setRoutineTime} />
@@ -363,7 +365,7 @@ export const EditMeetupForm: React.FC<EditMeetupFormProps> = ({
           className="mt-4"
         >
           <ButtonText>
-            {isUpdating ? "Guardando..." : "Actualizar Programación"}
+            {isUpdating ? "Saving..." : "Update Schedule"}
           </ButtonText>
         </Button>
       </Card>

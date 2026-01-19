@@ -20,7 +20,7 @@ export const useSendMessage = (chatId?: string) => {
       });
       return message;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo enviar el mensaje');
+      setError(err instanceof Error ? err.message : 'Could not send the message');
       throw err;
     } finally {
       setIsSending(false);

@@ -47,21 +47,21 @@ export const AppAlertProvider: React.FC<{ children: ReactNode }> = ({ children }
     setNotification({ type: 'error', title, message });
   };
 
-  const showSuccess = (message: string, title: string = 'Éxito') => {
+  const showSuccess = (message: string, title: string = 'Success') => {
     setToastContent({ message, type: 'success' });
     setToastOpen(true);
   };
 
-  const showInfo = (message: string, title: string = 'Información') => {
+  const showInfo = (message: string, title: string = 'Info') => {
     setToastContent({ message, type: 'info' });
     setToastOpen(true);
   };
 
-  const showConfirm = (title: string, message: string, confirmText = 'Confirmar', cancelText = 'Cancelar') => {
+  const showConfirm = (title: string, message: string, confirmText = 'Confirm', cancelText = 'Cancel') => {
     return new Promise<boolean>((resolve) => {
       setConfirmState({ visible: true, title, message, confirmText, cancelText, resolver: resolve });
     });
-  };
+  }; 
 
   const showActionSheet = (title: string | undefined, message: string | undefined, options: { key: string; label: string }[]) => {
     return new Promise<string | null>((resolve) => {

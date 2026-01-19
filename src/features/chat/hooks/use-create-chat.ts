@@ -9,13 +9,13 @@ export const useCreateChat = () => {
   const [error, setError] = useState<string | null>(null);
 
   const createDirectChat = async (targetUserId: string): Promise<Chat> => {
-    if (!user) throw new Error('Usuario no autenticado');
+    if (!user) throw new Error('User not authenticated');
     setIsLoading(true);
     setError(null);
     try {
       return await chatRepository.createDirectChat(user.id, targetUserId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo crear el chat');
+      setError(err instanceof Error ? err.message : 'Could not create the chat');
       throw err;
     } finally {
       setIsLoading(false);
@@ -23,7 +23,7 @@ export const useCreateChat = () => {
   };
 
   const createGroupChat = async (params: { name: string; memberIds: string[]; photoURL?: string; description?: string }): Promise<Chat> => {
-    if (!user) throw new Error('Usuario no autenticado');
+    if (!user) throw new Error('User not authenticated');
     setIsLoading(true);
     setError(null);
     try {
@@ -35,7 +35,7 @@ export const useCreateChat = () => {
         description: params.description,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo crear el grupo');
+      setError(err instanceof Error ? err.message : 'Could not create the group');
       throw err;
     } finally {
       setIsLoading(false);

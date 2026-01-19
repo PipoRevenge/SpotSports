@@ -60,13 +60,13 @@ export default function MyProfile() {
   const menuOptions: MenuOption[] = [
     {
       key: "edit",
-      label: "Editar perfil",
+      label: "Edit profile",
       icon: Edit,
       onPress: handleEditPress,
     },
     {
       key: "logout",
-      label: "Cerrar sesión",
+      label: "Sign out",
       icon: LogOut,
       onPress: handleLogout,
     },
@@ -76,7 +76,7 @@ export default function MyProfile() {
     return (
       <View className="flex-1 justify-center items-center">
         <ActivityIndicator size="large" />
-        <Text className="pt-2">Cargando perfil...</Text>
+        <Text className="pt-2">Loading profile...</Text>
       </View>
     );
   }
@@ -86,7 +86,7 @@ export default function MyProfile() {
       <View className="flex-1 justify-center items-center px-4">
         <Text className="text-red-500 text-center pb-4">{error}</Text>
         <Text className="text-blue-500" onPress={handleRefresh}>
-          Intentar de nuevo
+          Try again
         </Text>
       </View>
     );
@@ -95,7 +95,7 @@ export default function MyProfile() {
   if (!user) {
     return (
       <View className="flex-1 justify-center items-center">
-        <Text>No se pudo cargar la información del usuario</Text>
+        <Text>Could not load user information</Text>
       </View>
     );
   }
@@ -168,7 +168,7 @@ export default function MyProfile() {
                   commentId,
                   parentCommentId
                 ) => {
-                  const params: Record<string, string> = { spotId, reviewId };
+                  const params: any = { spotId, reviewId };
                   if (commentId) params.commentId = commentId;
                   if (parentCommentId) params.parentCommentId = parentCommentId;
                   router.push({ pathname: `/spot/[spotId]`, params });
@@ -180,7 +180,7 @@ export default function MyProfile() {
                   parentCommentId
                 ) => {
                   if (spotId) {
-                    const params: Record<string, string> = {
+                    const params: any = {
                       spotId,
                       discussionId,
                     };
@@ -206,9 +206,9 @@ export default function MyProfile() {
           {/* Sección de spots favoritos */}
           {user.activity.favoriteSpotsCount > 0 && (
             <View>
-              <Text className="text-lg font-bold pb-2">Spots favoritos</Text>
+              <Text className="text-lg font-bold pb-2">Favorite spots</Text>
               <Text className="text-gray-500">
-                {user.activity.favoriteSpotsCount} spots guardados
+                {user.activity.favoriteSpotsCount} spots saved
               </Text>
               {/* TODO: Mostrar lista de spots favoritos */}
               {/* Aquí puedes integrar componentes de la feature de spots */}

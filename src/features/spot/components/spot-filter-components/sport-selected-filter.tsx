@@ -1,8 +1,24 @@
 import { Button, ButtonText } from "@/src/components/ui/button";
 import { HStack } from "@/src/components/ui/hstack";
 import { Pressable } from "@/src/components/ui/pressable";
-import { Select, SelectBackdrop, SelectContent, SelectDragIndicator, SelectDragIndicatorWrapper, SelectIcon, SelectInput, SelectItem, SelectPortal, SelectTrigger } from "@/src/components/ui/select";
-import { Slider, SliderFilledTrack, SliderThumb, SliderTrack } from "@/src/components/ui/slider";
+import {
+  Select,
+  SelectBackdrop,
+  SelectContent,
+  SelectDragIndicator,
+  SelectDragIndicatorWrapper,
+  SelectIcon,
+  SelectInput,
+  SelectItem,
+  SelectPortal,
+  SelectTrigger,
+} from "@/src/components/ui/select";
+import {
+  Slider,
+  SliderFilledTrack,
+  SliderThumb,
+  SliderTrack,
+} from "@/src/components/ui/slider";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { SimpleSport as SportSimple } from "@/src/entities/sport/model/sport";
@@ -14,7 +30,7 @@ import { RATING_CONFIG } from "../../types/spot-types";
 
 // Opciones para el selector de dificultad
 const DIFFICULTY_OPTIONS = [
-  { label: "Cualquiera", value: "" },
+  { label: "Any", value: "" },
   ...DIFFICULTY_LEVELS.map((level) => ({ label: level, value: level })),
 ] as const;
 
@@ -22,7 +38,10 @@ interface SportSelectedFilterProps {
   selectedSports: SportSimple[];
   sportCriteria: SportFilterCriteria[];
   onSportRemove: (sportId: string) => void;
-  onCriteriaChange: (sportId: string, criteria: Partial<SportFilterCriteria>) => void;
+  onCriteriaChange: (
+    sportId: string,
+    criteria: Partial<SportFilterCriteria>
+  ) => void;
 }
 
 /**
@@ -36,10 +55,18 @@ export const SportSelectedFilter: React.FC<SportSelectedFilterProps> = ({
   onCriteriaChange,
 }) => {
   console.log("[SportSelectedFilter] RENDER START");
-  console.log("[SportSelectedFilter] selectedSports:", JSON.stringify(selectedSports));
-  console.log("[SportSelectedFilter] sportCriteria:", JSON.stringify(sportCriteria));
-  
-  const [expandedSportIds, setExpandedSportIds] = useState<Set<string>>(new Set());
+  console.log(
+    "[SportSelectedFilter] selectedSports:",
+    JSON.stringify(selectedSports)
+  );
+  console.log(
+    "[SportSelectedFilter] sportCriteria:",
+    JSON.stringify(sportCriteria)
+  );
+
+  const [expandedSportIds, setExpandedSportIds] = useState<Set<string>>(
+    new Set()
+  );
 
   if (selectedSports.length === 0) {
     console.log("[SportSelectedFilter] No sports selected, returning null");
@@ -47,7 +74,10 @@ export const SportSelectedFilter: React.FC<SportSelectedFilterProps> = ({
   }
 
   const toggleExpanded = (sportId: string) => {
-    console.log("[SportSelectedFilter] toggleExpanded called for sportId:", sportId);
+    console.log(
+      "[SportSelectedFilter] toggleExpanded called for sportId:",
+      sportId
+    );
     setExpandedSportIds((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(sportId)) {
@@ -55,7 +85,10 @@ export const SportSelectedFilter: React.FC<SportSelectedFilterProps> = ({
       } else {
         newSet.add(sportId);
       }
-      console.log("[SportSelectedFilter] new expandedSportIds:", Array.from(newSet));
+      console.log(
+        "[SportSelectedFilter] new expandedSportIds:",
+        Array.from(newSet)
+      );
       return newSet;
     });
   };
@@ -66,28 +99,41 @@ export const SportSelectedFilter: React.FC<SportSelectedFilterProps> = ({
       difficulty: undefined,
       minRating: RATING_CONFIG.DEFAULT,
     };
-    console.log(`[SportSelectedFilter] getCriteriaForSport(${sportId}):`, JSON.stringify(criteria));
+    console.log(
+      `[SportSelectedFilter] getCriteriaForSport(${sportId}):`,
+      JSON.stringify(criteria)
+    );
     return criteria;
   };
 
   return (
     <VStack space="sm">
-      <Text className="font-semibold text-typography-900">
-        Deportes seleccionados
-      </Text>
+      <Text className="font-semibold text-typography-900">Selected sports</Text>
 
       {selectedSports.map((sport) => {
-        console.log(`[SportSelectedFilter] Rendering sport:`, JSON.stringify(sport));
-        
+        console.log(
+          `[SportSelectedFilter] Rendering sport:`,
+          JSON.stringify(sport)
+        );
+
         const criteria = getCriteriaForSport(sport.id);
         const isExpanded = expandedSportIds.has(sport.id);
-        const hasFilters = Boolean(criteria.difficulty || (criteria.minRating && criteria.minRating > 0));
-        
-        console.log(`[SportSelectedFilter] sport.id=${sport.id}, isExpanded=${isExpanded}, hasFilters=${hasFilters}`);
-        console.log(`[SportSelectedFilter] criteria.difficulty=${criteria.difficulty}, criteria.minRating=${criteria.minRating}`);
+        const hasFilters = Boolean(
+          criteria.difficulty || (criteria.minRating && criteria.minRating > 0)
+        );
+
+        console.log(
+          `[SportSelectedFilter] sport.id=${sport.id}, isExpanded=${isExpanded}, hasFilters=${hasFilters}`
+        );
+        console.log(
+          `[SportSelectedFilter] criteria.difficulty=${criteria.difficulty}, criteria.minRating=${criteria.minRating}`
+        );
 
         return (
-          <VStack key={sport.id} className="border border-gray-200 rounded-lg overflow-hidden">
+          <VStack
+            key={sport.id}
+            className="border border-gray-200 rounded-lg overflow-hidden"
+          >
             {/* Header del deporte (siempre visible) */}
             <Pressable
               onPress={() => toggleExpanded(sport.id)}
@@ -97,18 +143,27 @@ export const SportSelectedFilter: React.FC<SportSelectedFilterProps> = ({
                 <HStack className="flex-1 items-center gap-2">
                   <Text className="font-semibold text-primary-700 flex-1">
                     {(() => {
-                      console.log(`[SportSelectedFilter] Rendering sport.name for ${sport.id}:`, sport.name);
-                      console.log(`[SportSelectedFilter] sport.name type:`, typeof sport.name);
-                      console.log(`[SportSelectedFilter] Full sport object:`, JSON.stringify(sport));
+                      console.log(
+                        `[SportSelectedFilter] Rendering sport.name for ${sport.id}:`,
+                        sport.name
+                      );
+                      console.log(
+                        `[SportSelectedFilter] sport.name type:`,
+                        typeof sport.name
+                      );
+                      console.log(
+                        `[SportSelectedFilter] Full sport object:`,
+                        JSON.stringify(sport)
+                      );
                       return sport.name;
                     })()}
                   </Text>
-                  
+
                   {/* Indicador de filtros aplicados */}
                   {hasFilters ? (
                     <VStack className="bg-primary-600 px-2 py-0.5 rounded-full">
                       <Text className="text-xs text-white font-medium">
-                        Filtrado
+                        Filtered
                       </Text>
                     </VStack>
                   ) : null}
@@ -118,7 +173,9 @@ export const SportSelectedFilter: React.FC<SportSelectedFilterProps> = ({
                   {/* Botón eliminar */}
                   <Pressable
                     onPress={(e) => {
-                      console.log(`[SportSelectedFilter] Removing sport: ${sport.id}`);
+                      console.log(
+                        `[SportSelectedFilter] Removing sport: ${sport.id}`
+                      );
                       e.stopPropagation();
                       onSportRemove(sport.id);
                     }}
@@ -140,24 +197,29 @@ export const SportSelectedFilter: React.FC<SportSelectedFilterProps> = ({
             {/* Contenido desplegable con criterios */}
             {isExpanded && (
               <VStack className="p-3 bg-white" space="md">
-                <Text className="text-xs text-gray-500">DEBUG: Rendering expanded content for {sport.name}</Text>
-                
+                <Text className="text-xs text-gray-500">
+                  DEBUG: Rendering expanded content for {sport.name}
+                </Text>
+
                 {/* Selector de dificultad */}
                 <VStack space="xs">
                   <Text className="text-sm font-medium text-typography-700">
-                    Dificultad
+                    Difficulty
                   </Text>
                   <Select
                     selectedValue={criteria.difficulty || ""}
                     onValueChange={(value) => {
-                      console.log(`[SportSelectedFilter] Difficulty changed for ${sport.id}: ${value}`);
+                      console.log(
+                        `[SportSelectedFilter] Difficulty changed for ${sport.id}: ${value}`
+                      );
                       onCriteriaChange(sport.id, {
-                        difficulty: value === "" ? undefined : (value as DifficultyLevel),
+                        difficulty:
+                          value === "" ? undefined : (value as DifficultyLevel),
                       });
                     }}
                   >
                     <SelectTrigger variant="outline" size="md">
-                      <SelectInput placeholder="Seleccionar dificultad" />
+                      <SelectInput placeholder="Select difficulty" />
                       <SelectIcon className="pr-3" as={ChevronDownIcon} />
                     </SelectTrigger>
                     <SelectPortal>
@@ -182,7 +244,7 @@ export const SportSelectedFilter: React.FC<SportSelectedFilterProps> = ({
                 <VStack space="xs">
                   <HStack className="justify-between items-center">
                     <Text className="text-sm font-medium text-typography-700">
-                      Calificación mínima
+                      Minimum rating
                     </Text>
                     <HStack className="items-center gap-1">
                       <Text className="text-primary-600 font-semibold">
@@ -196,11 +258,15 @@ export const SportSelectedFilter: React.FC<SportSelectedFilterProps> = ({
                     value={criteria.minRating || RATING_CONFIG.DEFAULT}
                     onChange={(value) => {
                       // Solo actualizar visualmente mientras se arrastra
-                      console.log(`[SportSelectedFilter] Rating onChange for ${sport.id}: ${value}`);
+                      console.log(
+                        `[SportSelectedFilter] Rating onChange for ${sport.id}: ${value}`
+                      );
                     }}
                     onChangeEnd={(value) => {
                       // Aplicar cambio cuando se suelta el slider
-                      console.log(`[SportSelectedFilter] Rating onChangeEnd for ${sport.id}: ${value}`);
+                      console.log(
+                        `[SportSelectedFilter] Rating onChangeEnd for ${sport.id}: ${value}`
+                      );
                       onCriteriaChange(sport.id, { minRating: value });
                     }}
                     minValue={RATING_CONFIG.MIN}
@@ -229,14 +295,16 @@ export const SportSelectedFilter: React.FC<SportSelectedFilterProps> = ({
                     size="sm"
                     variant="outline"
                     onPress={() => {
-                      console.log(`[SportSelectedFilter] Clearing filters for sport: ${sport.id}`);
+                      console.log(
+                        `[SportSelectedFilter] Clearing filters for sport: ${sport.id}`
+                      );
                       onCriteriaChange(sport.id, {
                         difficulty: undefined,
                         minRating: RATING_CONFIG.DEFAULT,
                       });
                     }}
                   >
-                    <ButtonText>Limpiar filtros del deporte</ButtonText>
+                    <ButtonText>Clear sport filters</ButtonText>
                   </Button>
                 ) : null}
               </VStack>

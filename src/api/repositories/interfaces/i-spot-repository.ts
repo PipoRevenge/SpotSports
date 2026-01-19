@@ -17,7 +17,7 @@ export interface SpotSearchFilters {
   categoryId?: string; // Filtro por categoría de deporte
   sportCriteria?: {
     sportId: string;
-    difficulty?: 'easy' | 'intermediate' | 'hard';
+    difficulty?: import('@/src/types/difficulty').DifficultyLevel;
     minRating?: number;
   }[];  
   // Filtros de calidad

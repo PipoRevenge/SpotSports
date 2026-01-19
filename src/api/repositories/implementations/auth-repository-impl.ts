@@ -7,6 +7,7 @@ import {
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, firestore } from '../../../lib/firebase-config';
 import { AuthSessionData, IAuthRepository } from '../interfaces/i-auth-repository';
+import { logRepositoryError, parseFirebaseError } from '../utils/firebase-parsers';
 
 export class AuthRepositoryImpl implements IAuthRepository {
     private readonly USERS_COLLECTION = 'users';
@@ -22,18 +23,23 @@ export class AuthRepositoryImpl implements IAuthRepository {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             return userCredential.user.uid;
         } catch (error: any) {
+            console.error('Login error:', error);
             if (error?.code) {
                 switch (error.code) {
                     case 'auth/network-request-failed':
                         throw new Error('Network connection error. Please check your internet connection.');
                     case 'auth/invalid-credential':
                         throw new Error('Invalid email or password');
-                    default:
-                        console.error('Login error:', error);
-                        throw new Error(`Authentication failed: ${error.code}`);
+                    default: {
+                        const parsed = parseFirebaseError(error);
+                        logRepositoryError('auth.login', { email }, error);
+                        throw new Error(parsed.message);
+                    }
                 }
             }
-            throw error;
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('auth.login', { email }, error);
+            throw new Error(parsed.message);
         }
     }
 
@@ -43,26 +49,30 @@ export class AuthRepositoryImpl implements IAuthRepository {
             return userCredential.user.uid;
         } catch (error: any) {
             console.error('Registration error:', error);
-            
             if (error?.code) {
                 switch (error.code) {
                     case 'auth/email-already-in-use':
-                        throw new Error('Esta dirección de correo ya está registrada. Por favor, inicia sesión o usa otro email.');
+                        throw new Error('This email address is already registered. Please sign in or use another email.');
                     case 'auth/weak-password':
-                        throw new Error('La contraseña es muy débil. Debe tener al menos 6 caracteres.');
+                        throw new Error('The password is too weak. It must be at least 6 characters.');
                     case 'auth/invalid-email':
-                        throw new Error('Por favor, ingresa una dirección de correo válida.');
+                        throw new Error('Please enter a valid email address.');
                     case 'auth/network-request-failed':
-                        throw new Error('No se pudo conectar al servidor. Verifica tu conexión a internet e intenta nuevamente.');
+                        throw new Error('Could not connect to the server. Check your internet connection and try again.');
                     case 'auth/operation-not-allowed':
-                        throw new Error('El registro con email/contraseña no está habilitado. Contacta al administrador.');
+                        throw new Error('Email/password signup is disabled. Contact the administrator.');
                     case 'auth/too-many-requests':
-                        throw new Error('Demasiados intentos fallidos. Por favor, intenta más tarde.');
-                    default:
-                        throw new Error('Error al crear la cuenta. Por favor, intenta nuevamente.');
+                        throw new Error('Too many failed attempts. Please try again later.');
+                    default: {
+                        const parsed = parseFirebaseError(error);
+                        logRepositoryError('auth.register', { email }, error);
+                        throw new Error(parsed.message);
+                    }
                 }
             }
-            throw new Error('Error inesperado al registrar usuario. Por favor, intenta nuevamente.');
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('auth.register', { email }, error);
+            throw new Error(parsed.message);
         }
     }
 
@@ -71,7 +81,9 @@ export class AuthRepositoryImpl implements IAuthRepository {
             await signOut(auth);
         } catch (error) {
             console.error('Logout error:', error);
-            throw new Error('Unable to logout');
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('auth.logout', {}, error);
+            throw new Error(parsed.message);
         }
     }
 
@@ -91,6 +103,8 @@ export class AuthRepositoryImpl implements IAuthRepository {
             return await currentUser.getIdToken(forceRefresh);
         } catch (error) {
             console.error('Error obtaining ID token:', error);
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('auth.getIdToken', {}, error);
             return null;
         }
     }
@@ -114,6 +128,8 @@ export class AuthRepositoryImpl implements IAuthRepository {
             };
         } catch (error) {
             console.error('Error getting session data:', error);
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('auth.getSessionData', {}, error);
             return null;
         }
     }
@@ -127,6 +143,8 @@ export class AuthRepositoryImpl implements IAuthRepository {
             return await currentUser.getIdToken(true);
         } catch (error) {
             console.error('Error refreshing token:', error);
+            const parsed = parseFirebaseError(error);
+            logRepositoryError('auth.refreshToken', {}, error);
             return null;
         }
     }

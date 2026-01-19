@@ -1,6 +1,17 @@
 import { Button, ButtonIcon, ButtonText } from "@/src/components/ui/button";
 import { HStack } from "@/src/components/ui/hstack";
-import { Select, SelectBackdrop, SelectContent, SelectDragIndicator, SelectDragIndicatorWrapper, SelectIcon, SelectInput, SelectItem, SelectPortal, SelectTrigger } from "@/src/components/ui/select";
+import {
+  Select,
+  SelectBackdrop,
+  SelectContent,
+  SelectDragIndicator,
+  SelectDragIndicatorWrapper,
+  SelectIcon,
+  SelectInput,
+  SelectItem,
+  SelectPortal,
+  SelectTrigger,
+} from "@/src/components/ui/select";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
 import { Review } from "@/src/entities/review/model/review";
@@ -10,7 +21,10 @@ import { ChevronDown, Filter } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { useReviewLoad } from "../../hooks/use-review-load";
-import { REVIEW_SORT_OPTIONS, type ReviewSortValue } from '../../utils/review-constants';
+import {
+  REVIEW_SORT_OPTIONS,
+  type ReviewSortValue,
+} from "../../utils/review-constants";
 import { ReviewFilterModal } from "../filters/review-filter-modal";
 import { ReviewCard } from "./review-card";
 
@@ -23,22 +37,22 @@ export interface ReviewListProps {
   loading?: boolean;
   isDeleting?: boolean; // Indica si se está eliminando una review
   error?: string | null;
-  
+
   // Datos de usuarios (mapa de userId -> User)
   usersData?: Map<string, User>;
-  
+
   // Filtros
   availableSports?: { id: string; name: string }[];
   selectedSportId?: string;
   onSportFilterChange?: (sportId: string) => void;
-  
+
   // Funciones helpers
   getSportName?: (sportId: string) => string;
-  
+
   // Ordenamiento
   sortBy: ReviewSortValue;
   onSortChange: (sort: ReviewSortValue) => void;
-  
+
   // Interacciones
   onReply?: (reviewId: string) => void;
   onEdit?: (reviewId: string) => void;
@@ -46,7 +60,7 @@ export interface ReviewListProps {
   onDelete?: (reviewId: string) => void;
   onNavigateToProfile?: (userId: string) => void;
   onClearCache?: () => void; // Nueva prop para limpiar cache
-  
+
   // Comment modal slots (propagated to ReviewCard)
   /** Slot for the reply modal - injected from app/ layer */
   commentModalSlot?: React.ReactNode;
@@ -54,14 +68,14 @@ export interface ReviewListProps {
   onOpenReplyModal?: (comment: CommentWithUser, review: Review) => void;
   /** Callback when user wants to add a new comment to a review */
   onOpenNewCommentModal?: (review: Review) => void;
-  
+
   // Personalización
   emptyMessage?: string;
   listHeaderComponent?: React.ReactElement | null;
-  
+
   // Total de reviews sin filtrar (para saber si realmente hay 0 reviews en el spot)
   totalReviews?: number;
-  
+
   // Deep-link support
   targetReviewId?: string;
   targetCommentId?: string;
@@ -74,13 +88,13 @@ export interface ReviewListProps {
 
 /**
  * Componente ReviewList
- * 
+ *
  * Lista de reviews con funcionalidades de:
  * - Filtrado por deporte
  * - Ordenamiento (reciente, antiguo, rating)
  * - Interacciones (like, dislike, responder)
  * - Estados de loading y error
- * 
+ *
  * @example
  * ```tsx
  * <ReviewList
@@ -118,7 +132,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
   commentModalSlot,
   onOpenReplyModal,
   onOpenNewCommentModal,
-  emptyMessage = "No hay reviews disponibles",
+  emptyMessage = "No reviews available",
   listHeaderComponent,
   totalReviews = 0,
   targetReviewId,
@@ -131,7 +145,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
   const [userReviewId, setUserReviewId] = useState<string | null>(null);
   const { review: userReview, loadingReview } = useReviewLoad(spotId);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
-  
+
   // Verificar si el usuario ya tiene una review
   useEffect(() => {
     setHasUserReview(!!userReview);
@@ -152,7 +166,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
     return (
       <VStack className="flex-1 items-center justify-center p-8">
         <ActivityIndicator size="large" color="#3b82f6" />
-        <Text className="pt-4 text-gray-600">Cargando reviews...</Text>
+        <Text className="pt-4 text-gray-600">Loading reviews...</Text>
       </VStack>
     );
   }
@@ -164,7 +178,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
     return (
       <VStack className="flex-1 items-center justify-center p-8">
         <Text className="text-red-600 text-center font-semibold">
-          ⚠️ Error al cargar reviews
+          ⚠️ Error loading reviews
         </Text>
         <Text className="pt-2 text-gray-600 text-center">{error}</Text>
       </VStack>
@@ -184,9 +198,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
         <VStack className="gap-3 p-4">
           {/* Contador de reviews y botón de escribir */}
           <HStack className="justify-between items-center">
-            <Text className="text-lg font-bold text-gray-900">
-              0 Reviews
-            </Text>
+            <Text className="text-lg font-bold text-gray-900">0 Reviews</Text>
             <Button
               size="sm"
               className="bg-blue-600"
@@ -199,7 +211,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
               }}
             >
               <ButtonText className="text-white font-semibold">
-                {hasUserReview ? "Actualizar Review" : "Escribir Review"}
+                {hasUserReview ? "Update Review" : "Write a Review"}
               </ButtonText>
             </Button>
           </HStack>
@@ -242,7 +254,9 @@ export const ReviewList: React.FC<ReviewListProps> = ({
               </Button>
               {activeFiltersCount > 0 ? (
                 <View className="absolute -top-1 -right-1 bg-red-500 rounded-full h-4 w-4 items-center justify-center">
-                  <Text className="text-white text-[10px] font-bold">{activeFiltersCount}</Text>
+                  <Text className="text-white text-[10px] font-bold">
+                    {activeFiltersCount}
+                  </Text>
                 </View>
               ) : null}
             </View>
@@ -251,7 +265,11 @@ export const ReviewList: React.FC<ReviewListProps> = ({
               selectedValue={sortBy}
               onValueChange={(value) => onSortChange(value as ReviewSortValue)}
             >
-              <SelectTrigger variant="outline" size="sm" className="flex-row items-center gap-2">
+              <SelectTrigger
+                variant="outline"
+                size="sm"
+                className="flex-row items-center gap-2"
+              >
                 <SelectInput placeholder="Sort by" className="text-sm" />
                 <SelectIcon as={ChevronDown} />
               </SelectTrigger>
@@ -284,7 +302,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
               }}
             >
               <ButtonText className="font-semibold text-sm">
-                {hasUserReview ? "✏️ Editar" : "➕ Añadir"}
+                {hasUserReview ? "✏️ Edit" : "➕ Add"}
               </ButtonText>
             </Button>
           </HStack>
@@ -296,17 +314,17 @@ export const ReviewList: React.FC<ReviewListProps> = ({
         <VStack className="items-center justify-center p-8">
           <Text className="text-gray-400 text-5xl pb-4">🔍</Text>
           <Text className="text-gray-600 text-center font-semibold">
-            No se encontraron reviews con los filtros aplicados
+            No reviews found with the applied filters
           </Text>
           <Text className="text-gray-500 text-center text-sm pt-2">
-            Intenta cambiar los filtros para ver más resultados
+            Try changing filters to see more results
           </Text>
         </VStack>
       ) : (
         <VStack className="gap-0">
           {reviews.map((review, index) => {
             const user = usersData?.get(review.metadata.createdBy);
-            
+
             return (
               <React.Fragment key={review.id}>
                 <ReviewCard
@@ -321,9 +339,17 @@ export const ReviewList: React.FC<ReviewListProps> = ({
                   commentModalSlot={commentModalSlot}
                   onOpenReplyModal={onOpenReplyModal}
                   onOpenNewCommentModal={onOpenNewCommentModal}
-                  highlightCommentId={review.id === targetReviewId ? targetCommentId : undefined}
-                  autoExpandComments={review.id === targetReviewId && !!targetCommentId}
-                  parentCommentId={review.id === targetReviewId ? targetParentCommentId : undefined}
+                  highlightCommentId={
+                    review.id === targetReviewId ? targetCommentId : undefined
+                  }
+                  autoExpandComments={
+                    review.id === targetReviewId && !!targetCommentId
+                  }
+                  parentCommentId={
+                    review.id === targetReviewId
+                      ? targetParentCommentId
+                      : undefined
+                  }
                   registerLayout={registerLayout}
                 />
                 {index < reviews.length - 1 && (
@@ -339,13 +365,15 @@ export const ReviewList: React.FC<ReviewListProps> = ({
 
       {/* Espacio al final */}
       <View className="h-4" />
-      
+
       {/* Overlay de carga durante eliminación */}
       {isDeleting && (
         <View className="absolute inset-0 bg-black/30 justify-center items-center">
           <View className="bg-white p-6 rounded-lg items-center gap-3">
             <ActivityIndicator size="large" color="#0000ff" />
-            <Text className="text-gray-700 font-medium">Eliminando review...</Text>
+            <Text className="text-gray-700 font-medium">
+              Deleting review...
+            </Text>
           </View>
         </View>
       )}
@@ -355,7 +383,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
         onClose={() => setIsFilterModalVisible(false)}
         selectedSportId={selectedSportId}
         onApply={(sportId) => onSportFilterChange?.(sportId)}
-        onClear={() => onSportFilterChange?.('')}
+        onClear={() => onSportFilterChange?.("")}
         availableSports={availableSports}
       />
     </VStack>

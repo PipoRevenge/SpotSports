@@ -1,11 +1,13 @@
 import { SportSpotRating, Spot, SpotDetails } from '@/src/entities/spot/model/spot';
 import { auth, firestore, functions, storage } from '@/src/lib/firebase-config';
+import { DIFFICULTY_CONFIG, DifficultyLevel } from '@/src/types/difficulty';
 import { ref as dbRef, getDatabase, push } from 'firebase/database';
 import { collection, doc, limit as firestoreLimit, getDoc, getDocs, increment, query, Timestamp, updateDoc, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 import { ISpotRepository, SpotSearchFilters } from '../interfaces/i-spot-repository';
 import { SpotMapper } from '../mappers/spot-mapper';
+import { logRepositoryError, parseFirebaseError } from '../utils/firebase-parsers';
 
 
 /**
@@ -116,11 +118,9 @@ export class SpotRepositoryImpl implements ISpotRepository {
         timestamp: new Date().toISOString(),
       });
       
-      if (error instanceof Error) {
-        throw new Error(`Failed to create spot: ${error.message}`);
-      } else {
-        throw new Error('Failed to create spot: Unknown error');
-      }
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('spot.createSpot', { userId, spotName: spotData?.name }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -174,7 +174,9 @@ export class SpotRepositoryImpl implements ISpotRepository {
         userId,
         timestamp: new Date().toISOString(),
       });
-      throw new Error(error instanceof Error ? error.message : 'Failed to update spot');
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('spot.updateSpot', { spotId }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -214,12 +216,9 @@ export class SpotRepositoryImpl implements ISpotRepository {
 
     } catch (error) {
       console.error('Error getting spot by ID:', error);
-      
-      if (error instanceof Error) {
-        throw new Error(`Failed to get spot: ${error.message}`);
-      } else {
-        throw new Error('Failed to get spot: Unknown error');
-      }
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('spot.getSpotById', { spotId: id }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -292,12 +291,9 @@ export class SpotRepositoryImpl implements ISpotRepository {
 
     } catch (error) {
       console.error('Error getting sport ratings:', error);
-      
-      if (error instanceof Error) {
-        throw new Error(`Failed to get sport ratings: ${error.message}`);
-      } else {
-        throw new Error('Failed to get sport ratings: Unknown error');
-      }
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('spot.getSportRatings', { spotId }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -355,7 +351,9 @@ export class SpotRepositoryImpl implements ISpotRepository {
         uploadedCount: galleryUrls.length,
         timestamp: new Date().toISOString(),
       });
-      throw new Error(`Failed to upload media: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('spot.uploadSpotMedia', { spotId, userId, mediaCount: mediaUris.length }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -458,14 +456,8 @@ export class SpotRepositoryImpl implements ISpotRepository {
         const { spots: spotData } = result.data as { spots: any[] };
         let spots = spotData.map((data: any) => SpotMapper.fromFirebase(data.id, data));
         
-        // Apply text filter in memory since cloud function doesn't support it yet
-        if (filters.searchQuery && filters.searchQuery.trim().length > 0) {
-          const query = filters.searchQuery.toLowerCase().trim();
-          spots = spots.filter(spot => 
-            spot.details.name.toLowerCase().includes(query) ||
-            spot.details.description.toLowerCase().includes(query)
-          );
-        }
+        // Apply detailed filters in memory (including text search, difficulty criteria, etc.)
+        spots = await this.applyInMemoryFilters(spots, filters);
         
         console.log(`[SpotRepository] Búsqueda completada. ${spots.length} spots encontrados`);
         return spots;
@@ -485,11 +477,9 @@ export class SpotRepositoryImpl implements ISpotRepository {
       return spots;
     } catch (error) {
       console.error('Error searching spots:', error);
-      if (error instanceof Error) {
-        throw new Error(`Failed to search spots: ${error.message}`);
-      } else {
-        throw new Error('Failed to search spots: Unknown error');
-      }
+      const parsed = parseFirebaseError(error);
+      logRepositoryError('spot.searchSpots', { filters }, error);
+      throw new Error(parsed.message);
     }
   }
 
@@ -574,7 +564,7 @@ export class SpotRepositoryImpl implements ISpotRepository {
 
     if (filters.sportIds && filters.sportIds.length > 0) {
       filtered = filtered.filter(spot => {
-        return filters.sportIds!.every(sportId =>
+        return filters.sportIds!.some(sportId =>
           spot.details.availableSports.includes(sportId)
         );
       });
@@ -641,19 +631,13 @@ export class SpotRepositoryImpl implements ISpotRepository {
   /**
    * Verifica si una dificultad numérica coincide con el rango especificado
    * @param difficulty - Dificultad numérica (0-10)
-   * @param targetDifficulty - Dificultad objetivo ('easy', 'intermediate', 'hard')
+   * @param targetDifficulty - Dificultad objetivo (DifficultyLevel)
    */
-  private matchesDifficulty(difficulty: number, targetDifficulty: 'easy' | 'intermediate' | 'hard'): boolean {
-    switch (targetDifficulty) {
-      case 'easy':
-        return difficulty >= 0 && difficulty < 3.33;
-      case 'intermediate':
-        return difficulty >= 3.33 && difficulty < 6.66;
-      case 'hard':
-        return difficulty >= 6.66 && difficulty <= 10;
-      default:
-        return true;
-    }
+  private matchesDifficulty(difficulty: number, targetDifficulty: DifficultyLevel): boolean {
+    const config = DIFFICULTY_CONFIG[targetDifficulty];
+    if (!config) return true;
+    
+    return difficulty >= config.minValue && difficulty <= config.maxValue;
   }
 
   /**

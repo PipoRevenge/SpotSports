@@ -24,7 +24,7 @@ import { HStack } from "@/src/components/ui/hstack";
 import { Text } from "@/src/components/ui/text";
 import { Textarea, TextareaInput } from "@/src/components/ui/textarea";
 import { VStack } from "@/src/components/ui/vstack";
-import { useAppAlert } from '@/src/context/app-alert-context';
+import { useAppAlert } from "@/src/context/app-alert-context";
 import { Plus, X } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import { ScrollView } from "react-native";
@@ -97,7 +97,7 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
   }, [initialData]);
 
   const [formErrors, setFormErrors] = useState<ReviewFormErrors>({});
-    const { showError } = useAppAlert();
+  const { showError } = useAppAlert();
   const [showSpotSportsSelector, setShowSpotSportsSelector] = useState(false);
   const [showAddSportModal, setShowAddSportModal] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -138,13 +138,15 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
   const handleAddSport = (sport: ReviewSportFormData) => {
     // Verificar que no esté duplicado
     if (formData.reviewSports.some((s) => s.sportId === sport.sportId)) {
-      showError(REVIEW_ERROR_MESSAGES.DUPLICATE_SPORT, 'Error');
+      showError(REVIEW_ERROR_MESSAGES.DUPLICATE_SPORT, "Error");
       return;
     }
 
     // Verificar límite
-    if (formData.reviewSports.length >= REVIEW_VALIDATION_LIMITS.MAX_SPORTS_COUNT) {
-      showError(REVIEW_ERROR_MESSAGES.TOO_MANY_SPORTS, 'Error');
+    if (
+      formData.reviewSports.length >= REVIEW_VALIDATION_LIMITS.MAX_SPORTS_COUNT
+    ) {
+      showError(REVIEW_ERROR_MESSAGES.TOO_MANY_SPORTS, "Error");
       return;
     }
 
@@ -187,9 +189,11 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
 
     if (!validation.isValid) {
       const firstField = Object.keys(validation.errors)[0];
-      const firstMessage = firstField ? `${firstField}: ${validation.errors[firstField]}` : 'Revisa los campos obligatorios';
+      const firstMessage = firstField
+        ? `${firstField}: ${validation.errors[firstField]}`
+        : "Check required fields";
       setFormErrors(validation.errors as ReviewFormErrors);
-      showError(firstMessage, 'Error de validación');
+      showError(firstMessage, "Validation Error");
       return;
     }
 
@@ -228,7 +232,10 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
     }
   };
 
-  const excludedSportIds = formData.reviewSports.map((s) => s.sportId);
+  const excludedSportIds = React.useMemo(
+    () => formData.reviewSports.map((s) => s.sportId),
+    [formData.reviewSports]
+  );
 
   return (
     <Box className="flex-1 bg-gray-50">
@@ -257,7 +264,11 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
           )}
 
           {/* Rating general del spot */}
-          <FormControl isInvalid={!!formErrors.rating} isRequired className="w-full h-10">
+          <FormControl
+            isInvalid={!!formErrors.rating}
+            isRequired
+            className="w-full h-10"
+          >
             <FormControlLabel>
               <FormControlLabelText className="text-base font-semibold text-gray-900">
                 Overall Spot Rating
@@ -308,7 +319,8 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
                 </Text>
               )}
               <Text className="text-xs text-gray-500">
-                {formData.content.length} / {REVIEW_VALIDATION_LIMITS.CONTENT_MAX_LENGTH}
+                {formData.content.length} /{" "}
+                {REVIEW_VALIDATION_LIMITS.CONTENT_MAX_LENGTH}
               </Text>
             </HStack>
           </FormControl>
@@ -318,7 +330,10 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
             <FormControlLabel>
               <FormControlLabelText className="text-base font-semibold text-gray-900">
                 Photos & Videos
-                <Text className="text-gray-500 font-normal text-sm"> (Optional)</Text>
+                <Text className="text-gray-500 font-normal text-sm">
+                  {" "}
+                  (Optional)
+                </Text>
               </FormControlLabelText>
             </FormControlLabel>
             <MediaPickerCarousel
@@ -366,7 +381,8 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
                 onPress={() => setShowSpotSportsSelector(true)}
                 disabled={
                   isLoading ||
-                  formData.reviewSports.length >= REVIEW_VALIDATION_LIMITS.MAX_SPORTS_COUNT
+                  formData.reviewSports.length >=
+                    REVIEW_VALIDATION_LIMITS.MAX_SPORTS_COUNT
                 }
                 className="border-blue-500"
               >
@@ -395,11 +411,11 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
               disabled={isLoading}
             >
               <ButtonText className="text-white font-semibold">
-                {isLoading 
-                  ? REVIEW_LOADING_STATES.CREATING 
-                  : isEditMode 
-                    ? "Update Review" 
-                    : "Publish Review"}
+                {isLoading
+                  ? REVIEW_LOADING_STATES.CREATING
+                  : isEditMode
+                  ? "Update Review"
+                  : "Publish Review"}
               </ButtonText>
             </Button>
             <Button variant="outline" onPress={onCancel} disabled={isLoading}>
@@ -410,7 +426,10 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
       </ScrollView>
 
       {/* Confirmation Dialog */}
-      <AlertDialog isOpen={showConfirmDialog} onClose={() => setShowConfirmDialog(false)}>
+      <AlertDialog
+        isOpen={showConfirmDialog}
+        onClose={() => setShowConfirmDialog(false)}
+      >
         <AlertDialogBackdrop />
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -418,7 +437,8 @@ export const CreateReviewForm: React.FC<CreateReviewFormProps> = ({
           </AlertDialogHeader>
           <AlertDialogBody>
             <Text className="text-gray-700">
-              Are you sure you want to update your review? This will replace your previous review.
+              Are you sure you want to update your review? This will replace
+              your previous review.
             </Text>
           </AlertDialogBody>
           <AlertDialogFooter>

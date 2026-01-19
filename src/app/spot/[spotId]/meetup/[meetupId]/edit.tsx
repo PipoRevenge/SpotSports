@@ -35,7 +35,7 @@ export default function EditMeetup() {
   if (user?.id !== meetup.organizerId) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-white">
-        <Text className="text-slate-500 text-center mt-10">No tienes permisos para editar este meetup</Text>
+        <Text className="text-slate-500 text-center mt-10">You do not have permission to edit this meetup</Text>
         <Button onPress={() => router.back()} className="mt-4 mx-10">
           <ButtonText>Volver</ButtonText>
         </Button>

@@ -1,5 +1,5 @@
 import { MapMarker } from "@/src/components/commons/map";
-import Tag from '@/src/components/commons/tag';
+import Tag from "@/src/components/commons/tag";
 import { HStack } from "@/src/components/ui/hstack";
 import { SafeAreaView } from "@/src/components/ui/safe-area-view";
 import { Text } from "@/src/components/ui/text";
@@ -7,21 +7,18 @@ import { VStack } from "@/src/components/ui/vstack";
 import { useMapSearch } from "@/src/context/map-search-context";
 import { Spot } from "@/src/entities/spot/model/spot";
 import {
-    formatDistance,
-    MapSearchBar,
-    MapSearchMap,
-    MapSearchResult,
-    MapSearchResultItem,
-    MapSearchResultList,
-    SpotCardModal,
-    SpotMarker,
-    spotsToMapResults,
-    useMapSpotSearch,
+  formatDistance,
+  MapSearchBar,
+  MapSearchMap,
+  MapSearchResult,
+  MapSearchResultItem,
+  MapSearchResultList,
+  SpotCardModal,
+  SpotMarker,
+  spotsToMapResults,
+  useMapSpotSearch,
 } from "@/src/features/map-search";
-import {
-    SpotSearchFilterModal,
-    useSelectedSpot,
-} from "@/src/features/spot";
+import { SpotSearchFilterModal, useSelectedSpot } from "@/src/features/spot";
 import { SpotCollectionSelector } from "@/src/features/spot-collection";
 import { GeoPoint } from "@/src/types/geopoint";
 import { useFocusEffect } from "@react-navigation/native";
@@ -32,12 +29,12 @@ import { Image, Pressable, View } from "react-native";
 
 /**
  * Página de búsqueda de spots en mapa
- * 
+ *
  * Responsabilidades:
  * - Orquestar los hooks de búsqueda, filtros y área de mapa
  * - Coordinar la UI entre vista de mapa y lista
  * - Gestionar la selección y navegación de spots
- * 
+ *
  * Las features son independientes:
  * - map-search: Búsqueda genérica en mapa (reutilizable)
  * - spot: Lógica específica de spots y filtros
@@ -48,20 +45,22 @@ export default function SearchMapScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedSpotId, setSelectedSpotId] = useState<string | undefined>();
   const [showSpotCard, setShowSpotCard] = useState(false);
-  const [createSpotLocation, setCreateSpotLocation] = useState<GeoPoint | null>(null);
+  const [createSpotLocation, setCreateSpotLocation] = useState<GeoPoint | null>(
+    null
+  );
   const hasSearchedRef = useRef(false);
   const shouldSearchAfterFiltersRef = useRef(false);
   const shouldRefreshAfterCreateRef = useRef(false);
 
   // ==================== HOOKS DE FEATURES ====================
   // Contexto de Búsqueda en Mapa (gestiona userLocation de forma centralizada)
-  const { 
-    userLocation, 
+  const {
+    userLocation,
     isLoadingUserLocation: isLoadingLocation,
     prefetchSpotBasic: prefetchBasicFromContext,
     prefetchSpotFull: prefetchFullFromContext,
   } = useMapSearch();
-  
+
   // Contexto de Spot Seleccionado para mantener sincronización global
   const { selectedSpot, selectSpot, refreshAll } = useSelectedSpot();
 
@@ -86,12 +85,14 @@ export default function SearchMapScreen() {
   });
 
   // Calcular filtros activos para mostrar en UI
-  const activeFiltersCount = 
+  const activeFiltersCount =
     (searchFilters.maxDistance !== undefined ? 1 : 0) +
     (searchFilters.minRating && searchFilters.minRating > 0 ? 1 : 0) +
     (searchFilters.sports && searchFilters.sports.length > 0 ? 1 : 0) +
     (searchFilters.onlyVerified === true ? 1 : 0) +
-    (searchFilters.sportCriteria && searchFilters.sportCriteria.length > 0 ? 1 : 0);
+    (searchFilters.sportCriteria && searchFilters.sportCriteria.length > 0
+      ? 1
+      : 0);
 
   // ==================== EFECTOS ====================
 
@@ -103,8 +104,8 @@ export default function SearchMapScreen() {
     useCallback(() => {
       // Solo refrescar si hay un spot seleccionado Y el modal está visible
       if (selectedSpotId && showSpotCard && selectedSpot) {
-        refreshAll().catch(err => {
-          console.log('[SearchMapScreen] Error refreshing spot on focus:', err);
+        refreshAll().catch((err) => {
+          console.log("[SearchMapScreen] Error refreshing spot on focus:", err);
         });
       }
     }, [selectedSpotId, showSpotCard, selectedSpot, refreshAll])
@@ -143,13 +144,21 @@ export default function SearchMapScreen() {
   }, [searchSpots]);
 
   // Convertir spots a resultados de mapa usando la función de map-helpers
-  const mapResults = spotsToMapResults(filteredSpots, userLocation || undefined);
+  const mapResults = spotsToMapResults(
+    filteredSpots,
+    userLocation || undefined
+  );
 
   /**
    * Efecto para ejecutar búsqueda inicial cuando se obtiene la ubicación del usuario
    */
   useEffect(() => {
-    if (userLocation && !hasSearchedRef.current && filteredSpots.length === 0 && !isSearching) {
+    if (
+      userLocation &&
+      !hasSearchedRef.current &&
+      filteredSpots.length === 0 &&
+      !isSearching
+    ) {
       hasSearchedRef.current = true;
     }
   }, [userLocation, filteredSpots.length, isSearching]);
@@ -159,44 +168,53 @@ export default function SearchMapScreen() {
    * Selecciona el spot y muestra el callout automáticamente
    * Pre-carga datos básicos para mejorar performance
    */
-  const handleMarkerPress = useCallback((spot: Spot) => {
-    // Limpiar marcador de creación para evitar superposición visual
-    setCreateSpotLocation(null);
+  const handleMarkerPress = useCallback(
+    (spot: Spot) => {
+      // Limpiar marcador de creación para evitar superposición visual
+      setCreateSpotLocation(null);
 
-    // Pre-cargar datos básicos del spot en background desde el contexto
-    prefetchBasicFromContext(spot.id);
-    
-    selectSpot(spot, false); // No cargar reviews para el modal
-    setSelectedSpotId(spot.id);
-  }, [selectSpot, prefetchBasicFromContext]);
+      // Pre-cargar datos básicos del spot en background desde el contexto
+      prefetchBasicFromContext(spot.id);
+
+      selectSpot(spot, false); // No cargar reviews para el modal
+      setSelectedSpotId(spot.id);
+    },
+    [selectSpot, prefetchBasicFromContext]
+  );
 
   /**
    * Maneja el press en el callout
    * Muestra el card modal con toda la información
    */
-  const handleCalloutPress = useCallback((spot: Spot) => {
-    // Asegurar que el spot esté seleccionado en el contexto (sin cargar reviews)
-    selectSpot(spot, false);
-    // Mostrar el modal con los datos que ya tenemos
-    setShowSpotCard(true);
-  }, [selectSpot]);
+  const handleCalloutPress = useCallback(
+    (spot: Spot) => {
+      // Asegurar que el spot esté seleccionado en el contexto (sin cargar reviews)
+      selectSpot(spot, false);
+      // Mostrar el modal con los datos que ya tenemos
+      setShowSpotCard(true);
+    },
+    [selectSpot]
+  );
 
   /**
    * Maneja el press en un spot desde la lista o el card
    * Navega a la página del spot
    * Pre-carga datos completos antes de navegar para carga instantánea
    */
-  const handleSpotPress = useCallback((spot: Spot) => {
-    // Pre-cargar datos completos antes de navegar desde el contexto
-    // Esto hace que la página cargue instantáneamente desde el cache
-    prefetchFullFromContext(spot.id).then(() => {
-      // Navegar a la página del spot (datos ya en cache)
-      router.push({
-        pathname: '/spot/[spotId]',
-        params: { spotId: spot.id }
+  const handleSpotPress = useCallback(
+    (spot: Spot) => {
+      // Pre-cargar datos completos antes de navegar desde el contexto
+      // Esto hace que la página cargue instantáneamente desde el cache
+      prefetchFullFromContext(spot.id).then(() => {
+        // Navegar a la página del spot (datos ya en cache)
+        router.push({
+          pathname: "/spot/[spotId]",
+          params: { spotId: spot.id },
+        });
       });
-    });
-  }, [prefetchFullFromContext]);
+    },
+    [prefetchFullFromContext]
+  );
 
   /**
    * Cierra el card del spot
@@ -225,7 +243,7 @@ export default function SearchMapScreen() {
     if (createSpotLocation) {
       shouldRefreshAfterCreateRef.current = true;
       router.push({
-        pathname: '/spot/create-spot',
+        pathname: "/spot/create-spot",
         params: {
           latitude: createSpotLocation.latitude.toString(),
           longitude: createSpotLocation.longitude.toString(),
@@ -249,9 +267,7 @@ export default function SearchMapScreen() {
           />
         ) : (
           <View className="w-20 h-20 rounded-lg bg-gray-200 items-center justify-center">
-            <Text className="text-gray-400 text-2xl">
-              📍
-            </Text>
+            <Text className="text-gray-400 text-2xl">📍</Text>
           </View>
         )}
 
@@ -271,7 +287,7 @@ export default function SearchMapScreen() {
             {spot.metadata.isVerified && (
               <HStack className="items-center gap-1 pl-2">
                 <Text className="text-sm text-blue-600">✓</Text>
-                <Text className="text-sm text-blue-600">Verificado</Text>
+                <Text className="text-sm text-blue-600">Verified</Text>
               </HStack>
             )}
           </HStack>
@@ -280,16 +296,24 @@ export default function SearchMapScreen() {
           {distance !== undefined && (
             <HStack className="items-center gap-1">
               <Text className="text-sm text-gray-500">📍</Text>
-              <Text className="text-sm text-gray-500">{formatDistance(distance)}</Text>
+              <Text className="text-sm text-gray-500">
+                {formatDistance(distance)}
+              </Text>
             </HStack>
           )}
 
           {/* Deportes disponibles (primeros 3) */}
           {spot.details.availableSports.length > 0 && (
             <HStack className="flex-wrap gap-1 pt-1">
-              {spot.details.availableSports.slice(0, 3).map((sportId: string) => (
-                <Tag key={sportId} label={getSportName(sportId)} color={'#E6F6FF'} />
-              ))}
+              {spot.details.availableSports
+                .slice(0, 3)
+                .map((sportId: string) => (
+                  <Tag
+                    key={sportId}
+                    label={getSportName(sportId)}
+                    color={"#E6F6FF"}
+                  />
+                ))}
               {spot.details.availableSports.length > 3 && (
                 <Text className="text-xs text-gray-500">
                   +{spot.details.availableSports.length - 3}
@@ -329,7 +353,7 @@ export default function SearchMapScreen() {
             onSearchChange={setSearchQuery}
             onSearchPress={handleSearch}
             onFilterPress={() => setShowFilters(true)}
-            placeholder="Buscar spots deportivos..."
+            placeholder="Search sports spots..."
             showFilterButton={true}
             filterCount={activeFiltersCount}
             disabled={isSearching || isLoadingLocation}
@@ -352,10 +376,12 @@ export default function SearchMapScreen() {
                 />
                 <Text
                   className={
-                    viewMode === "map" ? "text-blue-600 font-semibold" : "text-gray-600"
+                    viewMode === "map"
+                      ? "text-blue-600 font-semibold"
+                      : "text-gray-600"
                   }
                 >
-                  Mapa
+                  Map
                 </Text>
               </HStack>
             </Pressable>
@@ -375,10 +401,12 @@ export default function SearchMapScreen() {
                 />
                 <Text
                   className={
-                    viewMode === "list" ? "text-blue-600 font-semibold" : "text-gray-600"
+                    viewMode === "list"
+                      ? "text-blue-600 font-semibold"
+                      : "text-gray-600"
                   }
                 >
-                  Lista
+                  List
                 </Text>
               </HStack>
             </Pressable>
@@ -395,13 +423,13 @@ export default function SearchMapScreen() {
                   <HStack className="items-center gap-2">
                     <View className="w-3 h-3 bg-white rounded-full animate-pulse" />
                     <Text className="text-white font-semibold">
-                      Obteniendo tu ubicación...
+                      Getting your location...
                     </Text>
                   </HStack>
                 </View>
               </View>
             )}
-            
+
             <MapSearchMap
               results={mapResults}
               selectedItemId={selectedSpotId}
@@ -417,7 +445,12 @@ export default function SearchMapScreen() {
                 `⭐ ${spot.details.overallRating.toFixed(1)}`
               }
               // Renderiza el marcador completo con callout incluido
-              renderCompleteMarker={(spot, isSelected, onPress, onCalloutPress) => (
+              renderCompleteMarker={(
+                spot,
+                isSelected,
+                onPress,
+                onCalloutPress
+              ) => (
                 <SpotMarker
                   key={spot.id}
                   spot={spot}
@@ -461,15 +494,13 @@ export default function SearchMapScreen() {
                     tooltip: true,
                   }}
                   renderCallout={() => (
-                    <View
-                      className="bg-white rounded-xl p-4 shadow-lg min-w-[160px] border border-gray-200"
-                    >
+                    <View className="bg-white rounded-xl p-4 shadow-lg min-w-[160px] border border-gray-200">
                       <VStack className="gap-1 items-center">
                         <Text className="text-base font-bold text-green-600">
-                          ➕ Crear Spot
+                          ➕ Create Spot
                         </Text>
                         <Text className="text-xs text-gray-600 text-center">
-                          Toca aquí para comenzar
+                          Tap here to start
                         </Text>
                       </VStack>
                     </View>
@@ -477,16 +508,23 @@ export default function SearchMapScreen() {
                 />
               )}
             </MapSearchMap>
-            
+
             {/* Card modal del spot seleccionado */}
             <SpotCardModal
               spot={selectedSpot || undefined}
               visible={showSpotCard}
-              distance={mapResults.find((r) => r.item.id === selectedSpot?.id)?.location.distance}
+              distance={
+                mapResults.find((r) => r.item.id === selectedSpot?.id)?.location
+                  .distance
+              }
               onClose={handleCloseSpotCard}
               onPress={handleSpotPress}
               getSportName={getSportName}
-              collectionSlot={selectedSpot ? <SpotCollectionSelector spotId={selectedSpot.id} /> : undefined}
+              collectionSlot={
+                selectedSpot ? (
+                  <SpotCollectionSelector spotId={selectedSpot.id} />
+                ) : undefined
+              }
             />
           </View>
         ) : (
@@ -496,7 +534,7 @@ export default function SearchMapScreen() {
             selectedItemId={selectedSpotId}
             isLoading={isSearching}
             error={null}
-            emptyMessage="No se encontraron spots deportivos"
+            emptyMessage="No sports spots found"
             renderItem={renderResultItem}
             listHeaderComponent={
               filteredSpots.length > 0 && !isSearching ? (
@@ -504,33 +542,41 @@ export default function SearchMapScreen() {
                   <HStack className="justify-between items-center">
                     <Text className="text-sm text-gray-600">
                       {filteredSpots.length}{" "}
-                      {filteredSpots.length === 1 ? "spot encontrado" : "spots encontrados"}
+                      {filteredSpots.length === 1
+                        ? "spot found"
+                        : "spots found"}
                     </Text>
-                    
+
                     {/* Selector de ordenamiento */}
                     <HStack className="gap-2">
                       <Pressable
-                        onPress={() => setSortBy('distance')}
+                        onPress={() => setSortBy("distance")}
                         className={`px-3 py-1.5 rounded-lg ${
-                          sortBy === 'distance' ? 'bg-blue-500' : 'bg-gray-200'
+                          sortBy === "distance" ? "bg-blue-500" : "bg-gray-200"
                         }`}
                       >
-                        <Text className={`text-xs font-medium ${
-                          sortBy === 'distance' ? 'text-white' : 'text-gray-700'
-                        }`}>
-                          Cercanía
+                        <Text
+                          className={`text-xs font-medium ${
+                            sortBy === "distance"
+                              ? "text-white"
+                              : "text-gray-700"
+                          }`}
+                        >
+                          Proximity
                         </Text>
                       </Pressable>
-                      
+
                       <Pressable
-                        onPress={() => setSortBy('rating')}
+                        onPress={() => setSortBy("rating")}
                         className={`px-3 py-1.5 rounded-lg ${
-                          sortBy === 'rating' ? 'bg-blue-500' : 'bg-gray-200'
+                          sortBy === "rating" ? "bg-blue-500" : "bg-gray-200"
                         }`}
                       >
-                        <Text className={`text-xs font-medium ${
-                          sortBy === 'rating' ? 'text-white' : 'text-gray-700'
-                        }`}>
+                        <Text
+                          className={`text-xs font-medium ${
+                            sortBy === "rating" ? "text-white" : "text-gray-700"
+                          }`}
+                        >
                           Rating
                         </Text>
                       </Pressable>
