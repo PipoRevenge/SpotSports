@@ -68,9 +68,9 @@ export interface DiscussionSortOptions {
  */
 export interface DiscussionFilters extends BaseFilters {
   /**
-   * Filter by discussion tag (e.g., 'Q&A', 'General')
+   * Filter by discussion tags (e.g., 'Q&A', 'General')
    */
-  tag?: string;
+  tags?: string[];
 
   /**
    * Filter by sport ID

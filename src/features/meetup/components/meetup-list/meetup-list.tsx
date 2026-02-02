@@ -21,6 +21,7 @@ import { ChevronDownIcon, Filter } from "lucide-react-native";
 import {
   DEFAULT_MEETUP_SORT,
   MEETUP_SORT_OPTIONS,
+  getMeetupSortLabel,
 } from "../../constants/sort-options";
 
 import { useAppAlert } from "@/src/context/app-alert-context";
@@ -77,7 +78,7 @@ export const MeetupList: React.FC<MeetupListProps> = ({
   });
 
   const [typeFilter, setTypeFilter] = React.useState<MeetupType | undefined>(
-    undefined
+    undefined,
   );
   const [visibilityFilter, setVisibilityFilter] = React.useState<
     MeetupVisibility | undefined
@@ -86,7 +87,7 @@ export const MeetupList: React.FC<MeetupListProps> = ({
   const [dateFrom, setDateFrom] = React.useState<Date | null>(null);
   const [dateTo, setDateTo] = React.useState<Date | null>(null);
   const [timeOfDay, setTimeOfDay] = React.useState<MeetupTimeOfDay | undefined>(
-    undefined
+    undefined,
   );
 
   const filters = React.useMemo<MeetupFilters | undefined>(() => {
@@ -148,7 +149,7 @@ export const MeetupList: React.FC<MeetupListProps> = ({
       getActiveFilters: () => activeFiltersRef.current,
       setSort: (s: MeetupSortOptions) => setSort(s),
     }),
-    [setSort]
+    [setSort],
   );
 
   // Expose controls for parent (only when onRegisterFiltersControls reference changes)
@@ -187,7 +188,7 @@ export const MeetupList: React.FC<MeetupListProps> = ({
           ? "You are the organizer. Leaving will delete the meetup and its associated chat. Do you want to continue?"
           : "Are you sure you want to leave the meetup?",
         isOrganizer ? "Delete and leave" : "Leave",
-        "Cancel"
+        "Cancel",
       );
 
       if (!confirmed) return;
@@ -267,7 +268,7 @@ export const MeetupList: React.FC<MeetupListProps> = ({
             // 1) Try spot-specific sports
             if (spotSports) {
               const found = spotSports.find(
-                (s) => s.id === sp || s.name === sp
+                (s) => s.id === sp || s.name === sp,
               );
               if (found) return found.name;
             }
@@ -310,7 +311,7 @@ export const MeetupList: React.FC<MeetupListProps> = ({
       {/* Header con contador y filtros (puede ser proporcionado por el padre). If headerSlot is explicitly null, suppress header entirely. */}
       {headerSlot === null
         ? null
-        : headerSlot ?? (
+        : (headerSlot ?? (
             <View className="gap-2 pb-2">
               <HStack className="justify-between items-center">
                 <Text className="text-lg font-semibold">
@@ -348,7 +349,11 @@ export const MeetupList: React.FC<MeetupListProps> = ({
                     size="sm"
                     className="flex-row items-center gap-2"
                   >
-                    <SelectInput placeholder="Sort by" className="text-sm" />
+                    <SelectInput
+                      placeholder="Sort by"
+                      className="text-sm"
+                      value={getMeetupSortLabel(sort.field)}
+                    />
                     <SelectIcon as={ChevronDownIcon} />
                   </SelectTrigger>
                   <SelectPortal>
@@ -369,7 +374,7 @@ export const MeetupList: React.FC<MeetupListProps> = ({
                 </Select>
               </HStack>
             </View>
-          )}
+          ))}
 
       {content}
 

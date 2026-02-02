@@ -2,41 +2,42 @@ import { userRepository } from "@/src/api/repositories";
 import { MapMarker, MapView } from "@/src/components/commons/map";
 import { Button, ButtonIcon, ButtonText } from "@/src/components/ui/button";
 import {
-    Select,
-    SelectBackdrop,
-    SelectContent,
-    SelectDragIndicator,
-    SelectDragIndicatorWrapper,
-    SelectIcon,
-    SelectInput,
-    SelectItem,
-    SelectPortal,
-    SelectTrigger,
+  Select,
+  SelectBackdrop,
+  SelectContent,
+  SelectDragIndicator,
+  SelectDragIndicatorWrapper,
+  SelectIcon,
+  SelectInput,
+  SelectItem,
+  SelectPortal,
+  SelectTrigger,
 } from "@/src/components/ui/select";
 import { useUser } from "@/src/context/user-context";
 import { Review } from "@/src/entities/review/model/review";
 import {
-    CommentWithUser,
-    ReplyModal,
-    ReviewHeaderForModal,
-    useComments,
+  CommentWithUser,
+  ReplyModal,
+  ReviewHeaderForModal,
+  useComments,
 } from "@/src/features/comment";
 import {
-    DiscussionCard,
-    DiscussionListWithFilters,
-    type DiscussionListWithFiltersControls,
+  DiscussionCard,
+  DiscussionListWithFilters,
+  type DiscussionListWithFiltersControls,
 } from "@/src/features/discussion";
 import {
-    DEFAULT_DISCUSSION_SORT,
-    DISCUSSION_SORT_OPTIONS,
+  DEFAULT_DISCUSSION_SORT,
+  DISCUSSION_SORT_OPTIONS,
+  getDiscussionSortLabel,
 } from "@/src/features/discussion/constants/sort-options";
 import { MeetupList } from "@/src/features/meetup";
 import {
-    DEFAULT_MEETUP_SORT,
-    MEETUP_SORT_OPTIONS,
+  DEFAULT_MEETUP_SORT,
+  getMeetupSortLabel,
+  MEETUP_SORT_OPTIONS,
 } from "@/src/features/meetup/constants/sort-options";
 import { ReviewList, useReviewDelete } from "@/src/features/review";
-import type { ReviewSortValue } from "@/src/features/review/utils/review-constants";
 import { SpotSportsTable } from "@/src/features/sport";
 import { SpotDataDetails, useSelectedSpot } from "@/src/features/spot";
 import { SpotCollectionButton } from "@/src/features/spot-collection/components/spot-collection-button";
@@ -49,21 +50,21 @@ import { Text } from "@components/ui/text";
 import { VStack } from "@components/ui/vstack";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
-    ChevronDown,
-    ChevronUp,
-    Filter,
-    MessageSquare,
-    Target,
+  ChevronDown,
+  ChevronUp,
+  Filter,
+  MessageSquare,
+  Target,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    findNodeHandle,
-    KeyboardAvoidingView,
-    Pressable,
-    ScrollView,
-    UIManager,
-    View,
+  ActivityIndicator,
+  findNodeHandle,
+  KeyboardAvoidingView,
+  Pressable,
+  ScrollView,
+  UIManager,
+  View,
 } from "react-native";
 
 export const SpotPage = () => {
@@ -74,15 +75,14 @@ export const SpotPage = () => {
   const targetParentCommentId = params.parentCommentId as string | undefined;
 
   const [isSportsTableVisible, setIsSportsTableVisible] = useState(true);
-  const [sortBy, setSortBy] = useState<ReviewSortValue>("newest");
-  const [sportFilter, setSportFilter] = useState<string>("");
+
   const [activeTab, setActiveTab] = useState<
     "reviews" | "discussions" | "meetups"
   >("reviews");
   // Local state to reflect selected sort in the header controls
   const [meetupSortField, setMeetupSortField] = useState(DEFAULT_MEETUP_SORT);
   const [discussionSortField, setDiscussionSortField] = useState(
-    DEFAULT_DISCUSSION_SORT
+    DEFAULT_DISCUSSION_SORT,
   );
 
   // Reply modal state for review comments
@@ -108,6 +108,10 @@ export const SpotPage = () => {
     refreshAll,
     clearReviewsCache,
     discussionRefreshCount,
+    sort,
+    filters,
+    updateSort,
+    updateFilters,
   } = useSelectedSpot();
 
   // Cargar el spot y reviews cuando se monta el componente
@@ -129,7 +133,7 @@ export const SpotPage = () => {
         // Verificamos si selectSpot ya hace todo.
         // Si no, descomentar refreshAll()
       }
-    }, [spotId, selectSpot])
+    }, [spotId, selectSpot]),
   );
 
   // Efecto inicial mantenido por si mounting necesita lógica específica diferente al focus,
@@ -157,13 +161,13 @@ export const SpotPage = () => {
   }, [discussionFiltersControls]);
 
   // Filter reviews based on selected sport
-  const reviewHasSport = (review: Review, sportIdToCheck: string) =>
-    !!review?.details?.reviewSports?.some((s) => s.sportId === sportIdToCheck);
+  // const reviewHasSport = (review: Review, sportIdToCheck: string) =>
+  //   !!review?.details?.reviewSports?.some((s) => s.sportId === sportIdToCheck);
 
-  const filteredReviews = React.useMemo(() => {
-    if (!sportFilter) return reviews;
-    return reviews.filter((review) => reviewHasSport(review, sportFilter));
-  }, [reviews, sportFilter]);
+  // We are now doing server-side filtering via context, but we keep this memo
+  // if we want to support optimistic client-side filtering while loading.
+  // For now, let's just use 'reviews' directly as they are already filtered by the hook.
+  const filteredReviews = reviews;
 
   // When deep-linking to a comment inside a review, attempt to scroll to its measured position
   React.useEffect(() => {
@@ -206,7 +210,7 @@ export const SpotPage = () => {
   };
 
   const handleToggleCategory = async (
-    category: import("@/src/entities/user/model/spot-collection").SpotCategory
+    category: import("@/src/entities/user/model/spot-collection").SpotCategory,
   ) => {
     const isInCategory = categories.includes(category);
     if (isInCategory) {
@@ -350,7 +354,7 @@ export const SpotPage = () => {
             },
             (x: number, y: number) => {
               layoutMapRef.current.set(id, y);
-            }
+            },
           );
         }
       } catch {
@@ -368,7 +372,7 @@ export const SpotPage = () => {
       setIsNewComment(false);
       setReplyModalVisible(true);
     },
-    []
+    [],
   );
 
   const handleOpenNewCommentModal = useCallback((review: Review) => {
@@ -398,7 +402,7 @@ export const SpotPage = () => {
           selectedParentComment.id,
           content,
           media,
-          (selectedParentComment.level || 0) + 1
+          (selectedParentComment.level || 0) + 1,
         );
       }
 
@@ -412,7 +416,7 @@ export const SpotPage = () => {
       addComment,
       addReply,
       refreshAll,
-    ]
+    ],
   );
 
   if (loadingSpot) {
@@ -475,7 +479,7 @@ export const SpotPage = () => {
                       ) {
                         console.warn(
                           "[SpotPage] Invalid creator id, aborting navigation",
-                          { cid }
+                          { cid },
                         );
                         return;
                       }
@@ -701,11 +705,13 @@ export const SpotPage = () => {
               isDeleting={isDeleting}
               error={reviewsError || undefined}
               availableSports={availableSports}
-              selectedSportId={sportFilter}
-              onSportFilterChange={setSportFilter}
+              selectedSportId={filters.sportId || ""}
+              onSportFilterChange={(newSportId) =>
+                updateFilters({ sportId: newSportId || undefined })
+              }
               getSportName={getSportName}
-              sortBy={sortBy}
-              onSortChange={setSortBy}
+              sortBy={sort.field}
+              onSortChange={(field) => updateSort({ field })}
               emptyMessage="Sé el primero en escribir una review"
               onEdit={handleEditReview}
               onCreate={handleCreateReview}
@@ -773,6 +779,7 @@ export const SpotPage = () => {
                         <SelectInput
                           placeholder="Sort by"
                           className="text-sm"
+                          value={getMeetupSortLabel(meetupSortField)}
                         />
                         <SelectIcon as={ChevronDown} />
                       </SelectTrigger>
@@ -887,6 +894,7 @@ export const SpotPage = () => {
                           <SelectInput
                             placeholder="Sort by"
                             className="text-sm"
+                            value={getDiscussionSortLabel(discussionSortField)}
                           />
                           <SelectIcon as={ChevronDown} />
                         </SelectTrigger>

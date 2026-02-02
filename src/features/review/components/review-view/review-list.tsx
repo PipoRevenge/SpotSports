@@ -24,6 +24,7 @@ import { useReviewLoad } from "../../hooks/use-review-load";
 import {
   REVIEW_SORT_OPTIONS,
   type ReviewSortValue,
+  getReviewSortLabel,
 } from "../../utils/review-constants";
 import { ReviewFilterModal } from "../filters/review-filter-modal";
 import { ReviewCard } from "./review-card";
@@ -270,7 +271,11 @@ export const ReviewList: React.FC<ReviewListProps> = ({
                 size="sm"
                 className="flex-row items-center gap-2"
               >
-                <SelectInput placeholder="Sort by" className="text-sm" />
+                <SelectInput
+                  placeholder="Sort by"
+                  className="text-sm"
+                  value={getReviewSortLabel(sortBy)}
+                />
                 <SelectIcon as={ChevronDown} />
               </SelectTrigger>
               <SelectPortal>

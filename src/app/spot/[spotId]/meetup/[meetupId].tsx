@@ -1,14 +1,11 @@
 import { userRepository } from "@/src/api/repositories";
-import {
-    Avatar,
-    AvatarFallbackText,
-    AvatarImage,
-} from "@/src/components/ui/avatar";
+import { Avatar, AvatarImage } from "@/src/components/ui/avatar";
 import { Badge, BadgeText } from "@/src/components/ui/badge";
 import { Button, ButtonText } from "@/src/components/ui/button";
 import { Card } from "@/src/components/ui/card";
 import { Divider } from "@/src/components/ui/divider";
 import { HStack } from "@/src/components/ui/hstack";
+import { Icon } from "@/src/components/ui/icon";
 import { SafeAreaView } from "@/src/components/ui/safe-area-view";
 import { Text } from "@/src/components/ui/text";
 import { VStack } from "@/src/components/ui/vstack";
@@ -16,8 +13,8 @@ import { useAppAlert } from "@/src/context/app-alert-context";
 import { useUser } from "@/src/context/user-context";
 import { useChatParticipants } from "@/src/features/chat/hooks/use-chat-participants";
 import {
-    useApproveRequest,
-    useRejectRequest,
+  useApproveRequest,
+  useRejectRequest,
 } from "@/src/features/meetup/hooks/use-approve-reject";
 import { useDeleteMeetup } from "@/src/features/meetup/hooks/use-delete-meetup";
 import { useJoinMeetup } from "@/src/features/meetup/hooks/use-join-meetup";
@@ -28,11 +25,12 @@ import { useSpotDetails } from "@/src/features/spot/hooks/use-spot-details";
 import { useProfile } from "@/src/features/user/hooks/use-profile";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
-    ArrowLeftIcon,
-    Calendar,
-    Clock,
-    MapPin,
-    MessageCircleIcon,
+  ArrowLeftIcon,
+  Calendar,
+  Clock,
+  MapPin,
+  MessageCircleIcon,
+  User,
 } from "lucide-react-native";
 import React, { useMemo } from "react";
 import { ScrollView, TouchableOpacity, View } from "react-native";
@@ -68,7 +66,7 @@ export default function MeetupDetails() {
       "loading:",
       spotLoading,
       "error:",
-      spotError
+      spotError,
     );
   }, [spotId, spot?.id, spotLoading, spotError]);
   const { joinAsync, isJoining } = useJoinMeetup();
@@ -110,14 +108,14 @@ export default function MeetupDetails() {
 
   const isOrganizer = useMemo(
     () => !!user && meetup?.organizerId === user.id,
-    [user, meetup]
+    [user, meetup],
   );
   const isParticipant = useMemo(
     () =>
       !!user &&
       (meetup?.participants?.includes(user.id) ||
         participants.some((p) => p.id === user.id)),
-    [user, meetup, participants]
+    [user, meetup, participants],
   );
 
   const handleJoin = async () => {
@@ -159,8 +157,8 @@ export default function MeetupDetails() {
       try {
         const fetched = await Promise.all(
           meetup.joinRequests.map((id: string) =>
-            userRepository.getUserById(id)
-          )
+            userRepository.getUserById(id),
+          ),
         );
         setRequestUsers(fetched);
       } catch {
@@ -206,7 +204,7 @@ export default function MeetupDetails() {
       "Delete meetup",
       "Are you sure you want to delete this meetup?",
       "Delete",
-      "Cancel"
+      "Cancel",
     );
     if (!confirmed) return;
     try {
@@ -232,7 +230,7 @@ export default function MeetupDetails() {
         <Text className="text-slate-500">
           {typeof error === "string"
             ? error
-            : (error as Error)?.message ?? "Meetup no encontrado"}
+            : ((error as Error)?.message ?? "Meetup no encontrado")}
         </Text>
       </SafeAreaView>
     );
@@ -322,7 +320,7 @@ export default function MeetupDetails() {
                     <Text className="text-primary-600 font-medium underline">
                       {spotLoading
                         ? "Loading spot..."
-                        : spot?.details?.name ?? "Ver spot"}
+                        : (spot?.details?.name ?? "Ver spot")}
                     </Text>
                   </TouchableOpacity>
                 </HStack>
@@ -338,7 +336,7 @@ export default function MeetupDetails() {
                     {((meetup as any).daysOfWeek || [])
                       .map(
                         (d: number) =>
-                          ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"][d]
+                          ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"][d],
                       )
                       .join(", ")}
                   </Text>
@@ -391,10 +389,9 @@ export default function MeetupDetails() {
                     <AvatarImage
                       source={{ uri: organizer.userDetails.photoURL }}
                     />
-                  ) : null}
-                  <AvatarFallbackText>
-                    {organizer?.userDetails?.userName || "User"}
-                  </AvatarFallbackText>
+                  ) : (
+                    <Icon as={User} size="md" className="text-gray-400" />
+                  )}
                 </Avatar>
                 <VStack>
                   <Text className="font-semibold text-slate-900">
@@ -454,10 +451,9 @@ export default function MeetupDetails() {
                           <AvatarImage
                             source={{ uri: p.userDetails.photoURL }}
                           />
-                        ) : null}
-                        <AvatarFallbackText>
-                          {p.userDetails?.userName || "U"}
-                        </AvatarFallbackText>
+                        ) : (
+                          <Icon as={User} size="sm" className="text-gray-400" />
+                        )}
                       </Avatar>
                       <Text className="text-slate-700 font-medium">
                         {p.userDetails?.fullName || p.userDetails?.userName}
@@ -487,9 +483,7 @@ export default function MeetupDetails() {
                     Solicitudes pendientes ({meetup.joinRequests.length})
                   </Text>
                   {loadingRequests ? (
-                    <Text className="text-slate-500">
-                      Loading requests...
-                    </Text>
+                    <Text className="text-slate-500">Loading requests...</Text>
                   ) : (
                     <VStack space="md">
                       {requestUsers.map((r) => (
@@ -503,10 +497,13 @@ export default function MeetupDetails() {
                                 <AvatarImage
                                   source={{ uri: r.userDetails.photoURL }}
                                 />
-                              ) : null}
-                              <AvatarFallbackText>
-                                {r.userDetails?.userName}
-                              </AvatarFallbackText>
+                              ) : (
+                                <Icon
+                                  as={User}
+                                  size="xs"
+                                  className="text-gray-400"
+                                />
+                              )}
                             </Avatar>
                             <Text
                               className="text-slate-700 font-medium flex-1"

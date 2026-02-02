@@ -1,4 +1,3 @@
-import { HStack } from "@/src/components/ui/hstack";
 import { Icon } from "@/src/components/ui/icon";
 import { Pressable } from "@/src/components/ui/pressable";
 import { Text } from "@/src/components/ui/text";
@@ -11,6 +10,7 @@ import {
   MessagesSquare,
 } from "lucide-react-native";
 import React, { useState } from "react";
+import { View } from "react-native";
 
 interface ActivityTabsProps {
   user?: User | null;
@@ -68,18 +68,19 @@ export const ProfileActivityTabs: React.FC<ActivityTabsProps> = ({
   return (
     <VStack className="w-full">
       {/* Tabs header */}
-      <HStack className="w-full gap-2 items-center">
+      {/* Tabs header */}
+      <View className="flex-row flex-wrap gap-2 w-full">
         {TABS.map((tab) => (
           <Pressable
             key={tab.key}
             onPress={() => setSelectedTab(tab.key as any)}
-            className={`flex-1 flex-row justify-center items-center gap-3 px-4 py-2 rounded-full border ${
+            className={`flex-row justify-center items-center gap-2 px-4 py-2 rounded-full border ${
               selectedTab === tab.key
-                ? "bg-white border-gray-300 shadow-md"
+                ? "bg-white border-gray-300 shadow-sm"
                 : "bg-gray-100 border-transparent"
-            }`}
+            } grow`}
           >
-            <Icon as={tab.icon} size={18} color={tab.color} />
+            <Icon as={tab.icon} size={16} color={tab.color} />
             <Text
               className={`text-sm ${
                 selectedTab === tab.key
@@ -94,7 +95,7 @@ export const ProfileActivityTabs: React.FC<ActivityTabsProps> = ({
             </Text>
           </Pressable>
         ))}
-      </HStack>
+      </View>
 
       {/* Tab content */}
       <VStack className="pt-4">

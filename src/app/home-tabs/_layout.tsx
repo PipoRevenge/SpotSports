@@ -1,14 +1,7 @@
 import { useChatListView } from "@/src/features/chat";
 import { useNotifications } from "@/src/features/notification";
 import { Tabs } from "expo-router";
-import {
-  Bell,
-  Heart,
-  Map,
-  MessageCircle,
-  Newspaper,
-  User,
-} from "lucide-react-native";
+import { Bell, Heart, Map, MessageCircle, User } from "lucide-react-native";
 import type { ComponentType } from "react";
 import { useMemo } from "react";
 import { View } from "react-native";
@@ -19,19 +12,19 @@ export default function TabsLayout() {
 
   const hasUnreadChats = useMemo(
     () => chatItems.some((chat) => (chat.unreadCount ?? 0) > 0),
-    [chatItems]
+    [chatItems],
   );
 
   const hasUnreadNotifications = useMemo(
     () => notifications.some((notification) => !notification.isRead),
-    [notifications]
+    [notifications],
   );
 
   const renderIconWithBadge = (
     IconComponent: ComponentType<{ size: number; color: string }>,
     color: string,
     size: number,
-    showBadge?: boolean
+    showBadge?: boolean,
   ) => (
     <View style={{ width: size + 8, height: size + 8 }}>
       <IconComponent size={size} color={color} />
@@ -83,15 +76,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <Heart size={size} color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="my-feed"
-        options={{
-          title: "Feed",
-          tabBarIcon: ({ color, size }) => (
-            <Newspaper size={size} color={color} />
-          ),
-        }}
-      />
+
       <Tabs.Screen
         name="notifications"
         options={{

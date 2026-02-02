@@ -5,16 +5,16 @@ import { DiscussionFilters, DiscussionSortOptions, shouldApplyCreatedByMe } from
 import * as FileSystem from 'expo-file-system';
 import { ref as dbRef, getDatabase, push } from 'firebase/database';
 import {
-    collection,
-    collectionGroup,
-    doc,
-    limit as firestoreLimit,
-    getDoc,
-    getDocs,
-    orderBy,
-    query,
-    Timestamp,
-    where
+  collection,
+  collectionGroup,
+  doc,
+  limit as firestoreLimit,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  Timestamp,
+  where
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
@@ -47,7 +47,6 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
     // Try alternative approach - query by document ID pattern
     const allDiscussionsQ = query(
       discussionsGroupRef,
-      where('isDeleted', '==', false),
       firestoreLimit(500) // Practical limit
     );
     const snapshot = await getDocs(allDiscussionsQ);
@@ -178,11 +177,11 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       if (filters?.spotId) {
         // Query within specific spot
         const colRef = collection(firestore, this.getDiscussionsCollectionPath(filters.spotId));
-        baseQuery = query(colRef, where('isDeleted', '==', false));
+        baseQuery = query(colRef);
       } else {
         // Query across all spots using collectionGroup
         const discussionsGroupRef = collectionGroup(firestore, 'discussions');
-        baseQuery = query(discussionsGroupRef, where('isDeleted', '==', false));
+        baseQuery = query(discussionsGroupRef);
       }
 
       let q = baseQuery;
@@ -194,8 +193,12 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       
       // Apply other filters only if createdByMe is not in effect
       if (!applyCreatedByMe && filters) {
-        if (filters.tag) {
-          q = query(q, where('tags', 'array-contains', filters.tag));
+        if (filters.tags && filters.tags.length > 0) {
+          // IMPLEMENTING AND LOGIC:
+          // Firestore does not support multiple 'array-contains' clauses.
+          // Strategy: Filter by the FIRST tag using 'array-contains' to reduce the result set,
+          // then filter specifically for the remaining tags in memory (client-side).
+          q = query(q, where('tags', 'array-contains', filters.tags[0]));
         }
         if (filters.sportId) {
           // Filter by sport if spot has sport association
@@ -219,7 +222,6 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       }
 
       const snap = await getDocs(q);
-      const total = snap.size;
       const result: Discussion[] = [];
       
       for (const d of snap.docs) {
@@ -231,18 +233,30 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
         if (data.media && data.media.length > 0) {
           mediaUrls = await this.getDiscussionMediaUrls(docSpotId, d.id, data.media);
         }
-        result.push(
-          mapFirestoreDiscussionToEntity(
+        
+        const discussion = mapFirestoreDiscussionToEntity(
             { id: d.id, data: () => ({ ...data, media: mediaUrls }) } as any,
             docSpotId
-          )
         );
+
+        // Client-side filtering for AND logic on tags
+        if (filters?.tags && filters.tags.length > 1) {
+          const discussionTags = discussion.details?.tags || [];
+          // Check if all selected tags are present (skipping first one handled by query)
+          const hasAllTags = filters.tags.slice(1).every(tag => discussionTags.includes(tag));
+          
+          if (!hasAllTags) {
+            continue; // Skip this discussion
+          }
+        }
+        
+        result.push(discussion);
       }
       
       const offset = (options.page - 1) * options.pageSize;
       const pageDiscussions = result.slice(offset, offset + options.pageSize);
 
-      return { discussions: pageDiscussions, total };
+      return { discussions: pageDiscussions, total: result.length };
     } catch (error) {
       console.error('[DiscussionRepository] getDiscussions:', error);
       const parsed = parseFirebaseError(error);
@@ -258,14 +272,12 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
       const q1 = query(
         discussionsGroupRef,
         where('userId', '==', userId),
-        where('isDeleted', '==', false),
         orderBy('createdAt', 'desc'),
         firestoreLimit(limit + offset)
       );
       const q2 = query(
         discussionsGroupRef,
         where('createdBy', '==', userId),
-        where('isDeleted', '==', false),
         orderBy('createdAt', 'desc'),
         firestoreLimit(limit + offset)
       );
@@ -608,7 +620,7 @@ export class DiscussionRepositoryImpl implements IDiscussionRepository {
   // ==================== VOTE METHODS ====================
 
   /**
-   * Vota en una discussion (like o dislike)
+   * Vote on a discussion (upvote/downvote)
    * Delega al voteRepository usando el path correcto
    */
   async voteDiscussion(spotId: string, discussionId: string, userId: string, isLike: boolean): Promise<void> {

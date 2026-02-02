@@ -433,9 +433,17 @@ export const useMapSpotSearch = ({
    */
   useEffect(() => {
     if (autoSearch && userLocation && !mapRegion) {
+      if (shouldCenterOnUser) {
+        setMapRegionState({
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        });
+      }
       searchSpots();
     }
-  }, [autoSearch, userLocation, mapRegion, searchSpots]);
+  }, [autoSearch, userLocation, mapRegion, searchSpots, shouldCenterOnUser]);
 
   // Keep local state derived from react-query result
   useEffect(() => {

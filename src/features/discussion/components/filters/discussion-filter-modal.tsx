@@ -1,15 +1,23 @@
-import { Button, ButtonText } from '@/src/components/ui/button';
-import { HStack } from '@/src/components/ui/hstack';
-import { Modal, ModalBackdrop, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader } from '@/src/components/ui/modal';
-import { Text } from '@/src/components/ui/text';
-import { VStack } from '@/src/components/ui/vstack';
-import { SimpleSport } from '@/src/entities/sport/model/sport';
-import { AVAILABLE_TAGS } from '@/src/features/discussion/constants/tags';
-import type { DiscussionFilters } from '@/src/features/discussion/types/discussion-filter-types';
-import { CloseIcon, Icon } from '@components/ui/icon';
-import { Tag as TagIcon, Trophy } from 'lucide-react-native';
-import React from 'react';
-import { Pressable, ScrollView } from 'react-native';
+import { Button, ButtonText } from "@/src/components/ui/button";
+import { HStack } from "@/src/components/ui/hstack";
+import {
+  Modal,
+  ModalBackdrop,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+} from "@/src/components/ui/modal";
+import { Text } from "@/src/components/ui/text";
+import { VStack } from "@/src/components/ui/vstack";
+import { SimpleSport } from "@/src/entities/sport/model/sport";
+import { AVAILABLE_TAGS } from "@/src/features/discussion/constants/tags";
+import type { DiscussionFilters } from "@/src/features/discussion/types/discussion-filter-types";
+import { CloseIcon, Icon } from "@components/ui/icon";
+import { Tag as TagIcon, Trophy } from "lucide-react-native";
+import React from "react";
+import { Pressable, ScrollView } from "react-native";
 
 interface DiscussionFilterModalProps {
   visible: boolean;
@@ -35,27 +43,31 @@ export const DiscussionFilterModal: React.FC<DiscussionFilterModalProps> = ({
   React.useEffect(() => {
     if (visible) {
       // Convert singular filter to array for UI
-      setSelectedTags(filters.tag ? [filters.tag] : []);
+      setSelectedTags(filters.tags ? filters.tags : []);
       setSelectedSports(filters.sportId ? [filters.sportId] : []);
     }
   }, [visible, filters]);
 
   const handleTagToggle = (tag: string) => {
     setSelectedTags((current) =>
-      current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag]
+      current.includes(tag)
+        ? current.filter((t) => t !== tag)
+        : [...current, tag],
     );
   };
 
   const handleSportToggle = (sportId: string) => {
     setSelectedSports((current) =>
-      current.includes(sportId) ? current.filter((s) => s !== sportId) : [...current, sportId]
+      current.includes(sportId)
+        ? current.filter((s) => s !== sportId)
+        : [...current, sportId],
     );
   };
 
   const handleApply = () => {
     // Convert arrays back to singular filter format
     const newFilters: DiscussionFilters = {
-      ...(selectedTags.length > 0 ? { tag: selectedTags[0] } : {}),
+      ...(selectedTags.length > 0 ? { tags: selectedTags } : {}),
       ...(selectedSports.length > 0 ? { sportId: selectedSports[0] } : {}),
     };
     onApply(newFilters);
@@ -105,15 +117,15 @@ export const DiscussionFilterModal: React.FC<DiscussionFilterModalProps> = ({
                       onPress={() => handleTagToggle(tag.label)}
                       className={`px-3 py-2 rounded-full border ${
                         selectedTags.includes(tag.label)
-                          ? 'bg-blue-50 border-blue-500'
-                          : 'bg-white border-gray-200'
+                          ? "bg-blue-50 border-blue-500"
+                          : "bg-white border-gray-200"
                       }`}
                     >
                       <Text
                         className={`text-xs font-medium ${
                           selectedTags.includes(tag.label)
-                            ? 'text-blue-700'
-                            : 'text-gray-700'
+                            ? "text-blue-700"
+                            : "text-gray-700"
                         }`}
                       >
                         {tag.label}
@@ -137,15 +149,15 @@ export const DiscussionFilterModal: React.FC<DiscussionFilterModalProps> = ({
                         onPress={() => handleSportToggle(sport.id)}
                         className={`px-3 py-2 rounded-full border ${
                           selectedSports.includes(sport.id)
-                            ? 'bg-green-50 border-green-500'
-                            : 'bg-white border-gray-200'
+                            ? "bg-green-50 border-green-500"
+                            : "bg-white border-gray-200"
                         }`}
                       >
                         <Text
                           className={`text-xs font-medium ${
                             selectedSports.includes(sport.id)
-                              ? 'text-green-700'
-                              : 'text-gray-700'
+                              ? "text-green-700"
+                              : "text-gray-700"
                           }`}
                         >
                           {sport.name}
@@ -176,7 +188,10 @@ export const DiscussionFilterModal: React.FC<DiscussionFilterModalProps> = ({
               className="flex-1"
             >
               <ButtonText>
-                Apply {getActiveFiltersCount() > 0 ? `(${getActiveFiltersCount()})` : ''}
+                Apply{" "}
+                {getActiveFiltersCount() > 0
+                  ? `(${getActiveFiltersCount()})`
+                  : ""}
               </ButtonText>
             </Button>
           </HStack>

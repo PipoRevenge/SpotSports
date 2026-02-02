@@ -11,7 +11,7 @@ export default function Index() {
     if (!isLoading) {
       if (isAuthenticated && user) {
         // User is authenticated and data loaded, navigate to main app
-        router.replace('/home-tabs/my-feed');
+        router.replace('/home-tabs/my-profile');
       } else {
         // Not authenticated, navigate to auth screen
         router.replace('/auth/authentication');
