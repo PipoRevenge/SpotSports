@@ -14,7 +14,6 @@ import { VStack } from "@/src/components/ui/vstack";
 import { Review } from "@/src/entities/review/model/review";
 import { User } from "@/src/entities/user/model/user";
 import { useMediaUrls } from "@/src/hooks";
-import { useAllSportsMap } from "@/src/hooks/use-sports";
 import { formatDate, getInitials } from "@/src/utils/date-utils";
 import { MessageCircle, ThumbsDown, ThumbsUp } from "lucide-react-native";
 import React from "react";
@@ -40,9 +39,8 @@ export const ProfileReviewCard: React.FC<ProfileReviewCardProps> = ({
     user?.userDetails?.userName || user?.userDetails?.fullName || "User";
   const userPhoto = user?.userDetails?.photoURL;
   const { urls: mediaUrls, loading: mediaLoading } = useMediaUrls(
-    review.details.media || []
+    review.details.media || [],
   );
-  const { getSportName: globalGetSportName } = useAllSportsMap();
 
   const likes = review.activity?.likesCount ?? 0;
   const dislikes = review.activity?.dislikesCount ?? 0;
@@ -84,10 +82,8 @@ export const ProfileReviewCard: React.FC<ProfileReviewCardProps> = ({
                 rating={review.details.rating}
                 maxStars={5}
                 size="sm"
+                showValue={true}
               />
-              <Text className="text-sm font-semibold text-gray-800">
-                {review.details.rating.toFixed(1)} ⭐
-              </Text>
             </VStack>
           )}
         </HStack>
@@ -146,7 +142,7 @@ export const ProfileReviewCard: React.FC<ProfileReviewCardProps> = ({
                     sportName:
                       (getSportName
                         ? getSportName(sport.sportId)
-                        : globalGetSportName(sport.sportId)) ?? sport.sportId,
+                        : undefined) ?? sport.sportId,
                     rating: sport.sportRating,
                     difficulty: sport.difficulty,
                     sportComment: sport.comment,

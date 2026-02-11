@@ -4,7 +4,7 @@
     "slug": "SpotsSports",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./src/assets/images/app-logo/logo-icon-with-white.png",
+    "icon": "./src/assets/images/app-logo/logo-filled.png",
     "scheme": "spotssports",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,9 +14,8 @@
     "android": {
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./src/assets/images/android-icon-foreground.png",
-        "backgroundImage": "./src/assets/images/android-icon-background.png",
+        "foregroundImage": "./src/assets/images/app-logo/logo-icon-transparent.png",
+        "backgroundColor": "#2ECC71",
         "monochromeImage": "./src/assets/images/app-logo/logo-filled.png"
       },
       "edgeToEdgeEnabled": true,
@@ -59,10 +58,7 @@
           "locationWhenInUsePermission": "Permitir que $(PRODUCT_NAME) use tu ubicación para mostrar spots deportivos cercanos."
         }
       ],
-      [
-        "react-native-maps",
-        {}
-      ],
+      ["react-native-maps", {}],
       [
         "expo-notifications",
         {

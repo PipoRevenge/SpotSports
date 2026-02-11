@@ -7,3 +7,7 @@ EXPO_PUBLIC_FIREBASE_APP_ID=
 EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID=
 
 GOOGLE_MAPS_API_KEY=
+
+# IP para conectar con los emuladores de Firebase (solo desarrollo)
+# Android Emulator: 10.0.2.2 | Dispositivo físico: tu IP local (ej: 192.168.1.100)
+EXPO_PUBLIC_EMULATOR_IP=

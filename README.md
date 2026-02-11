@@ -13,7 +13,7 @@ Para probar la aplicación correctamente, es necesario levantar el backend (emul
 
 ### 2. Iniciar App Móvil
 
-1. Modifica el env para añadir sus claves correspondientes, y añade su archivo de google service account
+1. Modifica el `.env` para añadir sus claves correspondientes, y añade tu archivo de Google Service Account.
 
 2. En esta carpeta (`SpotsSports`):
    ```bash
@@ -22,6 +22,102 @@ Para probar la aplicación correctamente, es necesario levantar el backend (emul
    npx expo start
    ```
 3. Escanea el QR o presiona `a` para Android.
+
+> **Nota:** Al ejecutar `npx expo run:android` es normal que al finalizar la compilación aparezca un aviso para cerrar la app; cierra la app en el dispositivo y en la terminal que ejecutó el comando pulsa "a" en la terminal para que recargue la aplicacion.
+
+### 3. Configuración de IPs para Emuladores
+
+Cuando uses los **emuladores de Firebase** junto con el **emulador de Android**, la app necesita conocer la IP correcta para conectarse al backend local.
+
+La configuración se encuentra en [`src/lib/firebase-config.ts`](src/lib/firebase-config.ts):
+
+```ts
+const localIp = process.env.EXPO_PUBLIC_EMULATOR_IP || "10.0.2.2";
+const USE_EMULATOR = false; // Cambiar a true para usar emuladores
+```
+
+#### Pasos para conectar emuladores:
+
+1. **Cambia `USE_EMULATOR` a `true`** en `src/lib/firebase-config.ts`.
+
+2. **Configura la IP según tu entorno:**
+
+   | Entorno                            | IP a usar                       | Descripción                                                 |
+   | ---------------------------------- | ------------------------------- | ----------------------------------------------------------- |
+   | Emulador Android (AVD)             | `10.0.2.2` (por defecto)        | IP especial que redirige al `localhost` de la máquina host  |
+   | Dispositivo físico en la misma red | Tu IP local (ej: `192.168.1.X`) | Obtenerla con `ipconfig` (Windows) o `ifconfig` (Mac/Linux) |
+   | WSL / Docker                       | IP del host                     | Depende de la configuración de red                          |
+
+3. **Si necesitas usar una IP personalizada**, añade en tu `.env`:
+
+   ```dotenv
+   EXPO_PUBLIC_EMULATOR_IP=192.168.1.100
+   ```
+
+4. **Asegúrate de que los emuladores de Firebase estén corriendo** en los puertos por defecto:
+   - Auth: `9099`
+   - Firestore: `8080`
+   - Realtime Database: `9000`
+   - Functions: `5001`
+   - Storage: `9199`
+
+> ⚠️ **Importante**: Si el emulador de Android no puede conectar con los emuladores de Firebase, verifica que el firewall no esté bloqueando los puertos y que la IP sea accesible desde el dispositivo/emulador.
+
+---
+
+### 4. Push Notifications (Notificaciones Push)
+
+> ⚠️ **Las notificaciones push NO funcionan en emuladores de Android ni en simuladores de iOS. Se requiere un dispositivo físico.**
+
+La app utiliza [Expo Notifications](https://docs.expo.dev/push-notifications/overview/) junto con Firebase Cloud Functions para enviar y recibir notificaciones push.
+
+#### ¿Cómo funciona?
+
+1. **Registro del token**: Al iniciar sesión, la app obtiene un `ExpoPushToken` y lo registra en el backend mediante una Cloud Function (`notification-registerToken`).
+2. **Envío de notificaciones**: Las Cloud Functions de Firebase (triggers en Firestore) detectan eventos (nuevo mensaje, comentario, reseña, etc.) y envían la notificación a través del servicio de Expo Push.
+3. **Recepción en la app**: La app escucha notificaciones en foreground y responde a taps para navegar a la pantalla correspondiente.
+
+#### Requisitos para probar notificaciones push:
+
+1. **Dispositivo físico Android o iOS** — los emuladores/simuladores no soportan push notifications.
+2. **Development build** — las notificaciones no funcionan en Expo Go, necesitas un build de desarrollo:
+   ```bash
+   npx expo prebuild android
+   npx expo run:android
+   ```
+3. **Credenciales FCM configuradas** — el archivo `google-services.json` debe estar en la raíz del proyecto con las credenciales correctas de Firebase Cloud Messaging.
+4. **Backend desplegado o emuladores con IP real** — si usas los emuladores de Firebase, recuerda:
+   - Cambiar `USE_EMULATOR = true` en `firebase-config.ts`
+   - Configurar `EXPO_PUBLIC_EMULATOR_IP` con la **IP local de tu máquina** (no `10.0.2.2`, ya que estás en un dispositivo físico)
+   - Ejemplo: `EXPO_PUBLIC_EMULATOR_IP=192.168.1.100`
+
+#### Probar notificaciones manualmente:
+
+1. Ejecuta la app en un dispositivo físico.
+2. Inicia sesión para que se registre el push token.
+3. Usa la herramienta de [Expo Push Notifications](https://expo.dev/notifications) para enviar una notificación de prueba con el token que aparece en los logs.
+
+#### Arquitectura de notificaciones:
+
+```
+Dispositivo físico                          Backend (Firebase)
+┌─────────────────┐                   ┌──────────────────────┐
+│  App registra   │───registerToken──▶│  Cloud Function      │
+│  ExpoPushToken  │                   │  guarda token en     │
+│                 │                   │  users/{id}.pushTokens│
+├─────────────────┤                   ├──────────────────────┤
+│  Escucha        │◀──Expo Push API───│  Triggers Firestore  │
+│  notificaciones │                   │  (onMessageCreate,   │
+│  (foreground +  │                   │   onCommentCreate,   │
+│   background)   │                   │   onReviewCreate...) │
+└─────────────────┘                   └──────────────────────┘
+```
+
+Para más detalles, consulta:
+
+- [Expo Push Notifications Setup](https://docs.expo.dev/push-notifications/push-notifications-setup/)
+- [`src/features/notification/`](src/features/notification/) — Código de notificaciones en la app
+- [`firebase-backend/functions/src/domains/notifications/`](../firebase-backend/functions/src/domains/notifications/) — Cloud Functions del backend
 
 ---
 

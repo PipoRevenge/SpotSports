@@ -245,11 +245,12 @@ export const useMapSpotSearch = ({
   const setMapRegion = useCallback((region: Region) => {
     setMapRegionState(region);
 
-    // Después de la primera vez, no centramos más en el usuario
-    if (shouldCenterOnUser) {
+    // Solo dejamos de centrar en el usuario cuando ya tenemos su ubicación
+    // (evita que onRegionChangeComplete con la región por defecto desactive el centrado)
+    if (shouldCenterOnUser && userLocation) {
       setShouldCenterOnUser(false);
     }
-  }, [shouldCenterOnUser]);
+  }, [shouldCenterOnUser, userLocation]);
 
   /**
    * Actualiza un spot específico en la lista de spots

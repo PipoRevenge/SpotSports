@@ -1,14 +1,14 @@
-import {
-    MapCircle,
-    MapMarker,
-    MapView,
-} from "@/src/components/commons/map";
+import { MapCircle, MapMarker, MapView } from "@/src/components/commons/map";
 
 import { VStack } from "@/src/components/ui/vstack";
 import { useMapSearch } from "@/src/context/map-search-context";
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import MapViewRef from "react-native-maps";
-import { DEFAULT_MAP_CONFIG, MapSearchMapProps, MapSearchResult } from "../types/map-types";
+import {
+    DEFAULT_MAP_CONFIG,
+    MapSearchMapProps,
+    MapSearchResult,
+} from "../types/map-types";
 import {
     calculateRegionForDistance,
     calculateRegionForLocations,
@@ -16,14 +16,14 @@ import {
 
 /**
  * Componente de mapa genérico para mostrar resultados de búsqueda
- * 
+ *
  * Características:
  * - Muestra resultados como marcadores
  * - Círculo de distancia máxima
  * - Centrado automático en usuario o resultados
  * - Marcador personalizable
  * - Ubicación del usuario
- * 
+ *
  * @example
  * ```tsx
  * <MapSearchMap
@@ -59,9 +59,10 @@ export const MapSearchMap = <T,>({
   renderCustomCallout,
   renderCompleteMarker,
   children,
-}: Omit<MapSearchMapProps<T>, 'userLocation'>): React.ReactElement => {
+}: Omit<MapSearchMapProps<T>, "userLocation">): React.ReactElement => {
   const mapRef = useRef<MapViewRef>(null);
-  
+  const hasCenteredOnUser = useRef(false);
+
   // Consumir ubicación del usuario desde el contexto
   const { userLocation } = useMapSearch();
 
@@ -74,43 +75,68 @@ export const MapSearchMap = <T,>({
         ...DEFAULT_MAP_CONFIG.distanceCircle,
         ...userConfig.distanceCircle,
       },
-      showUserLocation: userConfig.showUserLocation ?? DEFAULT_MAP_CONFIG.showUserLocation,
+      showUserLocation:
+        userConfig.showUserLocation ?? DEFAULT_MAP_CONFIG.showUserLocation,
       showMyLocationButton:
-        userConfig.showMyLocationButton ?? DEFAULT_MAP_CONFIG.showMyLocationButton,
+        userConfig.showMyLocationButton ??
+        DEFAULT_MAP_CONFIG.showMyLocationButton,
       followsUserLocation:
-        userConfig.followsUserLocation ?? DEFAULT_MAP_CONFIG.followsUserLocation,
+        userConfig.followsUserLocation ??
+        DEFAULT_MAP_CONFIG.followsUserLocation,
     }),
-    [userConfig]
+    [userConfig],
   );
 
   /**
+   * Centra el mapa en la ubicación del usuario (animación)
+   */
+  const centerMapOnUser = useCallback(() => {
+    if (!mapRef.current || !userLocation) return;
+
+    if (config.distanceCircle.enabled && config.distanceCircle.maxDistance) {
+      const region = calculateRegionForDistance(
+        userLocation,
+        config.distanceCircle.maxDistance,
+      );
+      mapRef.current.animateToRegion(region, 1000);
+    } else {
+      mapRef.current.animateToRegion(
+        {
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+          latitudeDelta: config.region.defaultZoom || 0.05,
+          longitudeDelta: config.region.defaultZoom || 0.05,
+        },
+        1000,
+      );
+    }
+  }, [userLocation, config]);
+
+  /**
    * Efecto para centrar el mapa cuando hay ubicación o resultados
+   * Prioridad: centrado inicial en usuario > auto-center > resultados
    */
   useEffect(() => {
     if (!mapRef.current) return;
 
+    // Centrado inicial en usuario: se ejecuta la primera vez que llega userLocation
+    // independientemente de providedInitialRegion (que puede ser la región por defecto)
+    if (
+      userLocation &&
+      config.region.autoCenter &&
+      !hasCenteredOnUser.current
+    ) {
+      hasCenteredOnUser.current = true;
+      centerMapOnUser();
+      return;
+    }
+
+    // Para cambios posteriores, respetar providedInitialRegion
     if (providedInitialRegion) {
       return;
     }
 
-    if (
-      userLocation &&
-      config.region.autoCenter &&
-      config.distanceCircle.enabled &&
-      config.distanceCircle.maxDistance
-    ) {
-      const region = calculateRegionForDistance(
-        userLocation,
-        config.distanceCircle.maxDistance
-      );
-      mapRef.current.animateToRegion(region, 1000);
-      return;
-    }
-
-    if (
-      config.region.autoCenterOnResults &&
-      results.length > 0
-    ) {
+    if (config.region.autoCenterOnResults && results.length > 0) {
       const locations = results.map((r: MapSearchResult<T>) => r.location);
       const region = calculateRegionForLocations(locations);
       if (region) {
@@ -120,17 +146,9 @@ export const MapSearchMap = <T,>({
     }
 
     if (userLocation && config.region.autoCenter) {
-      mapRef.current.animateToRegion(
-        {
-          latitude: userLocation.latitude,
-          longitude: userLocation.longitude,
-          latitudeDelta: config.region.defaultZoom || 0.05,
-          longitudeDelta: config.region.defaultZoom || 0.05,
-        },
-        1000
-      );
+      centerMapOnUser();
     }
-  }, [userLocation, results, config, providedInitialRegion]);
+  }, [userLocation, results, config, providedInitialRegion, centerMapOnUser]);
 
   /**
    * Maneja el press en un marcador
@@ -179,7 +197,7 @@ export const MapSearchMap = <T,>({
         showsMyLocationButton={config.showMyLocationButton}
         followsUserLocation={config.followsUserLocation}
         loadingEnabled={true}
-        containerStyle={{ flex: 1, borderRadius: 0, overflow: 'visible' }}
+        containerStyle={{ flex: 1, borderRadius: 0, overflow: "visible" }}
       >
         {/* Círculo de distancia máxima */}
         {userLocation &&
@@ -213,7 +231,7 @@ export const MapSearchMap = <T,>({
                   item,
                   isSelected,
                   () => handleMarkerPress(item),
-                  () => onCalloutPress && onCalloutPress(item)
+                  () => onCalloutPress && onCalloutPress(item),
                 )}
               </React.Fragment>
             );
@@ -241,12 +259,10 @@ export const MapSearchMap = <T,>({
             />
           );
         })}
-        
+
         {/* Contenido adicional (marcadores extra, etc.) */}
         {children}
       </MapView>
-
-      
     </VStack>
   );
 };
