@@ -1,5 +1,5 @@
 ========================================
-Estructura de Datos Firestore (Subcollections)
+Estructura de Datos Firestore (Actualizada)
 ========================================
 
 [COLECCIÓN RAÍZ]
@@ -37,25 +37,26 @@ spots/
     // Métricas Agregadas (denormalizadas)
     overallRating: number
     reviewsCount: number 
-    visitsCount: number
+    activeMeetupsCount: number
     
     // Metadatos
     createdAt: timestamp
     updatedAt: timestamp
-    createdBy: idUser
+    createdBy: reference (users collection)
 
     // ============ SUBCOLECCIONES ============
 
     [SUBCOLECCIÓN]
     /reviews
-      [reviewId] // Formato: {userId}_{spotId}
+      [reviewId] // Formato: {userId}_{spotId} o auto-id
         // Contenido de la Review
         content: string
         rating: number
         gallery: string[]
         
-        // Referencias (spotId implícito en path)
+        // Referencias
         userId: string
+        spotId: string
         sportRatings: map
           [sportId]:
             sportRating: number
@@ -70,21 +71,19 @@ spots/
         
         // Metadatos
         createdAt: timestamp
-        updatedAt?: timestamp
+        updatedAt: timestamp
         isDeleted?: boolean
         
         [SUBCOLECCIÓN]
         /comments
           [commentId]
             userId: string
-            // Nuevo: identificadores explícitos para limpieza de referencias y queries
-            contextId: string  // ID del contexto (spotId). Opcional: se puede inferir del path
-            sourceType: 'review' // or 'discussion' - indica si el comentario pertenece a una review o discussion
-            sourceId: string  // ID del recurso padre (reviewId o discussionId)
-            // IMPORTANT: `sourceRef` is REQUIRED and must be stored as a DocumentReference to the parent document (review or discussion)
-            sourceRef: reference  // REQUIRED: Referencia al documento padre (review o discussion)
-            parentId: string  // reviewId o commentId para respuestas
-            level: number     // 0 = directo, 1+ = respuesta anidada
+            contextId: string  // spotId
+            sourceType: 'review'
+            sourceId: string  // reviewId
+            sourceRef: reference
+            parentId: string  // reviewId o commentId
+            level: number
             content: string
             media: string[]
             tags: string[]
@@ -93,26 +92,29 @@ spots/
             commentsCount: number
             reports: number
             createdAt: timestamp
-            updatedAt?: timestamp
+            updatedAt: timestamp
             isDeleted: boolean
             
             [SUBCOLECCIÓN]
             /votes
               [userId]
+                userId: string
                 isLike: boolean
                 createdAt: timestamp
         
         [SUBCOLECCIÓN]
         /votes
           [userId]
+            userId: string
             isLike: boolean
             createdAt: timestamp
 
     [SUBCOLECCIÓN]
     /discussions
       [discussionId]
-        // Referencias (spotId implícito en path)
+        // Referencias
         userId: string
+        spotId: string
         
         // Contenido
         title: string
@@ -129,20 +131,18 @@ spots/
         
         // Metadatos
         createdAt: timestamp
-        updatedAt?: timestamp
+        updatedAt: timestamp
         isDeleted: boolean
         
         [SUBCOLECCIÓN]
         /comments
           [commentId]
             userId: string
-            // Nuevo: identificadores explícitos para limpieza de referencias y queries
-            contextId: string  // ID del contexto (spotId). Opcional: se puede inferir del path
-            sourceType: 'discussion' // indicates this comment belongs to a discussion
-            sourceId: string  // discussionId or other source id.Opcional: se puede inferir del path
-            // IMPORTANT: `sourceRef` is REQUIRED and must be stored as a DocumentReference to the parent document (review or discussion)
-            sourceRef: reference  // REQUIRED: Referencia al documento padre (review o discussion)
-            parentId: string    // discussionId o commentId para respuestas
+            contextId: string  // spotId
+            sourceType: 'discussion'
+            sourceId: string  // discussionId
+            sourceRef: reference
+            parentId: string    // discussionId o commentId
             level: number
             content: string
             media: string[]
@@ -152,25 +152,27 @@ spots/
             commentsCount: number
             reports: number
             createdAt: timestamp
-            updatedAt?: timestamp
+            updatedAt: timestamp
             isDeleted: boolean
             
             [SUBCOLECCIÓN]
             /votes
               [userId]
+                userId: string
                 isLike: boolean
                 createdAt: timestamp
         
         [SUBCOLECCIÓN]
         /votes
           [userId]
+            userId: string
             isLike: boolean
             createdAt: timestamp
 
     [SUBCOLECCIÓN]
     /sport_metrics
       [sportId]
-        // Métricas Calculadas (spot_ref implícito, sport_ref es el doc ID)
+        // Métricas Calculadas
         avg_difficulty: number
         avg_rating: number
         review_count: number
@@ -185,42 +187,35 @@ spots/
         // Información Básica
         spotId: string
         organizerId: string
-        chatId: string  // Referencia al chat del meetup
+        chatId: string  // Referencia al chat
         title: string
         description?: string
         tags?: string[]
         
-        // Tipo de Meetup (discriminador)
+        // Tipo de Meetup
         type: 'CASUAL' | 'TOURNAMENT' | 'MATCH' | 'ROUTINE'
         
         // Estado y Visibilidad
-        status: 'SCHEDULED' | 'CANCELLED' | 'COMPLETED'
+        status: 'SCHEDULED' | 'ACTIVE' | 'CANCELLED' | 'COMPLETED'
         visibility: 'OPEN' | 'CLOSED'
         
-        // Participantes
-        participants: string[]  // Array de User IDs
-        joinRequests?: string[]  // IDs de usuarios solicitando unirse (para meetups CLOSED)
+        // Participantes (Metadata)
+        participantsCount: number
+        joinRequests?: string[]
         
         // Campos específicos por tipo:
-        // CASUAL:
-        sport?: string  // requerido para CASUAL, TOURNAMENT, MATCH
-        minParticipants?: number  // requerido para CASUAL
-        participantLimit?: number  // opcional, max 30
-        date?: timestamp  // requerido para CASUAL, TOURNAMENT, MATCH
+        sport?: string
+        minParticipants?: number
+        participantLimit?: number
+        date?: timestamp
         
-        // ROUTINE:
-        daysOfWeek?: number[]  // 0-6 (Domingo-Sábado), requerido para ROUTINE
-        time?: string  // 'HH:mm', requerido para ROUTINE
-        nextDate?: timestamp  // próxima ocurrencia calculada, para ROUTINE
+        daysOfWeek?: number[]
+        time?: string
+        nextDate?: timestamp
         
-        // TOURNAMENT:
-        bracketStyle?: 'SINGLE_ELIMINATION' | 'ROUND_ROBIN'
-        entryFee?: number
-        maxTeams?: number
-        
-        // MATCH:
-        isRanked?: boolean
-        
+        expiresAt?: timestamp
+        remindersSent?: map
+
         // Metadatos
         createdAt: timestamp
         updatedAt: timestamp
@@ -250,77 +245,122 @@ users/
 
     [SUBCOLECCIÓN]
     /followers
-      [idUser]
+      [userId]
+        userId: string
         createdAt: timestamp
     
     [SUBCOLECCIÓN]
     /following
-      [idUser]
+      [userId]
+        userId: string
         createdAt: timestamp
 
     [SUBCOLECCIÓN]
     /saved_spots
-      [savedSpotId]
+      [spotId]
         spotId: string
-        categories: array (de strings: 'Favorites', 'Visited', 'WantToVisit')
-        createdAt: timestamp
+        categories: array (de strings: 'favorites', 'visited', 'bucketList')
+        savedAt: timestamp
         updatedAt: timestamp
 
+----------------------------------------
+
+[COLECCIÓN RAÍZ]
+chats/
+  [chatId]
+    type: 'direct' | 'group' | 'meetup'
+    name?: string
+    description?: string
+    photoURL?: string
+    createdBy?: string
+    meetupId?: string
+    meetupSpotId?: string
+    
+    // Miembros (cache/array para queries simples)
+    memberIds: string[]
+    
+    // Estado
+    isActive: boolean
+    lastMessage?: map
+      text: string
+      senderId: string
+      timestamp: timestamp
+    unreadCounts?: map (userId -> count)
+    
+    createdAt: timestamp
+    updatedAt: timestamp
+
     [SUBCOLECCIÓN]
-    /favoriteSports
-      [sportId]
-        sportId: string
-        addedAt: timestamp
+    /members
+      [userId]
+        userId: string
+        role: 'owner' | 'admin' | 'member'
+        joinedAt: timestamp
+    
+    [SUBCOLECCIÓN]
+    /messages
+      [messageId]
+        text: string
+        senderId: string
+        mediaUrl?: string
+        mediaType?: 'image' | 'video'
+        isDeleted: boolean
+        createdAt: timestamp
 
 ========================================
 Collection Group Queries
 ========================================
 
-Para recuperar contenido del usuario a través de múltiples spots:
-
-// Obtener todas las reviews del usuario
+// Reviews por usuario
 collectionGroup('reviews').where('userId', '==', userId)
 
-// Obtener todas las discussions del usuario
+// Discussions por usuario
 collectionGroup('discussions').where('userId', '==', userId)
 
-// Obtener todos los comments del usuario
+// Comments por usuario
 collectionGroup('comments').where('userId', '==', userId)
 
-// Obtener todos los meetups donde el usuario es organizador
-collectionGroup('meetups').where('organizerId', '==', userId)
-
-// Obtener todos los meetups donde el usuario participa
-collectionGroup('meetups').where('participants', 'array-contains', userId)
-
-NOTA: Requiere crear índices en Firebase Console para collectionGroup queries.
-
-NOTA ADICIONAL: En la práctica, los documentos de `comments` ahora incluyen campos explícitos `contextId`, `sourceType` y `sourceId` (además de `sourceRef` opcional) para facilitar queries específicas por usuario y la extracción de contexto sin depender únicamente de la ruta del documento. Si se usa `collectionGroup('comments')`, se puede priorizar los campos explícitos; en caso de que no estén disponibles, extraer `contextId`/`sourceType`/`sourceId` a partir del `doc.ref.path`.
+// Meetups donde el usuario participa (via subcollection participants? No, array participants removed from meetup model? check service.ts sync)
+// El modelo de meetup eliminó `participants` array en favor de subcolección?
+// Re-visando MeetupFirebase: 'participants removed in favor of participants subcollection' comment existe en el código?
+// En meetup.model.ts linea 35 dice: "// participants removed in favor of 'participants' subcollection"
+// Pero no vi subcolección definida en `meetup.model.ts` explicitamente, pero el comentario lo sugiere.
+// Sin embargo, `check service.ts`: `handleMeetupParticipantsChange` sincroniza con CHAT participants.
+// No parece haber una subcolección `participants` en `meetups` document, sino que se usa el CHAT para manejar participantes.
+// O quizas sí hay subcolección? Voy a asumir que el chat es la fuente de verdad para participantes.
 
 ========================================
-Estructura de Datos Firebase Storage
+TODO List - Verificación de Estructura
 ========================================
 
-[Directorio]
-users/
-  [userId]/
-    profile.jpeg
+- [ ] Users
+  - [ ] Verificar campos raíz (userName, fullName, etc)
+  - [ ] Verificar contadores (favoriteSpotsCount vs subcolección saved_spots con 'favorites')
+  - [ ] Verificar subcolecciones (followers, following, saved_spots)
 
-[Directorio]
-spots/
-  [spotId]/
-    gallery/
-      {uuid}_0.jpeg|.mp4
-    reviews/
-      [reviewId]/
-        {uuid}.jpeg|.mp4
-    discussions/
-      [discussionId]/
-        {uuid}.jpeg|.mp4
-    comments/
-      [commentId]/
-        {uuid}.jpeg|.mp4
-[Directorio]
-comments/
-  [commentId]/
-    {uuid}.jpeg|.mp4
+- [ ] Spots
+  - [ ] Verificar campos raíz
+  - [ ] Verificar `activeMeetupsCount`
+  - [ ] Verificar subcolecciones (reviews, discussions, sport_metrics, meetups)
+
+- [ ] Reviews
+  - [ ] Verificar campos y relaciones (userId, spotId)
+  - [ ] Verificar `sportRatings` map
+  - [ ] Verificar subcolecciones (comments, votes)
+
+- [ ] Comments
+  - [ ] Verificar estructura jerárquica (sourceType, sourceId, parentId)
+  - [ ] Verificar subcolecciones (votes)
+
+- [ ] Discussions
+  - [ ] Verificar campos
+  - [ ] Verificar subcolecciones (comments, votes)
+
+- [ ] Meetups
+  - [ ] Verificar relacion con Chat (chatId)
+  - [ ] Verificar campos específicos por tipo (CASUAL, ROUTINE, etc)
+
+- [ ] Chats
+  - [ ] Verificar tipos (direct, group, meetup)
+  - [ ] Verificar subcolecciones (members, messages)
+

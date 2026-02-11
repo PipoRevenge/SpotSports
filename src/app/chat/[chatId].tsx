@@ -19,10 +19,10 @@ import { useMessages } from "@/src/features/chat/hooks/use-messages";
 import { useSendMessage } from "@/src/features/chat/hooks/use-send-message";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableWithoutFeedback,
+    Keyboard,
+    KeyboardAvoidingView,
+    Platform,
+    TouchableWithoutFeedback,
 } from "react-native";
 
 export default function ChatConversation() {
@@ -94,7 +94,7 @@ export default function ChatConversation() {
       "Delete for me",
       "Delete this chat only on your device. It does not affect the other person and you will only see new messages from now on.",
       "Delete",
-      "Cancel"
+      "Cancel",
     );
     if (!ok || !chatId || !user) return;
     try {
@@ -102,7 +102,7 @@ export default function ChatConversation() {
       router.back();
     } catch (err) {
       showError(
-        err instanceof Error ? err.message : "Could not delete locally"
+        err instanceof Error ? err.message : "Could not delete locally",
       );
     }
   };
@@ -214,7 +214,12 @@ export default function ChatConversation() {
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={{ flex: 1 }}>
               <View style={{ flex: 1 }}>
-                <MessageList messages={messages} currentUserId={user?.id} />
+                <MessageList
+                  messages={messages}
+                  currentUserId={user?.id}
+                  chatType={chat.type}
+                  participants={participants}
+                />
               </View>
               <MessageComposer
                 onSend={handleSend}

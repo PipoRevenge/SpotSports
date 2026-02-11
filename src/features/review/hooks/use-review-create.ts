@@ -54,21 +54,30 @@ export const useReviewCreate = (onSuccess?: () => void) => {
       const spotId = result.details.spotId;
       const reviewId = result.id;
 
-      // Immediately invalidate and refetch all related queries to ensure fresh data
+      // Invalidate all related queries immediately
       await Promise.all([
         // Invalidate all review-related queries
         queryClient.invalidateQueries({ queryKey: ['reviews'] }),
         queryClient.invalidateQueries({ queryKey: ['review', reviewId] }),
         queryClient.invalidateQueries({ queryKey: ['spot', spotId, 'reviews'] }),
         
-        // Invalidate spot data to get updated counters
+        // Invalidate spot data to get updated counters, ratings, and sports
         queryClient.invalidateQueries({ queryKey: ['spot', spotId] }),
         queryClient.invalidateQueries({ queryKey: ['spot', spotId, 'counters'] }),
-        queryClient.invalidateQueries({ queryKey: ['spot', spotId, 'sportRatings'] }),
-        
-        // Refetch spot data immediately to show updated info
+        queryClient.invalidateQueries({ queryKey: ['spot', spotId, 'ratings'] }),
+        queryClient.invalidateQueries({ queryKey: ['spot', spotId, 'sports'] }),
+      ]);
+
+      // Wait for backend triggers (onReviewCreate → updates sport_metrics & availableSports)
+      // before refetching to ensure we get the updated data
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Refetch spot data to show updated info
+      await Promise.all([
         queryClient.refetchQueries({ queryKey: ['spot', spotId] }),
         queryClient.refetchQueries({ queryKey: ['spot', spotId, 'reviews'] }),
+        queryClient.refetchQueries({ queryKey: ['spot', spotId, 'ratings'] }),
+        queryClient.refetchQueries({ queryKey: ['spot', spotId, 'sports'] }),
       ]);
 
       if (onSuccess) onSuccess();

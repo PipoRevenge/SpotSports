@@ -55,7 +55,7 @@ export const useSpotCollection = (spotId?: string) => {
       console.error("[useSpotCollection] Error loading saved spots:", error);
       setSavedSpots([]);
       // Show a friendly error to the user
-      showError(error?.message || 'No se pudieron cargar los spots guardados');
+      showError(error?.message || 'Could not load saved spots');
     } finally {
       setIsLoading(false);
     }
@@ -77,7 +77,7 @@ export const useSpotCollection = (spotId?: string) => {
     }
 
     if (!spotToAdd) {
-      showError("No se especificó un spot");
+      showError("No spot specified");
       return false;
     }
 
@@ -123,7 +123,7 @@ export const useSpotCollection = (spotId?: string) => {
     }
 
     if (!spotToRemove) {
-      showError("No se especificó un spot");
+      showError("No spot specified");
       return false;
     }
 
