@@ -1,5 +1,5 @@
 ========================================
-Estructura de Datos Firestore (Actualizada)
+Estructura de Datos Firestore
 ========================================
 
 [COLECCIÓN RAÍZ]
@@ -48,7 +48,7 @@ spots/
 
     [SUBCOLECCIÓN]
     /reviews
-      [reviewId] // Formato: {userId}_{spotId} o auto-id
+      [reviewId] // Formato:  id del usuario
         // Contenido de la Review
         content: string
         rating: number
@@ -320,47 +320,5 @@ collectionGroup('discussions').where('userId', '==', userId)
 // Comments por usuario
 collectionGroup('comments').where('userId', '==', userId)
 
-// Meetups donde el usuario participa (via subcollection participants? No, array participants removed from meetup model? check service.ts sync)
-// El modelo de meetup eliminó `participants` array en favor de subcolección?
-// Re-visando MeetupFirebase: 'participants removed in favor of participants subcollection' comment existe en el código?
-// En meetup.model.ts linea 35 dice: "// participants removed in favor of 'participants' subcollection"
-// Pero no vi subcolección definida en `meetup.model.ts` explicitamente, pero el comentario lo sugiere.
-// Sin embargo, `check service.ts`: `handleMeetupParticipantsChange` sincroniza con CHAT participants.
-// No parece haber una subcolección `participants` en `meetups` document, sino que se usa el CHAT para manejar participantes.
-// O quizas sí hay subcolección? Voy a asumir que el chat es la fuente de verdad para participantes.
 
-========================================
-TODO List - Verificación de Estructura
-========================================
-
-- [ ] Users
-  - [ ] Verificar campos raíz (userName, fullName, etc)
-  - [ ] Verificar contadores (favoriteSpotsCount vs subcolección saved_spots con 'favorites')
-  - [ ] Verificar subcolecciones (followers, following, saved_spots)
-
-- [ ] Spots
-  - [ ] Verificar campos raíz
-  - [ ] Verificar `activeMeetupsCount`
-  - [ ] Verificar subcolecciones (reviews, discussions, sport_metrics, meetups)
-
-- [ ] Reviews
-  - [ ] Verificar campos y relaciones (userId, spotId)
-  - [ ] Verificar `sportRatings` map
-  - [ ] Verificar subcolecciones (comments, votes)
-
-- [ ] Comments
-  - [ ] Verificar estructura jerárquica (sourceType, sourceId, parentId)
-  - [ ] Verificar subcolecciones (votes)
-
-- [ ] Discussions
-  - [ ] Verificar campos
-  - [ ] Verificar subcolecciones (comments, votes)
-
-- [ ] Meetups
-  - [ ] Verificar relacion con Chat (chatId)
-  - [ ] Verificar campos específicos por tipo (CASUAL, ROUTINE, etc)
-
-- [ ] Chats
-  - [ ] Verificar tipos (direct, group, meetup)
-  - [ ] Verificar subcolecciones (members, messages)
 

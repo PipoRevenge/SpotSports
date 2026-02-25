@@ -1,0 +1,300 @@
+---
+config:
+  layout: elk
+  look: handDrawn
+  theme: base
+  class:
+    hideEmptyMembersBox: true
+---
+classDiagram
+direction BT
+
+class User {
+  +String id
+  +String userName
+  +String fullName
+  +String bio
+  +Timestamp birthDate
+  +String email
+  +String profileUrl
+  +String phoneNumber
+  +Boolean isVerified
+  +Timestamp createdAt
+  +Timestamp updatedAt
+  +Number favoriteSpotsCount
+  +Number reviewsCount
+  +Number followersCount
+  +Number followingCount
+  +Number commentsCount
+}
+
+class UserFollower {
+  +String userId
+  +Timestamp createdAt
+}
+
+class UserFollowing {
+  +String userId
+  +Timestamp createdAt
+}
+
+class SavedSpot {
+  +String spotId
+  +String[] categories
+  +Timestamp savedAt
+  +Timestamp updatedAt
+}
+
+class Sport {
+  +String id
+  +String name
+  +String description
+}
+
+class Spot {
+  +String id
+  +String name
+  +String description
+  +String[] gallery
+  +String contactEmail
+  +String contactPhone
+  +String contactWebsite
+  +String[] availableSports
+  +GeoPoint location
+  +String geohash
+  +Boolean isActive
+  +Boolean isVerified
+  +Number overallRating
+  +Number reviewsCount
+  +Number activeMeetupsCount
+  +Timestamp createdAt
+  +Timestamp updatedAt
+  +Reference createdBy
+}
+
+class Review {
+  +String id
+  +String content
+  +Number rating
+  +String[] gallery
+  +String userId
+  +String spotId
+  +Map sportRatings
+  +Number likesCount
+  +Number dislikesCount
+  +Number commentsCount
+  +Number reports
+  +Timestamp createdAt
+  +Timestamp updatedAt
+  +Boolean isDeleted
+}
+
+class SportRating {
+  +Number sportRating
+  +Number difficulty
+  +String content
+}
+
+class Discussion {
+  +String id
+  +String userId
+  +String spotId
+  +String title
+  +String titleLower
+  +String description
+  +String[] tags
+  +String[] media
+  +Number likesCount
+  +Number dislikesCount
+  +Number commentsCount
+  +Number reports
+  +Timestamp createdAt
+  +Timestamp updatedAt
+  +Boolean isDeleted
+}
+
+class Comment {
+  +String id
+  +String userId
+  +String contextId
+  +SourceType sourceType
+  +String sourceId
+  +Reference sourceRef
+  +String parentId
+  +Number level
+  +String content
+  +String[] media
+  +String[] tags
+  +Number likesCount
+  +Number dislikesCount
+  +Number commentsCount
+  +Number reports
+  +Timestamp createdAt
+  +Timestamp updatedAt
+  +Boolean isDeleted
+}
+
+class Vote {
+  +String id
+  +String userId
+  +Boolean isLike
+  +Timestamp createdAt
+}
+
+class SportMetrics {
+  +String id
+  +Number avg_difficulty
+  +Number avg_rating
+  +Number review_count
+  +Number sum_difficulty
+  +Number sum_rating
+  +Timestamp createdAt
+  +Timestamp updatedAt
+}
+
+class Meetup {
+  +String id
+  +String spotId
+  +String organizerId
+  +String chatId
+  +String title
+  +String description
+  +String[] tags
+  +MeetupType type
+  +MeetupStatus status
+  +MeetupVisibility visibility
+  +Number participantsCount
+  +String[] joinRequests
+  +String sport
+  +Number minParticipants
+  +Number participantLimit
+  +Timestamp date
+  +Number[] daysOfWeek
+  +String time
+  +Timestamp nextDate
+  +Timestamp expiresAt
+  +Map remindersSent
+  +Timestamp createdAt
+  +Timestamp updatedAt
+}
+
+class Chat {
+  +String id
+  +ChatType type
+  +String name
+  +String description
+  +String photoURL
+  +String createdBy
+  +String meetupId
+  +String meetupSpotId
+  +String[] memberIds
+  +Boolean isActive
+  +Map lastMessage
+  +Map unreadCounts
+  +Timestamp createdAt
+  +Timestamp updatedAt
+}
+
+class ChatMember {
+  +String userId
+  +ChatMemberRole role
+  +Timestamp joinedAt
+}
+
+class Message {
+  +String id
+  +String text
+  +String senderId
+  +String mediaUrl
+  +MediaType mediaType
+  +Boolean isDeleted
+  +Timestamp createdAt
+}
+
+class SourceType {
+  <<enumeration>>
+  review
+  discussion
+}
+
+class MeetupType {
+  <<enumeration>>
+  CASUAL
+  TOURNAMENT
+  MATCH
+  ROUTINE
+}
+
+class MeetupStatus {
+  <<enumeration>>
+  SCHEDULED
+  ACTIVE
+  CANCELLED
+  COMPLETED
+}
+
+class MeetupVisibility {
+  <<enumeration>>
+  OPEN
+  CLOSED
+}
+
+class ChatType {
+  <<enumeration>>
+  direct
+  group
+  meetup
+}
+
+class ChatMemberRole {
+  <<enumeration>>
+  owner
+  admin
+  member
+}
+
+class MediaType {
+  <<enumeration>>
+  image
+  video
+}
+
+User "1" *-- "*" UserFollower : followers
+User "1" *-- "*" UserFollowing : following
+User "1" *-- "*" SavedSpot : saved_spots
+SavedSpot "*" ..> "1" Spot : referencia
+
+User "1" -- "*" Spot : createdBy
+User "1" -- "*" Review : escribe
+User "1" -- "*" Discussion : crea
+User "1" -- "*" Comment : comenta
+User "1" -- "*" Vote : vota
+User "1" -- "*" Meetup : organiza
+User "1" -- "*" Message : envia
+
+Spot "1" *-- "*" Review : reviews
+Spot "1" *-- "*" Discussion : discussions
+Spot "1" *-- "*" SportMetrics : sport_metrics
+Spot "1" *-- "*" Meetup : meetups
+Spot "1" ..> "*" Sport : availableSports
+
+Review "1" *-- "*" Comment : comments
+Review "1" *-- "*" Vote : votes
+Review ..> SportRating : sportRatings{sportId}
+Review ..> SportMetrics : alimenta
+
+Discussion "1" *-- "*" Comment : comments
+Discussion "1" *-- "*" Vote : votes
+
+Comment "1" *-- "*" Vote : votes
+Comment "1" -- "*" Comment : replies(parentId)
+
+SportMetrics "*" -- "1" Sport : por deporte
+
+Meetup "1" ..> "1" Chat : chatId
+Meetup "*" -- "1" Sport : sport(opcional)
+
+Chat "1" *-- "*" ChatMember : members
+Chat "1" *-- "*" Message : messages
+ChatMember "*" ..> "1" User : userId
+Chat ..> "*" User : memberIds(cache)
