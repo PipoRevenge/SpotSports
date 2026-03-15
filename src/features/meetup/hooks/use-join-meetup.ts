@@ -1,10 +1,12 @@
 import { meetupRepository } from '@/src/api/repositories';
 import { scheduleMeetupLocalNotification } from '@/src/features/notification/hooks/use-local-meetup-notifications';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useUser } from '@/src/context/user-context';
 import { saveUserMeetup, StoredUserMeetup } from '../storage/user-meetups-storage';
 
 export const useJoinMeetup = () => {
   const queryClient = useQueryClient();
+  const { setUser } = useUser();
 
   const mutation = useMutation({
     mutationFn: async ({ spotId, meetupId, userId }: { spotId: string; meetupId: string; userId: string }) => {
@@ -13,6 +15,17 @@ export const useJoinMeetup = () => {
     onSuccess: async (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['meetups'] });
       queryClient.invalidateQueries({ queryKey: ['meetup', variables.spotId, variables.meetupId] });
+
+      setUser(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          activity: {
+            ...prev.activity,
+            meetupsCount: (prev.activity?.meetupsCount || 0) + 1,
+          }
+        };
+      });
 
       // If joined (not requested), fetch meetup details and persist locally for notifications
       try {

@@ -16,7 +16,7 @@ import { REVIEW_ERROR_MESSAGES, REVIEW_SUCCESS_MESSAGES } from "../utils/review-
 export const useReviewCreate = (onSuccess?: () => void) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useUser();
+  const { user, setUser } = useUser();
   const { showError, showSuccess } = useAppAlert();
   const queryClient = useQueryClient();
 
@@ -53,6 +53,16 @@ export const useReviewCreate = (onSuccess?: () => void) => {
 
       const spotId = result.details.spotId;
       const reviewId = result.id;
+
+      if (user) {
+        setUser({
+          ...user,
+          activity: {
+            ...user.activity,
+            reviewsCount: (user.activity?.reviewsCount || 0) + 1,
+          },
+        });
+      }
 
       // Invalidate all related queries immediately
       await Promise.all([

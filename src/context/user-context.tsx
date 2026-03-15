@@ -10,7 +10,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 interface UserContextType {
   user: User | null;
-  setUser: (user: User | null) => void;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
   isAuthenticated: boolean;

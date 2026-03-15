@@ -68,7 +68,7 @@ const DefaultCommentHeader: React.FC<{ comment: CommentWithUser }> = ({
 
         <VStack className="flex-1 gap-1">
           <HStack className="items-center gap-2">
-            {comment.userName || "User"}
+            <Text className="text-sm font-semibold">{comment.userName || "User"}</Text>
             <Text className="text-xs text-gray-400">• {commentDate}</Text>
           </HStack>
 

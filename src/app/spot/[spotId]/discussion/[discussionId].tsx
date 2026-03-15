@@ -591,7 +591,7 @@ export default function DiscussionPage() {
     <SafeAreaView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
       >
         <FlatList

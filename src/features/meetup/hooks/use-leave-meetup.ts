@@ -2,10 +2,12 @@ import { meetupRepository } from '@/src/api/repositories';
 import { Meetup } from '@/src/entities/meetup/model/meetup';
 import { cancelMeetupLocalNotifications } from '@/src/features/notification/hooks/use-local-meetup-notifications';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useUser } from '@/src/context/user-context';
 import { getUserMeetups, removeUserMeetup } from '../storage/user-meetups-storage';
 
 export const useLeaveMeetup = () => {
   const queryClient = useQueryClient();
+  const { setUser } = useUser();
 
   const mutation = useMutation({
     mutationFn: async ({ spotId, meetupId, userId, isOrganizer }: { spotId: string; meetupId: string; userId: string; isOrganizer: boolean }) => {
@@ -62,6 +64,17 @@ export const useLeaveMeetup = () => {
       // Invalidate to refetch
       queryClient.invalidateQueries({ queryKey: ['meetups'] });
       queryClient.invalidateQueries({ queryKey: ['meetup', variables.spotId, variables.meetupId] });
+      
+      setUser(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          activity: {
+            ...prev.activity,
+            meetupsCount: Math.max((prev.activity?.meetupsCount || 0) - 1, 0),
+          }
+        };
+      });
       
       try {
         // Cancel scheduled local notifications before removing from storage

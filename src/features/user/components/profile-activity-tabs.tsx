@@ -60,7 +60,7 @@ export const ProfileActivityTabs: React.FC<ActivityTabsProps> = ({
       label: "Meetups",
       icon: MapPin,
       color: "#f97316",
-      count: undefined,
+      count: user?.activity?.meetupsCount || 0,
     },
   ];
 
@@ -90,7 +90,7 @@ export const ProfileActivityTabs: React.FC<ActivityTabsProps> = ({
             >
               {tab.label}
               {tab.count !== undefined && (
-                <Text className="text-xs text-gray-500 pl-2">{tab.count}</Text>
+                <Text className="text-xs text-gray-500"> {tab.count}</Text>
               )}
             </Text>
           </Pressable>

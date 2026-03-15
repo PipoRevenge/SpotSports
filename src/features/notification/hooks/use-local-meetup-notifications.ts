@@ -7,7 +7,7 @@
  *
  * Uses Expo Notifications API.
  */
-import { meetupRepository, notificationRepository } from '@/src/api/repositories';
+import { meetupRepository } from '@/src/api/repositories';
 import {
     getUserMeetups,
     replaceAllUserMeetups,
@@ -65,24 +65,7 @@ export async function scheduleMeetupLocalNotification(
 
     console.debug('[LocalNotif] Scheduled 1h reminder for', meetup.id, 'id:', hour1Id);
 
-    // 2. Create notification document in Firestore
-    try {
-      await notificationRepository.createNotification(userId, {
-        type: 'MEETUP_REMINDER',
-        title: 'Meetup Starting Soon!',
-        body: `"${meetup.title}" starts in 1 hour!`,
-        data: {
-          url: `/spot/${meetup.spotId}/meetup/${meetup.id}`,
-          entityId: meetup.id,
-          spotId: meetup.spotId,
-          reminderType: 'hour1',
-        },
-      });
-      console.debug('[LocalNotif] Created Firestore notification for', meetup.id);
-    } catch (firestoreError) {
-      // Don't fail the whole operation if Firestore write fails (offline scenario)
-      console.warn('[LocalNotif] Failed to create Firestore notification (may be offline):', firestoreError);
-    }
+
 
     // 3. Update stored meetup with notification ID
     const updated: StoredUserMeetup = {

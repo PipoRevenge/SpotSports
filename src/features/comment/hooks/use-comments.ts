@@ -49,7 +49,7 @@ export function useComments({
   const [hasMore, setHasMore] = useState(false);
   const [repliesMap, setRepliesMap] = useState<Record<string, { comments: CommentWithUser[]; page: number; total: number; hasMore: boolean }>>({});
   const [loadingRepliesMap, setLoadingRepliesMap] = useState<Record<string, boolean>>({});
-  const { user } = useUser();
+  const { user, setUser } = useUser();
   const commentsRef = useRef<CommentWithUser[]>(comments);
 
   // Note: we rely on React Query for remote counters; we still update the local user via repository calls
@@ -159,6 +159,16 @@ export function useComments({
       } catch (e) {
         console.warn('[useComments] Failed to increment user commentsCount', e);
       }
+      
+      if (user) {
+        setUser({
+          ...user,
+          activity: {
+            ...user.activity,
+            commentsCount: (user.activity?.commentsCount || 0) + 1,
+          }
+        });
+      }
     }
   });
 
@@ -221,6 +231,16 @@ export function useComments({
         };
       });
       
+      if (user) {
+        setUser({
+          ...user,
+          activity: {
+            ...user.activity,
+            commentsCount: (user.activity?.commentsCount || 0) + 1,
+          }
+        });
+      }
+
       // Invalidate to ensure consistency
       await queryClient.invalidateQueries({ queryKey: ['comments', { contextId, sourceType, sourceId, pageSize }] });
     }

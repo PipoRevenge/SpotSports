@@ -14,21 +14,24 @@ interface CreateDiscussionData {
 }
 
 export function useCreateDiscussion() {
-  const { user, setUser } = useUser();
+  const { setUser } = useUser();
   const queryClient = useQueryClient();
   const { bumpDiscussionRefresh } = useSelectedSpot();
 
   const updateLocalUserCounters = useCallback((authorId: string) => {
-    if (user?.id === authorId) {
-      setUser({
-        ...user,
-        activity: {
-          ...user.activity,
-          discussionsCount: (user.activity.discussionsCount || 0) + 1,
-        },
-      });
-    }
-  }, [setUser, user]);
+    setUser(prev => {
+      if (prev?.id === authorId) {
+        return {
+          ...prev,
+          activity: {
+            ...prev.activity,
+            discussionsCount: (prev.activity?.discussionsCount || 0) + 1,
+          },
+        };
+      }
+      return prev;
+    });
+  }, [setUser]);
 
   const mutation = useMutation({
     mutationFn: async ({ userId, discussionData }: { userId: string; discussionData: CreateDiscussionData }) => {

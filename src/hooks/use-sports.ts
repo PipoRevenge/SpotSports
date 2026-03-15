@@ -56,7 +56,18 @@ export const useSportsMapByIds = (ids: string[] = []): UseSportsMapResult => {
   const sportsMap = normalizeToMap(query.data);
 
   const getSportName = useCallback(
-    (id: string) => sportsMap.get(id)?.name,
+    (id: string) => {
+      let sport = sportsMap.get(id);
+      if (sport?.name) return sport.name;
+      
+      // Fallback: older records might have stored the name in the spotId field
+      for (const s of sportsMap.values()) {
+        if (s.name.toLowerCase() === id.toLowerCase()) {
+          return s.name;
+        }
+      }
+      return undefined;
+    },
     [sportsMap]
   );
 
@@ -113,7 +124,18 @@ export const useAllSportsMap = (): UseSportsMapResult => {
   const sportsMap = normalizeToMap(query.data);
 
   const getSportName = useCallback(
-    (id: string) => sportsMap.get(id)?.name,
+    (id: string) => {
+      let sport = sportsMap.get(id);
+      if (sport?.name) return sport.name;
+      
+      // Fallback: older records might have stored the name in the spotId field
+      for (const s of sportsMap.values()) {
+        if (s.name.toLowerCase() === id.toLowerCase()) {
+          return s.name;
+        }
+      }
+      return undefined;
+    },
     [sportsMap]
   );
 

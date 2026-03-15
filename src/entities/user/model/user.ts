@@ -23,6 +23,7 @@ export interface UserActivity {
   favoriteSpotsCount: number;
   followersCount: number;
   followingCount: number;
+  meetupsCount?: number;
 }
 
 // Interfaz principal de Usuario
